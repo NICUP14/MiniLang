@@ -1,0 +1,47 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "MiniLang",
+	"patterns": [
+		{
+			"include": "#keywords"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "comment.line.hashtag.minilang",
+					"match": "^[ \t]*#.*$"
+				},
+				{
+					"name": "keyword.control.minilang",
+					"match": "\\b(fun|ret|end|let|if|elif|else|while|at)\\b"
+				},
+				{
+					"name": "keyword.type.minilang",
+					"match": "\\b(void|char|byte|int8|int32|int16|int64)\\b"
+				},
+				{
+					"name": "constant.numeric.minilang",
+					"match": "\\b0x[0-9A-Fa-f]+\\b"
+				},
+				{
+					"name": "constant.numeric.minilang",
+					"match": "\\b\\d+\\b"
+				},
+				{
+					"name": "string.quoted.double.minilang",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.minilang",
+							"match": "\\\\."
+						}
+					]
+				}
+			]
+		}
+	},
+	"scopeName": "source.ml"
+}
