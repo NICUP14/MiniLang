@@ -31,6 +31,9 @@ def tree_str(node: Node, cnt: int = 0):
     left = None
     right = None
 
+    if node is None:
+        return ''
+
     if node.kind != NodeKind.FUN_CALL and node.left:
         left = tree_str(node.left, cnt + has_indent(node.kind))
     if node.kind != NodeKind.FUN_CALL and node.right:
@@ -38,7 +41,7 @@ def tree_str(node: Node, cnt: int = 0):
 
     indent = '\t' * cnt
 
-    if node.kind in (NodeKind.INT_LIT, NodeKind.IDENT, NodeKind.CHAR_LIT):
+    if node.kind in (NodeKind.INT_LIT, NodeKind.IDENT, NodeKind.CHAR_LIT, NodeKind.STR_LIT):
         return node.value
     if node.kind == NodeKind.OP_ADD:
         return f'({left} + {right})'

@@ -26,6 +26,8 @@ class SnippetId(enum.Enum):
     LOAD_DATA_ADDR = 19
     WRITEREF_REG = 20
     DEREF_REG = 21
+    XOR_RAX = 22
+    LOAD_DATA_VAR = 23
 
 
 @dataclass
@@ -65,7 +67,7 @@ class SnippetCollection:
                        'mov{} {}, {}', [])
 
     EXTEND_REG = Snippet(SnippetId.EXTEND_REG,
-                         'movsx {} {}', [])
+                         'movsx {}, {}', [])
 
     WRITEREF_REG = Snippet(SnippetId.WRITEREF_REG,
                            'mov{} {}, ({})', [])
@@ -77,7 +79,10 @@ class SnippetCollection:
                               'lea{} {}(%rbp), {}', [])
 
     LOAD_DATA_ADDR = Snippet(SnippetId.LOAD_DATA_ADDR,
-                             'lea{} {}(%rip) {}', [])
+                             'lea{} {}(%rip), {}', [])
+
+    LOAD_DATA_VAR = Snippet(SnippetId.LOAD_DATA_VAR,
+                            'mov{} {}(%rip), {}', [])
 
     LOAD_IMM = Snippet(SnippetId.LOAD_IMM,
                        'mov{} ${}, {}', [])
@@ -105,3 +110,6 @@ class SnippetCollection:
 
     FUN_POSTAMBLE = Snippet(SnippetId.FUN_POSTAMBLE,
                             'leave\nret', [])
+
+    XOR_RAX = Snippet(SnippetId.XOR_RAX,
+                      'xor %rax, %rax', [])

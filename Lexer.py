@@ -32,11 +32,13 @@ def is_int(s: str): return re.search(INT_PATTERN, s) is not None
 
 INT_PATTERN = r'-?\d+'
 CHAR_PATTERN = r'\'.+\''
+STR_PATTERN = r'\".+\"'
 SYM_PATTERN = r'\w+'
 OP_PATTERN = to_pattern(map(re.escape, OPERATORS))
 PATTERN = to_pattern([
     INT_PATTERN,
     CHAR_PATTERN,
+    STR_PATTERN,
     SYM_PATTERN,
     OP_PATTERN
 ])
@@ -81,6 +83,8 @@ class TokenKind(enum.Enum):
     KW_AT = 35
     AMP = 36
     DEREF = 37
+    STR_LIT = 38
+    KW_EXTERN = 39
 
 
 @dataclass
@@ -122,7 +126,8 @@ TOKEN_KIND_MAP = {
     'int16': TokenKind.KW_INT16,
     'int8': TokenKind.KW_INT8,
     'char': TokenKind.KW_CHAR,
-    'ret': TokenKind.KW_RET
+    'ret': TokenKind.KW_RET,
+    'extern': TokenKind.KW_EXTERN
 }
 
 
@@ -130,6 +135,7 @@ def token_is_param(kind: TokenKind) -> bool:
     return kind in (
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
+        TokenKind.STR_LIT,
         TokenKind.IDENT
     )
 
@@ -168,6 +174,8 @@ def token_kind_of(value: str) -> TokenKind:
         return TOKEN_KIND_MAP.get(value)
     if value.startswith('\'') and value.endswith('\''):
         return TokenKind.CHAR_LIT
+    if value.startswith('\"') and value.endswith('\"'):
+        return TokenKind.STR_LIT
     if str.isdigit(value):
         return TokenKind.INT_LIT
     if str.isalnum(value):
@@ -181,7 +189,7 @@ def token_is_rassoc(kind: TokenKind) -> bool:
     if not token_is_op(kind):
         print(f'token_is_rassoc: Invalid operator kind {kind}')
 
-    return kind in [TokenKind.ASSIGN]
+    return kind == TokenKind.ASSIGN
 
 
 def token_is_bin_op(kind: TokenKind) -> bool:

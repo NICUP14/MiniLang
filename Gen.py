@@ -47,15 +47,63 @@ def gen_load_imm(opd: Operand) -> None:
     print(snippet.asm())
 
 
-def gen_load_var(opd: Operand):
+def gen_load_str_lit(opd: Operand) -> None:
+    snippet = copy.deepcopy(SnippetCollection.LOAD_DATA_ADDR)
+    snippet.add_arg(modf_of(opd.var_type.kind))
+    snippet.add_arg(opd.value)
+    snippet.add_arg(opd.reg_str())
+
+    # deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
+
+    print(snippet.asm())
+    # print(deref_snippet.asm())
+
+
+def gen_load_local_str(opd: Operand) -> None:
     name = opd.value
     off = off_of(name)
 
-    snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_VAR)
+    snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_ADDR)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
     print(snippet.asm())
+
+    deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
+
+    print(snippet.asm())
+    print(deref_snippet.asm())
+
+
+def gen_load_var(opd: Operand):
+    name = opd.value
+    off = off_of(name)
+
+    var = Def.var_map[name]
+
+    snippet_base = (
+        SnippetCollection.LOAD_STACK_VAR if var.is_local else SnippetCollection.LOAD_DATA_VAR)
+
+    snippet = copy.deepcopy(snippet_base)
+    snippet.add_arg(modf_of(opd.var_type.kind))
+    snippet.add_arg(f'-{off}')
+    snippet.add_arg(opd.reg_str())
+    print(snippet.asm())
+
+
+def gen_load_ptr(opd: Operand):
+    name = opd.value
+    off = off_of(name)
+
+    # snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_ADDR)
+    # snippet.add_arg(modf_of(opd.var_type.kind))
+    # snippet.add_arg(f'-{off}')
+    # snippet.add_arg(opd.reg_str())
+
+    deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
+
+    # print(snippet.asm())
+    print(deref_snippet.asm())
 
 
 def gen_load_addr(opd: Operand):
@@ -73,7 +121,12 @@ def gen_write_var(opd: Operand):
     name = opd.value
     off = off_of(name)
 
-    snippet = copy.deepcopy(SnippetCollection.WRITE_STACK_VAR)
+    var = Def.var_map[name]
+
+    snippet_base = (
+        SnippetCollection.LOAD_STACK_VAR if var.is_local else SnippetCollection.LOAD_DATA_VAR)
+
+    snippet = copy.deepcopy(snippet_base)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(opd.reg_str())
     snippet.add_arg(f'-{off}')
@@ -191,6 +244,9 @@ def gen_fun_call(node: Node):
             glue_node = glue_node.left
             reg_cnt -= 1
 
+    # Temporarily disabled
+    # print(SnippetCollection.XOR_RAX.asm())
+
     snippet = copy.deepcopy(SnippetCollection.CALL)
     snippet.add_arg(node.value)
     print(snippet.asm())
@@ -255,6 +311,10 @@ def gen_postamble():
     print()
     for fun_name, _ in funcs:
         print(f'.global {fun_name}')
+    print()
+    print('.data')
+    for (string, label) in Def.str_lit_map.items():
+        print(f'{label}: .asciz \"{string}\"')
 
 
 def gen_fun_preamble(name: str):
@@ -380,15 +440,29 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         gen_load_imm(opd)
         return opd
 
+    if node.kind == NodeKind.STR_LIT:
+        string = node.value.lstrip('\"').rstrip('\"')
+        value = ""
+
+        if string not in Def.str_lit_map:
+            Def.str_lit_map[string] = f'str_{len(Def.str_lit_map)}'
+        value = Def.str_lit_map.get(string)
+
+        opd = Operand(value, node.ntype, alloc_reg())
+        gen_load_str_lit(opd)
+        return opd
+
     if node.kind == NodeKind.IDENT:
         opd = Operand(node.value, node.ntype, Register.id_max)
-
-        if parent.kind in (NodeKind.FUN_CALL, NodeKind.ARR_ACC, NodeKind.DEREF, NodeKind.REF) or (
+        if parent.kind in (NodeKind.GLUE, NodeKind.FUN_CALL, NodeKind.ARR_ACC, NodeKind.DEREF, NodeKind.REF) or (
            parent.right == node and parent.kind == NodeKind.OP_ASSIGN):
             opd.reg = alloc_reg()
-            if opd.var_type in (arr_type, ptr_type):
+            if opd.var_type == ptr_type:
                 gen_load_addr(opd)
-            else:
+                gen_load_ptr(opd)
+            if opd.var_type == arr_type:
+                gen_load_addr(opd)
+            if opd.var_type.meta_kind == VariableMetaKind.PRIM:
                 gen_load_var(opd)
         return opd
 
@@ -413,7 +487,7 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         if left_opd.var_type == arr_type:
             gen_load_addr(left_opd)
         if left_opd.var_type == ptr_type:
-            gen_load_var(left_opd)
+            gen_load_ptr(left_opd)
         gen_load_imm(opd)
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
         add_snippet = bin_snippet(

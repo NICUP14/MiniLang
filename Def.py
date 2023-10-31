@@ -2,6 +2,7 @@ from __future__ import annotations
 import enum
 from typing import List
 from typing import Dict
+from typing import Optional
 from dataclasses import dataclass
 
 
@@ -40,6 +41,7 @@ class VariableMetaKind(enum.Enum):
     ARR = 2
     STRUCT = 3
     FUN = 4
+    STR = 5
 
 
 class VariableKind(enum.Enum):
@@ -99,6 +101,16 @@ class Array:
 
 
 @dataclass
+class String:
+    """
+    Contains the meta-data of an array type.
+    """
+
+    name: str
+    off: int
+
+
+@dataclass
 class Function:
     """
     Contains the meta-data of a function type.
@@ -110,6 +122,7 @@ class Function:
     arg_types: List[VariableType]
     ret_type: VariableKind
     off: int
+    is_variadic: bool
 
 
 class NodeKind(enum.Enum):
@@ -142,6 +155,7 @@ class NodeKind(enum.Enum):
     ARR_ACC = 25
     REF = 26
     DEREF = 27
+    STR_LIT = 28
 
 
 class Node:
@@ -255,6 +269,9 @@ def off_of(ident: str) -> int:
     if meta_kind == VariableMetaKind.PRIM:
         return var_map.get(ident).off
 
+    if meta_kind == VariableMetaKind.STR:
+        return str_map.get(ident).off
+
     if meta_kind == VariableMetaKind.ARR:
         return arr_map.get(ident).off
 
@@ -316,6 +333,7 @@ def type_of_ident(ident: str) -> VariableType:
 
 def type_of_lit(kind: NodeKind):
     type_map = {
+        NodeKind.STR_LIT: ptr_type,
         NodeKind.INT_LIT: default_type,
         NodeKind.CHAR_LIT: bool_type,
     }
@@ -382,6 +400,7 @@ def allowed_op(var_type: VariableType):
 
     if var_type == arr_type:
         return [
+            NodeKind.DEREF,
             NodeKind.ARR_ACC,
             NodeKind.GLUE,
             NodeKind.REF
@@ -389,6 +408,7 @@ def allowed_op(var_type: VariableType):
 
     if var_type == ptr_type:
         return [
+            NodeKind.GLUE,
             NodeKind.ARR_ACC,
             NodeKind.DEREF,
             NodeKind.REF
@@ -505,7 +525,9 @@ var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
 arr_map: Dict[str, Array] = dict()
 ptr_map: Dict[str, Pointer] = dict()
+str_map: Dict[str, String] = dict()
 ident_map: Dict[str, VariableMetaKind] = dict()
+str_lit_map: Dict[str, str] = dict()
 reg_avail_map = {reg: True for reg in REGS}
 label_list: List[str] = []
 ptr_type = VariableType(VariableKind.INT64, VariableMetaKind.PTR)

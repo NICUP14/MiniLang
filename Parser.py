@@ -1,4 +1,5 @@
 import Def
+from typing import Optional
 from typing import List
 from typing import Tuple
 from Lexer import Token
@@ -10,6 +11,7 @@ from Lexer import token_is_paren
 from Lexer import post_process
 from Lexer import token_is_bin_op
 from Lexer import token_is_unary_op
+from Lexer import token_is_rassoc
 from Def import Node
 from Def import NodeKind
 from Def import Variable
@@ -19,8 +21,12 @@ from Def import VariableMetaKind
 from Def import Function
 from Def import Array
 from Def import Pointer
+from Def import String
+from Def import ptr_type
+from Def import arr_type
 from Def import void_type
 from Def import default_type
+from Def import bool_type
 from Def import type_of
 from Def import type_of_op
 from Def import type_of_ident
@@ -75,7 +81,8 @@ NODE_KIND_MAP = {
     TokenKind.KW_AT: NodeKind.ARR_ACC,
     TokenKind.DEREF: NodeKind.DEREF,
     TokenKind.AMP: NodeKind.REF,
-    TokenKind.FUN_CALL: NodeKind.FUN_CALL
+    TokenKind.FUN_CALL: NodeKind.FUN_CALL,
+    TokenKind.STR_LIT: NodeKind.STR_LIT
 }
 
 
@@ -134,7 +141,7 @@ def match_token(kind: TokenKind) -> Token:
     return token
 
 
-def match_token_from(kinds: Tuple[TokenKind]):
+def match_token_from(kinds: Tuple[TokenKind]) -> Token:
     token = curr_token()
 
     if token.kind not in kinds:
@@ -205,7 +212,7 @@ def to_postfix(tokens: List[Token]) -> List[Token]:
                         f'to_postfix: Invalid unary operator kind {token.kind}')
                     exit(1)
 
-            while len(op_stack) > 0 and op_stack[-1].kind != TokenKind.LPAREN and cmp_precedence(op_token, op_stack[-1]):
+            while len(op_stack) > 0 and (not token_is_rassoc(op_stack[-1].kind)) and op_stack[-1].kind != TokenKind.LPAREN and cmp_precedence(op_token, op_stack[-1]):
                 postfix_tokens.append(op_stack.pop())
             op_stack.append(op_token)
 
@@ -225,11 +232,6 @@ def to_tree(tokens: List[Token]) -> Node:
     node_stack = []
 
     for token in tokens:
-        # if token.kind == TokenKind.FUN_CALL:
-        #     left = node_stack.pop()
-        #     node_stack.append(
-        #         Node(NodeKind.FUN_CALL, default_type, token.value, left))
-
         if token_is_param(token.kind):
             # Distinguishes between identifiers and literals
             if token.kind == TokenKind.IDENT:
@@ -259,7 +261,8 @@ def to_tree(tokens: List[Token]) -> Node:
                 left = node_stack.pop()
 
                 # Creates the initial parameter tree of a function call
-                if token.kind == TokenKind.COMMA and left.left is None:
+                if token.kind == TokenKind.COMMA and (
+                        left.left is None or left.left.kind != NodeKind.GLUE):
                     node_stack.append(Node(NodeKind.GLUE, void_type, '', Node(
                         NodeKind.GLUE, void_type, '', None, left), right))
 
@@ -289,7 +292,7 @@ def to_tree(tokens: List[Token]) -> Node:
     return node_stack.pop()
 
 
-def statement():
+def statement() -> Optional[Node]:
     token = curr_token()
     if token.kind == TokenKind.KW_LET:
         next_token()
@@ -302,16 +305,20 @@ def statement():
         return while_statement()
     if token.kind == TokenKind.KW_FUN:
         next_token()
-        return fun_declaration()
+        return fun_declaration(is_extern=False)
     if token.kind == TokenKind.KW_RET:
         next_token()
         return ret_statement()
+    if token.kind == TokenKind.KW_EXTERN:
+        next_token()
+        match_token(TokenKind.KW_FUN)
+        return fun_declaration(is_extern=True)
 
     node = token_list_to_tree()
     return node
 
 
-def compund_statement() -> Node:
+def compund_statement() -> Optional[Node]:
     node = None
     while not no_more_lines() and curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE):
         if node is None:
@@ -323,7 +330,7 @@ def compund_statement() -> Node:
     return node
 
 
-def while_statement() -> Node:
+def while_statement() -> Optional[Node]:
     cond_node = token_list_to_tree()
 
     next_line()
@@ -332,7 +339,7 @@ def while_statement() -> Node:
     return Node(NodeKind.WHILE, void_type, '', cond_node, body)
 
 
-def if_statement() -> Node:
+def if_statement() -> Optional[Node]:
     cond_node = token_list_to_tree()
 
     next_line()
@@ -347,7 +354,7 @@ def if_statement() -> Node:
     return node
 
 
-def ret_statement() -> Node:
+def ret_statement() -> Optional[Node]:
     if Def.fun_name == '':
         print('ret_statement: Cannot return from outside a function')
         exit(1)
@@ -366,10 +373,12 @@ def ret_statement() -> Node:
     return Node(NodeKind.RET, node.ntype, '', node)
 
 
-def fun_declaration() -> Node:
+def fun_declaration(is_extern: bool = False) -> Optional[Node]:
+    # Needed for extern
     name = match_token(TokenKind.IDENT).value
     match_token(TokenKind.LPAREN)
 
+    # Needed for extern
     arg_names = []
     arg_types = []
     while curr_token().kind != TokenKind.RPAREN:
@@ -388,12 +397,16 @@ def fun_declaration() -> Node:
     match_token(TokenKind.RPAREN)
     match_token(TokenKind.COLON)
 
+    # Needed for extern
     ret_type = type_of(curr_token().value)
     fun = Function(name, len(arg_types), arg_names,
-                   arg_types, ret_type, 0)
+                   arg_types, ret_type, 0, False)
 
     Def.ident_map[name] = VariableMetaKind.FUN
     Def.fun_map[name] = fun
+
+    if is_extern:
+        return None
 
     Def.fun_name = name
     Def.label_list.append(name)
@@ -431,7 +444,7 @@ def to_node(token: Token) -> Node:
     return node
 
 
-def array_elem_declaration(array: Node, elem: Node, idx: int):
+def array_elem_declaration(array: Node, elem: Node, idx: int) -> Node:
     idx_node = to_node(Token(TokenKind.INT_LIT, str(idx)))
     acc_node = Node(NodeKind.ARR_ACC, elem.ntype, '', array, idx_node)
     return Node(NodeKind.OP_ASSIGN, elem.ntype, '=', acc_node, elem)
@@ -481,12 +494,12 @@ def array_declaration(name: str) -> Node:
     return root
 
 
-def declaration() -> Node:
+def declaration() -> Optional[Node]:
     name = match_token(TokenKind.IDENT).value
     match_token(TokenKind.COLON)
 
-    kind = type_of(curr_token().value).kind
-    meta_kind = VariableMetaKind.PRIM
+    var_type = type_of(curr_token().value)
+    kind, meta_kind = var_type.kind, var_type.meta_kind
     next_token()
 
     elem_cnt = 0
@@ -502,13 +515,28 @@ def declaration() -> Node:
         meta_kind = VariableMetaKind.PTR
 
     var_type = VariableType(kind, meta_kind)
+    if meta_kind == VariableMetaKind.ARR:
+        var_type = arr_type
+    if meta_kind == VariableMetaKind.PTR:
+        var_type = ptr_type
+
     full_name = full_name_of(name)
 
     Def.ident_map[full_name] = meta_kind
     Def.var_off += size_of(var_type)
 
     if var_type.meta_kind == VariableMetaKind.PRIM:
-        Def.var_map[full_name] = Variable(var_type, Def.var_off, True)
+        is_local = Def.fun_name != ''
+        Def.var_map[full_name] = Variable(var_type, Def.var_off, is_local)
+
+        match_token(TokenKind.ASSIGN)
+
+        node = token_list_to_tree()
+        return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+
+    if var_type.meta_kind == VariableMetaKind.STR:
+        Def.str_map[full_name] = String(
+            full_name, Def.var_off)
 
         match_token(TokenKind.ASSIGN)
 
