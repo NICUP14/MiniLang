@@ -22,7 +22,8 @@ OPERATORS = (
     ',',
     '[',
     ']',
-    '&'
+    '&',
+    '...'
 )
 
 
@@ -85,6 +86,7 @@ class TokenKind(enum.Enum):
     DEREF = 37
     STR_LIT = 38
     KW_EXTERN = 39
+    PER_FUN = 40
 
 
 @dataclass
@@ -113,6 +115,7 @@ TOKEN_KIND_MAP = {
     '[': TokenKind.LBRACE,
     ']': TokenKind.RBRACE,
     '&': TokenKind.AMP,
+    '...': TokenKind.PER_FUN,
     'at': TokenKind.KW_AT,
     'let': TokenKind.KW_LET,
     'if': TokenKind.KW_IF,
@@ -186,9 +189,6 @@ def token_kind_of(value: str) -> TokenKind:
 
 
 def token_is_rassoc(kind: TokenKind) -> bool:
-    if not token_is_op(kind):
-        print(f'token_is_rassoc: Invalid operator kind {kind}')
-
     return kind == TokenKind.ASSIGN
 
 

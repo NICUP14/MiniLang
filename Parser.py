@@ -381,26 +381,30 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
     # Needed for extern
     arg_names = []
     arg_types = []
-    while curr_token().kind != TokenKind.RPAREN:
+    while curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
         arg_name = match_token(TokenKind.IDENT).value
         match_token(TokenKind.COLON)
 
         type_str = curr_token().value
         next_token()
 
-        if curr_token().kind != TokenKind.RPAREN:
+        if curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
             match_token(TokenKind.COMMA)
 
         arg_names.append(arg_name)
         arg_types.append(type_of(type_str))
 
-    match_token(TokenKind.RPAREN)
+    token = match_token_from((TokenKind.RPAREN, TokenKind.PER_FUN))
+    is_variadic = token.kind == TokenKind.PER_FUN
+
+    if is_variadic:
+        match_token(TokenKind.RPAREN)
     match_token(TokenKind.COLON)
 
     # Needed for extern
     ret_type = type_of(curr_token().value)
     fun = Function(name, len(arg_types), arg_names,
-                   arg_types, ret_type, 0, False)
+                   arg_types, ret_type, 0, is_variadic, is_extern)
 
     Def.ident_map[name] = VariableMetaKind.FUN
     Def.fun_map[name] = fun
@@ -532,6 +536,10 @@ def declaration() -> Optional[Node]:
         match_token(TokenKind.ASSIGN)
 
         node = token_list_to_tree()
+
+        if not is_local:
+            return None
+
         return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
     if var_type.meta_kind == VariableMetaKind.STR:

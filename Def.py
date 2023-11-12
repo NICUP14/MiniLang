@@ -4,6 +4,7 @@ from typing import List
 from typing import Dict
 from typing import Optional
 from dataclasses import dataclass
+from traceback import print_stack
 
 
 class Register(enum.Enum):
@@ -123,6 +124,7 @@ class Function:
     ret_type: VariableKind
     off: int
     is_variadic: bool
+    is_extern: bool
 
 
 class NodeKind(enum.Enum):
@@ -185,11 +187,26 @@ class Operand:
     to standardize snippet creation (`gen_*` functions return a list of snippets).
     """
 
-    def __init__(self, value: str, var_type: VariableType, reg: Register, load_opd: bool = True) -> None:
+    def __init__(self, value: str, var_type: VariableType, reg: Register = Register.id_max, loaded: bool = False, imm: bool = False) -> None:
         self.value = value
         self.var_type = var_type
         self.reg = reg
-        self.load_opd = load_opd
+        self.loaded = loaded
+        self.imm = imm
+
+    def is_imm(self) -> bool:
+        return self.imm
+
+    def is_loaded(self) -> bool:
+        return self.loaded
+
+    def load(self):
+        self.loaded = True
+        return self
+
+    def unload(self):
+        self.loaded = False
+        return self
 
     def reg_str(self):
         return reg_table_at(self.reg, self.var_type.kind)
@@ -199,6 +216,19 @@ class Operand:
         for key, value in vars(self).items():
             attrs.append(f"{key}={value}")
         return f"{self.__class__.__name__}({', '.join(attrs)})"
+
+
+#! Warning: Relies on parser state-related variables.
+def print_error(loc: str, msg: str):
+    from Parser import parser_lines_idx, parser_tokens_idx
+    from Parser import curr_line
+    line = curr_line().lstrip('\t ').rstrip('\n')
+    print()
+    print_stack()
+    print()
+    print(f'location: \"{line}\"')
+    print(f'{parser_lines_idx}:{parser_tokens_idx}: {loc}: {msg}')
+    exit(1)
 
 
 def alloc_reg(reg: Register = Register.id_max) -> Register:
@@ -230,9 +260,9 @@ def reg_is_free(reg: Register) -> bool:
 
 
 def reg_table_at(reg: Register, kind: VariableKind) -> str:
-    if reg == Register.id_max:
-        print(f'reg_table_at: Invalid register {reg}')
-        exit(1)
+    # if reg == Register.id_max:
+    #     print(f'reg_table_at: Invalid register {reg}')
+    #     exit(1)
 
     return REG_TABLE[reg.value][kind.value]
 
@@ -252,6 +282,21 @@ def modf_of(kind: VariableKind) -> str:
     return modf_map[kind]
 
 
+def global_modf_of(kind: VariableKind) -> str:
+    modf_map = {
+        VariableKind.INT64: '.quad',
+        VariableKind.INT32: '.long',
+        VariableKind.INT16: '.short',
+        VariableKind.INT8: '.byte',
+    }
+
+    if kind not in modf_map:
+        print(f'global_modf_of: Invalid kind: {kind}')
+        exit(1)
+
+    return modf_map[kind]
+
+
 def full_name_of(name: str):
     if name in var_map:
         return name
@@ -261,8 +306,9 @@ def full_name_of(name: str):
 
 def off_of(ident: str) -> int:
     if ident not in ident_map:
-        print(f'off_of: No such identifier {ident}')
-        exit(1)
+        print_error('off_of', f'No such indentifier {ident}')
+        # print(f'off_of: No such identifier {ident}')
+        # exit(1)
 
     meta_kind = ident_map.get(ident)
 
@@ -349,6 +395,8 @@ def type_of_op(kind: NodeKind) -> VariableType:
     type_map = {
         NodeKind.OP_ADD: default_type,
         NodeKind.OP_SUB: default_type,
+        NodeKind.OP_DIV: default_type,
+        NodeKind.OP_MOD: default_type,
         NodeKind.OP_GT: bool_type,
         NodeKind.OP_LT: bool_type,
         NodeKind.OP_LTE: bool_type,

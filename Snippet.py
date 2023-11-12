@@ -28,6 +28,8 @@ class SnippetId(enum.Enum):
     DEREF_REG = 21
     XOR_RAX = 22
     LOAD_DATA_VAR = 23
+    WRITE_DATA_VAR = 24
+    XOR_RDX = 25
 
 
 @dataclass
@@ -93,6 +95,9 @@ class SnippetCollection:
     WRITE_STACK_VAR = Snippet(SnippetId.WRITE_STACK_VAR,
                               'mov{} {}, {}(%rbp)', [])
 
+    WRITE_DATA_VAR = Snippet(SnippetId.WRITE_DATA_VAR,
+                             'mov{} {}, {}(%rip)', [])
+
     ADD_OP = Snippet(SnippetId.ADD_OP,
                      'add{} {}, {}', [])
 
@@ -113,3 +118,6 @@ class SnippetCollection:
 
     XOR_RAX = Snippet(SnippetId.XOR_RAX,
                       'xor %rax, %rax', [])
+
+    XOR_RDX = Snippet(SnippetId.XOR_RDX,
+                      'xor %rdx, %rdx', [])

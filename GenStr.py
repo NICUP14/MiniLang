@@ -47,6 +47,8 @@ def tree_str(node: Node, cnt: int = 0):
         return f'({left} + {right})'
     if node.kind == NodeKind.OP_SUB:
         return f'({left} - {right})'
+    if node.kind == NodeKind.OP_DIV:
+        return f'({left} / {right})'
     if node.kind == NodeKind.OP_MULT:
         return f'({left} * {right})'
     if node.kind == NodeKind.OP_ASSIGN:
