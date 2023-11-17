@@ -120,8 +120,7 @@ def lookahead_token() -> Token:
 
 def curr_token() -> Token:
     if no_more_tokens():
-        print(f'{parser_lines_idx}: curr_token: No more tokens in list')
-        exit(1)
+        print_error('curr_token', 'No more tokens in list.')
 
     return parser_tokens[parser_tokens_idx]
 

@@ -7,4 +7,5 @@
 - [X] Implement right-assoc
 - [ ] Fix type system.
 - [ ] Check args in function call.
-- [ ] Implement lazy loading (gen).
+- [X] Implement lazy loading (gen).
+- [ ] Add an output file parameter to the Gen module.

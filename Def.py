@@ -7,6 +7,18 @@ from dataclasses import dataclass
 from traceback import print_stack
 
 
+class Color:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 class Register(enum.Enum):
     """
     Defines all possible assembly registers.
@@ -218,23 +230,24 @@ class Operand:
         return f"{self.__class__.__name__}({', '.join(attrs)})"
 
 
+def color_str(color: Color, msg: str):
+    if not color_enabled:
+        return msg
+    return f'{color}{msg}{Color.ENDC}'
+
+
 #! Warning: Relies on parser state-related variables.
 def print_error(loc: str, msg: str):
     from Parser import parser_lines_idx, parser_tokens_idx
     from Parser import curr_line
-    line = curr_line().lstrip('\t ').rstrip('\n')
+    line = '\"' + curr_line().lstrip('\t ').rstrip('\n') + '\"'
+    desc = color_str(f'{loc}: {msg}')
     print()
     print_stack()
     print()
-    print(f'location: \"{line}\"')
-    print(f'{parser_lines_idx}:{parser_tokens_idx}: {loc}: {msg}')
+    print(f'location: {color_str(Color.FAIL, line)}')
+    print(f'{parser_lines_idx}:{parser_tokens_idx}: {desc}')
     exit(1)
-
-
-def instr_str() -> str:
-    from Parser import curr_line
-    line = curr_line().lstrip('\t ').rstrip('\n')
-    return line
 
 
 def alloc_reg(reg: Register = Register.id_max) -> Register:
@@ -603,6 +616,9 @@ CALL_REGS = (
     Register.r8,
     Register.r9
 )
+
+# Configuration flag
+color_enabled = True
 
 var_off = 0
 var_map: Dict[str, Variable] = dict()

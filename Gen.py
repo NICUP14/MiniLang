@@ -17,7 +17,6 @@ from Def import modf_of
 from Def import global_modf_of
 from Def import size_of
 from Def import off_of
-from Def import instr_str
 from Snippet import SnippetCollection
 from Snippet import copy_of
 import GenStr

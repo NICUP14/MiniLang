@@ -2,6 +2,8 @@ from Parser import Node
 from Parser import NodeKind
 from typing import List
 from typing import Tuple
+from Def import Color
+from Def import color_str
 from Def import rev_type_of
 
 
@@ -47,7 +49,7 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind in (NodeKind.INT_LIT, NodeKind.CHAR_LIT, NodeKind.STR_LIT):
         return node.value
     if node.kind == NodeKind.IDENT:
-        return f'({rev_type_of(node.ntype)})({node.value})'
+        return f'({color_str(Color.GREEN, rev_type_of(node.ntype))})({node.value})'
     if node.kind == NodeKind.OP_ADD:
         return f'({left} + {right})'
     if node.kind == NodeKind.OP_SUB:
@@ -74,12 +76,12 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'{left}[{right}]'
     if node.kind == NodeKind.IF:
         if right is not None:
-            return f'if {tree_str(node.middle)}\n\t{indent + left}\n{indent}else\n\t{indent + right}'
+            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n\t{indent + left}\n{indent}{color_str(Color.BLUE, "else")}\n\t{indent + right}'
         else:
-            return f'if {tree_str(node.middle)}\n\t{indent + left}\n'
+            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n\t{indent + left}\n'
 
     if node.kind == NodeKind.WHILE:
-        return f'while {left}\n{right}'
+        return f'{color_str(Color.BLUE, "while")} {left}\n{right}'
     if node.kind == NodeKind.GLUE:
         empty_str = ''
         add_indent = parent is not None and parent.kind != NodeKind.GLUE
@@ -90,11 +92,11 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.FUN_CALL:
         return f'{node.value}({fun_call_tree_str(node)})'
     if node.kind == NodeKind.FUN:
-        return f'fun {node.value}()\n{left}'
+        return f'{color_str(Color.BLUE, "fun")} {node.value}()\n{left}'
     if node.kind == NodeKind.OP_WIDEN:
         return f'widen({left})'
     if node.kind == NodeKind.RET:
-        return f'ret {left}'
+        return f'{color_str(Color.BLUE, "ret")} {left}'
     if node.kind == NodeKind.REF:
         return f'&{left}'
     if node.kind == NodeKind.DEREF:
