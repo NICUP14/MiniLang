@@ -1,7 +1,6 @@
 from Parser import Node
 from Parser import NodeKind
-from typing import List
-from typing import Tuple
+import Def
 from Def import Color
 from Def import color_str
 from Def import rev_type_of
@@ -92,7 +91,12 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.FUN_CALL:
         return f'{node.value}({fun_call_tree_str(node)})'
     if node.kind == NodeKind.FUN:
-        return f'{color_str(Color.BLUE, "fun")} {node.value}()\n{left}'
+        fun = Def.fun_map.get(node.value)
+        args_zip = zip(fun.arg_names, fun.arg_types)
+        args_map = map(
+            lambda t: f'({color_str(Color.BLUE, rev_type_of(t[1]))})({t[0]})', args_zip)
+        args_str = ", ".join(args_map)
+        return f'{color_str(Color.BLUE, "fun")} {node.value}({args_str})\n{left}'
     if node.kind == NodeKind.OP_WIDEN:
         return f'widen({left})'
     if node.kind == NodeKind.RET:
