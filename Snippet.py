@@ -1,9 +1,11 @@
+import copy
 import enum
 from typing import List
 from dataclasses import dataclass
 
 
 class SnippetId(enum.Enum):
+    CMT = -1
     CALL = 0
     LABEL = 1
     JMP = 2
@@ -47,6 +49,9 @@ class Snippet:
 
 
 class SnippetCollection:
+    CMT = Snippet(SnippetId.CMT,
+                  '# {}', [])
+
     CALL = Snippet(SnippetId.CALL,
                    'call {}', [])
 
@@ -121,3 +126,7 @@ class SnippetCollection:
 
     XOR_RDX = Snippet(SnippetId.XOR_RDX,
                       'xor %rdx, %rdx', [])
+
+
+def copy_of(snippet: Snippet) -> Snippet:
+    return copy.deepcopy(snippet)

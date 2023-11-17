@@ -231,6 +231,12 @@ def print_error(loc: str, msg: str):
     exit(1)
 
 
+def instr_str() -> str:
+    from Parser import curr_line
+    line = curr_line().lstrip('\t ').rstrip('\n')
+    return line
+
+
 def alloc_reg(reg: Register = Register.id_max) -> Register:
     if not reg_is_free(reg):
         print(f'alloc_reg: Unavailable register {reg}')
@@ -343,6 +349,24 @@ def type_of(sym: str) -> VariableType:
         exit(1)
 
     return VariableType(kind_map.get(sym), VariableMetaKind.PRIM)
+
+
+def rev_type_of(vtype: VariableType) -> str:
+    kind_map = {
+        VariableKind.INT64: 'int64',
+        VariableKind.INT32: 'int32',
+        VariableKind.INT16: 'int16',
+        VariableKind.INT8: 'int8',
+        VariableKind.VOID: 'void',
+    }
+
+    if vtype.kind not in kind_map:
+        print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
+
+    specf = '*' if vtype.meta_kind in (VariableMetaKind.PTR,
+                                       VariableMetaKind.STR,
+                                       VariableMetaKind.ARR) else ''
+    return specf + kind_map.get(vtype.kind)
 
 
 def cmp_var_kind(kind: VariableKind, kind2: VariableKind):
@@ -458,6 +482,18 @@ def allowed_op(var_type: VariableType):
         return [
             NodeKind.GLUE,
             NodeKind.ARR_ACC,
+            NodeKind.OP_ADD,
+            NodeKind.OP_SUB,
+            NodeKind.OP_MULT,
+            NodeKind.OP_DIV,
+            NodeKind.OP_MOD,
+            NodeKind.OP_ASSIGN,
+            NodeKind.OP_GT,
+            NodeKind.OP_LT,
+            NodeKind.OP_LTE,
+            NodeKind.OP_GTE,
+            NodeKind.OP_EQ,
+            NodeKind.OP_NEQ,
             NodeKind.DEREF,
             NodeKind.REF
         ]

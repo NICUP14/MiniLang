@@ -27,6 +27,7 @@ from Def import arr_type
 from Def import void_type
 from Def import default_type
 from Def import bool_type
+from Def import print_error
 from Def import type_of
 from Def import type_of_op
 from Def import type_of_ident
@@ -278,8 +279,8 @@ def to_tree(tokens: List[Token]) -> Node:
 
                     kind = node_kind_of(token.kind)
                     if kind not in allowed_op(left.ntype):
-                        print(
-                            f'to_tree: Incompatible types {left.ntype}, {right.ntype}')
+                        print_error('to_tree',
+                                    f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}')
                         exit(1)
 
                     node_stack.append(
@@ -386,9 +387,15 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
         match_token(TokenKind.COLON)
 
         type_str = curr_token().value
+        arg_type = type_of(type_str)
         next_token()
 
-        if curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
+        # ? Placeholder
+        if not no_more_tokens() and curr_token().kind == TokenKind.MULT:
+            next_token()
+            arg_type.meta_kind = VariableMetaKind.PTR
+
+        if not no_more_tokens() and curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
             match_token(TokenKind.COMMA)
 
         arg_names.append(arg_name)

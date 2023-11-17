@@ -1,10 +1,7 @@
-import copy
 import Def
 from Def import Node
 from Def import NodeKind
 from Def import Operand
-from Def import Variable
-from Def import VariableKind
 from Def import VariableMetaKind
 from Def import VariableType
 from Def import Register
@@ -20,10 +17,13 @@ from Def import modf_of
 from Def import global_modf_of
 from Def import size_of
 from Def import off_of
+from Def import instr_str
 from Snippet import SnippetCollection
+from Snippet import copy_of
 import GenStr
 
 label_idx = 0
+code_comments = True
 
 
 def label() -> int:
@@ -35,13 +35,13 @@ def label() -> int:
 
 
 def gen_label(label: int) -> None:
-    snippet = copy.deepcopy(SnippetCollection.LABEL)
+    snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(label))
     print(snippet.asm())
 
 
 def gen_load_imm(opd: Operand) -> None:
-    snippet = copy.deepcopy(SnippetCollection.LOAD_IMM)
+    snippet = copy_of(SnippetCollection.LOAD_IMM)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
@@ -49,7 +49,7 @@ def gen_load_imm(opd: Operand) -> None:
 
 
 def gen_load_str_lit(opd: Operand) -> None:
-    snippet = copy.deepcopy(SnippetCollection.LOAD_DATA_ADDR)
+    snippet = copy_of(SnippetCollection.LOAD_DATA_ADDR)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
@@ -60,7 +60,7 @@ def gen_load_local_str(opd: Operand) -> None:
     name = opd.value
     off = off_of(name)
 
-    snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_ADDR)
+    snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
@@ -78,13 +78,13 @@ def gen_load_var(opd: Operand):
     var = Def.var_map[name]
 
     if var.is_local:
-        snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_VAR)
+        snippet = copy_of(SnippetCollection.LOAD_STACK_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(f'-{off}')
         snippet.add_arg(opd.reg_str())
         print(snippet.asm())
     else:
-        snippet = copy.deepcopy(SnippetCollection.LOAD_DATA_VAR)
+        snippet = copy_of(SnippetCollection.LOAD_DATA_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(name)
         snippet.add_arg(opd.reg_str())
@@ -93,7 +93,6 @@ def gen_load_var(opd: Operand):
 
 def gen_load_ptr(opd: Operand):
     name = opd.value
-    # off = off_of(name)
 
     deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
 
@@ -104,7 +103,7 @@ def gen_load_addr(opd: Operand):
     name = opd.value
     off = off_of(name)
 
-    snippet = copy.deepcopy(SnippetCollection.LOAD_STACK_ADDR)
+    snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
@@ -158,13 +157,13 @@ def gen_write_var(opd: Operand):
     var = Def.var_map[name]
 
     if var.is_local:
-        snippet = copy.deepcopy(SnippetCollection.WRITE_STACK_VAR)
+        snippet = copy_of(SnippetCollection.WRITE_STACK_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(f'-{off}')
         print(snippet.asm())
     else:
-        snippet = copy.deepcopy(SnippetCollection.WRITE_DATA_VAR)
+        snippet = copy_of(SnippetCollection.WRITE_DATA_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(name)
@@ -172,7 +171,7 @@ def gen_write_var(opd: Operand):
 
 
 def gen_write_ref(left_opd: Operand, right_opd: Operand):
-    snippet = copy.deepcopy(SnippetCollection.WRITEREF_REG)
+    snippet = copy_of(SnippetCollection.WRITEREF_REG)
     snippet.add_arg(modf_of(right_opd.var_type.kind))
     snippet.add_arg(right_opd.reg_str())
     snippet.add_arg(left_opd.reg_str())
@@ -180,9 +179,9 @@ def gen_write_ref(left_opd: Operand, right_opd: Operand):
 
 
 def gen_widen(opd: Operand, var_type: VariableType):
-    opd2 = copy.deepcopy(opd)
+    opd2 = copy_of(opd)
     opd.var_type = var_type
-    snippet = copy.deepcopy(SnippetCollection.EXTEND_REG)
+    snippet = copy_of(SnippetCollection.EXTEND_REG)
     snippet.add_arg(opd2.reg_str())
     snippet.add_arg(opd.reg_str())
     print(snippet.asm())
@@ -198,11 +197,11 @@ def gen_if_tree(node: Node):
     free_all_regs()
 
     if node.right is not None:
-        snippet = copy.deepcopy(SnippetCollection.JMP)
+        snippet = copy_of(SnippetCollection.JMP)
         snippet.add_arg(str(end_label))
         print(snippet.asm())
 
-    snippet = copy.deepcopy(SnippetCollection.LABEL)
+    snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(false_label))
     print(snippet.asm())
 
@@ -210,7 +209,7 @@ def gen_if_tree(node: Node):
         gen_tree(node.right, node, -1)
         free_all_regs()
 
-        snippet = copy.deepcopy(SnippetCollection.LABEL)
+        snippet = copy_of(SnippetCollection.LABEL)
         snippet.add_arg(str(end_label))
         print(snippet.asm())
 
@@ -219,7 +218,7 @@ def gen_while_tree(node: Node):
     start_label = label()
     end_label = label()
 
-    snippet = copy.deepcopy(SnippetCollection.LABEL)
+    snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(start_label))
     print(snippet.asm())
 
@@ -228,11 +227,11 @@ def gen_while_tree(node: Node):
     gen_tree(node.right, node, -1)
     free_all_regs()
 
-    jmp_snippet = copy.deepcopy(SnippetCollection.JMP)
+    jmp_snippet = copy_of(SnippetCollection.JMP)
     jmp_snippet.add_arg(str(start_label))
     print(jmp_snippet.asm())
 
-    label_snippet = copy.deepcopy(SnippetCollection.LABEL)
+    label_snippet = copy_of(SnippetCollection.LABEL)
     label_snippet.add_arg(str(end_label))
     print(label_snippet.asm())
 
@@ -257,9 +256,8 @@ def gen_fun_call(node: Node):
         opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
         gen_load(opd)
-        # gen_load(opd_dst)
 
-        snippet = copy.deepcopy(SnippetCollection.MOVE_REG)
+        snippet = copy_of(SnippetCollection.MOVE_REG)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(opd_dst.reg_str())
@@ -276,7 +274,7 @@ def gen_fun_call(node: Node):
             gen_load(opd)
             # gen_load(opd_dst)
 
-            snippet = copy.deepcopy(SnippetCollection.MOVE_REG)
+            snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(opd.var_type.kind))
             snippet.add_arg(opd.reg_str())
             snippet.add_arg(opd_dst.reg_str())
@@ -288,16 +286,13 @@ def gen_fun_call(node: Node):
             glue_node = glue_node.left
             reg_cnt -= 1
 
-    # Temporarily disabled
-    # print(SnippetCollection.XOR_RAX.asm())
-
     name = node.value
     fun = Def.fun_map.get(name)
     if fun.is_variadic:
-        snippet = copy.deepcopy(SnippetCollection.XOR_RAX)
+        snippet = copy_of(SnippetCollection.XOR_RAX)
         print(snippet.asm())
 
-    snippet = copy.deepcopy(SnippetCollection.CALL)
+    snippet = copy_of(SnippetCollection.CALL)
     snippet.add_arg(node.value)
     print(snippet.asm())
 
@@ -312,7 +307,7 @@ def gen_sub_stack(off: int):
 
 
 def bin_snippet(snippet_base, left_opd: Operand, right_opd: Operand):
-    snippet = copy.deepcopy(snippet_base)
+    snippet = copy_of(snippet_base)
     snippet.add_arg(modf_of(left_opd.var_type.kind))
     snippet.add_arg(right_opd.reg_str())
     snippet.add_arg(left_opd.reg_str())
@@ -377,7 +372,7 @@ def gen_postamble():
 
 
 def gen_fun_preamble(name: str):
-    snippet = copy.deepcopy(SnippetCollection.FUN_PREAMBLE)
+    snippet = copy_of(SnippetCollection.FUN_PREAMBLE)
     snippet.add_arg(name)
     print(snippet.asm())
 
@@ -393,7 +388,7 @@ def gen_fun_preamble(name: str):
 
 
 def gen_fun_postamble():
-    snippet = copy.deepcopy(SnippetCollection.FUN_POSTAMBLE)
+    snippet = copy_of(SnippetCollection.FUN_POSTAMBLE)
     print(snippet.asm())
 
 
@@ -435,12 +430,19 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
     left_opd = None
     right_opd = None
 
-    # ? Temporary
-    # if node is None:
-    #     print(f'gen_tree: Invalid call from parent {parent.kind}')
-    #     exit(1)
     if node is None:
         return
+
+    if code_comments and node.kind in (NodeKind.OP_ASSIGN,
+                                       NodeKind.IF,
+                                       NodeKind.WHILE,
+                                       NodeKind.RET,
+                                       NodeKind.FUN):
+        body = GenStr.tree_str(node)
+        for line in body.split('\n'):
+            snippet = copy_of(SnippetCollection.CMT)
+            snippet.add_arg(line)
+            print(snippet.asm())
 
     # If statement
     if node.kind == NodeKind.IF:
@@ -464,7 +466,6 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         opd = gen_tree(node.left, node, - 1)
         opd_dst = Operand(node.value, node.ntype, Register.rax)
         gen_load(opd)
-        # gen_load(opd_dst)
 
         snippet = bin_snippet(SnippetCollection.MOVE_REG, opd_dst, opd)
         print(snippet.asm())
@@ -514,43 +515,28 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
 
     if node.kind == NodeKind.IDENT:
         opd = Operand(node.value, node.ntype, Register.id_max)
-        # if parent.kind in (NodeKind.GLUE, NodeKind.FUN_CALL, NodeKind.ARR_ACC, NodeKind.DEREF, NodeKind.REF) or (
-        #    parent.right == node and parent.kind == NodeKind.OP_ASSIGN):
-        #     opd.reg = alloc_reg()
-        #     if opd.var_type == ptr_type:
-        #         gen_load_addr(opd)
-        #         gen_load_ptr(opd)
-        #     if opd.var_type == arr_type:
-        #         gen_load_addr(opd)
-        #     if opd.var_type.meta_kind == VariableMetaKind.PRIM:
-        #         gen_load_var(opd)
         return opd
 
     # Reference
     if node.kind == NodeKind.REF:
-        opd = copy.deepcopy(left_opd)
+        opd = copy_of(left_opd)
         opd.value = node.left.value
-        # gen_load(opd)
-        # gen_load_addr(opd)
         return opd
 
     # Dereference
     if node.kind == NodeKind.DEREF:
         gen_load(left_opd)
-        deref_snippet = bin_snippet(
-            SnippetCollection.DEREF_REG, left_opd, left_opd)
-        print(deref_snippet.asm())
+        # deref_snippet = bin_snippet(
+        #     SnippetCollection.DEREF_REG, left_opd, left_opd)
+        # print(deref_snippet.asm())
         return left_opd
 
     # Array access
     if node.kind == NodeKind.ARR_ACC:
+        gen_load(left_opd)
         opd = Operand(size_of(right_opd.var_type),
                       right_opd.var_type, alloc_reg())
-        # if left_opd.var_type == arr_type:
-        #     gen_load_addr(left_opd)
-        # if left_opd.var_type == ptr_type:
-        #     gen_load_ptr(left_opd)
-        # gen_load_imm(opd)
+
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
         add_snippet = bin_snippet(
             SnippetCollection.ADD_OP, left_opd, opd)
@@ -565,13 +551,10 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         free_reg(right_opd.reg)
         return left_opd
 
-    # Loading (phase 2)
-    gen_load(left_opd)
-    gen_load(right_opd)
-
     # Assignment
     if node.kind == NodeKind.OP_ASSIGN:
-        opd = copy.deepcopy(left_opd)
+        gen_load(right_opd)
+        opd = copy_of(left_opd)
         if opd.var_type in (arr_type, ptr_type):
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg()
@@ -582,6 +565,10 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             gen_write_var(opd)
 
         return opd
+
+    # Loading (phase 2)
+    gen_load(left_opd)
+    gen_load(right_opd)
 
     # Addition
     if (node.kind == NodeKind.OP_ADD):
@@ -606,7 +593,7 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
                 print('gen_tree: Multiplication error')
                 exit(1)
 
-        snippet = copy.deepcopy(SnippetCollection.MUL_OP)
+        snippet = copy_of(SnippetCollection.MUL_OP)
         snippet.add_arg(right_opd.reg_str())
         print(snippet.asm())
         free_reg(right_opd.reg)
@@ -620,10 +607,33 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             left_opd.reg = out_reg
             alloc_reg(out_reg)
 
-        snippet = copy.deepcopy(SnippetCollection.XOR_RDX)
+        snippet = copy_of(SnippetCollection.XOR_RDX)
         print(snippet.asm())
 
-        snippet = copy.deepcopy(SnippetCollection.DIV_MOD_OP)
+        kind = left_opd.var_type.kind
+        tmp = Operand('', left_opd.var_type, alloc_reg())
+        snippet = copy_of(SnippetCollection.MOVE_REG)
+        snippet.add_arg(modf_of(kind))
+        snippet.add_arg(left_opd.reg_str())
+        snippet.add_arg(tmp.reg_str())
+        print(snippet.asm())
+
+        snippet = copy_of(SnippetCollection.MOVE_REG)
+        snippet.add_arg(modf_of(kind))
+        snippet.add_arg(right_opd.reg_str())
+        snippet.add_arg(left_opd.reg_str())
+        print(snippet.asm())
+
+        snippet = copy_of(SnippetCollection.MOVE_REG)
+        snippet.add_arg(modf_of(kind))
+        snippet.add_arg(tmp.reg_str())
+        snippet.add_arg(right_opd.reg_str())
+        print(snippet.asm())
+
+        free_reg(tmp.reg)
+        left_opd.reg, right_opd.reg = right_opd.reg, left_opd.reg
+
+        snippet = copy_of(SnippetCollection.DIV_MOD_OP)
         snippet.add_arg(right_opd.reg_str())
         print(snippet.asm())
         free_reg(right_opd.reg)
@@ -633,20 +643,20 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
 
     # Comparison
     if node_is_cmp(node.kind):
-        cmp_snippet = copy.deepcopy(SnippetCollection.CMP_REG)
+        cmp_snippet = copy_of(SnippetCollection.CMP_REG)
         cmp_snippet.add_arg(right_opd.reg_str())
         cmp_snippet.add_arg(left_opd.reg_str())
         print(cmp_snippet.asm())
-        opd = copy.deepcopy(left_opd)
+        opd = copy_of(left_opd)
         opd.var_type = node.ntype
 
         if parent.kind not in (NodeKind.IF, NodeKind.WHILE):
-            set_snippet = copy.deepcopy(SnippetCollection.SET_REG)
+            set_snippet = copy_of(SnippetCollection.SET_REG)
             set_snippet.add_arg(cmp_modf_of(node.kind))
             set_snippet.add_arg(opd.reg_str())
             print(set_snippet.asm())
         else:
-            jmp_snippet = copy.deepcopy(SnippetCollection.COND_JMP)
+            jmp_snippet = copy_of(SnippetCollection.COND_JMP)
             jmp_snippet.add_arg(cmp_modf_of(opposite_of(node.kind)))
             jmp_snippet.add_arg(str(curr_label))
             print(jmp_snippet.asm())
