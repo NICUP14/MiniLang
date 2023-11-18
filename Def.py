@@ -250,22 +250,28 @@ def print_error(loc: str, msg: str):
     exit(1)
 
 
-def alloc_reg(reg: Register = Register.id_max) -> Register:
+def alloc_reg(reg: Register = Register.id_max, opd: Operand = None) -> Register:
     if not reg_is_free(reg):
         print(f'alloc_reg: Unavailable register {reg}')
         exit(1)
 
     if reg != Register.id_max:
         reg_avail_map[reg] = False
+        if opd is not None:
+            opd_map[reg] = opd
+
         return reg
 
     reg = next(filter(lambda reg: reg_avail_map[reg], REGS))
     reg_avail_map[reg] = False
+    if opd is not None:
+        opd_map[reg] = opd
 
     return reg
 
 
 def free_reg(reg: Register):
+    opd_map[reg] = None
     reg_avail_map[reg] = True
 
 
@@ -628,6 +634,7 @@ ptr_map: Dict[str, Pointer] = dict()
 str_map: Dict[str, String] = dict()
 ident_map: Dict[str, VariableMetaKind] = dict()
 str_lit_map: Dict[str, str] = dict()
+opd_map = {reg: None for reg in REGS}
 reg_avail_map = {reg: True for reg in REGS}
 label_list: List[str] = []
 ptr_type = VariableType(VariableKind.INT64, VariableMetaKind.PTR)

@@ -392,13 +392,14 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
         # ? Placeholder
         if not no_more_tokens() and curr_token().kind == TokenKind.MULT:
             next_token()
-            arg_type.meta_kind = VariableMetaKind.PTR
+            arg_type = ptr_type
+            # arg_type.meta_kind = VariableMetaKind.PTR
 
         if not no_more_tokens() and curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
             match_token(TokenKind.COMMA)
 
         arg_names.append(arg_name)
-        arg_types.append(type_of(type_str))
+        arg_types.append(arg_type)
 
     token = match_token_from((TokenKind.RPAREN, TokenKind.PER_FUN))
     is_variadic = token.kind == TokenKind.PER_FUN

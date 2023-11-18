@@ -17,6 +17,7 @@ from Def import modf_of
 from Def import global_modf_of
 from Def import size_of
 from Def import off_of
+from Def import print_error
 from Snippet import SnippetCollection
 from Snippet import copy_of
 import GenStr
@@ -37,6 +38,39 @@ def gen_label(label: int) -> None:
     snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(label))
     print(snippet.asm())
+
+
+def gen_reg_chown(old_reg: Register, left_opd: Operand, right_opd: Operand) -> Operand:
+    if old_reg == left_opd.reg:
+        return left_opd
+    if old_reg == right_opd.reg:
+        return right_opd
+
+    if Def.reg_avail_map[old_reg] == False:
+        old_opd = Def.opd_map.get(old_reg)
+        new_opd = copy_of(old_opd)
+        new_opd.reg = alloc_reg(opd=new_opd)
+        old_opd.unload()
+        new_opd.unload()
+
+        if old_opd is None:
+            print_error(
+                'gen_reg_chown', f'Cannot get ownership of {old_reg}')
+
+        new_opd.load()
+        snippet = copy_of(SnippetCollection.MOVE_REG)
+        snippet.add_arg(modf_of(old_opd.var_type.kind))
+        snippet.add_arg(new_opd.reg_str())
+        snippet.add_arg(old_opd.reg_str())
+        print(snippet.asm())
+
+        old_opd.reg = new_opd.reg
+        new_opd.reg = old_reg
+    else:
+        new_opd = copy_of(left_opd)
+        new_opd.reg = alloc_reg(old_reg, opd=new_opd)
+
+    return new_opd
 
 
 def gen_load_imm(opd: Operand) -> None:
@@ -91,10 +125,7 @@ def gen_load_var(opd: Operand):
 
 
 def gen_load_ptr(opd: Operand):
-    name = opd.value
-
     deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
-
     print(deref_snippet.asm())
 
 
@@ -115,7 +146,7 @@ def gen_load(opd: Operand):
 
     opd.load()
     if opd.reg == Register.id_max:
-        opd.reg = alloc_reg()
+        opd.reg = alloc_reg(opd=opd)
 
     vtype = opd.var_type
     if opd.is_imm():
@@ -436,7 +467,8 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
                                        NodeKind.IF,
                                        NodeKind.WHILE,
                                        NodeKind.RET,
-                                       NodeKind.FUN):
+                                       NodeKind.FUN,
+                                       NodeKind.FUN_CALL):
         body = GenStr.tree_str(node)
         for line in body.split('\n'):
             snippet = copy_of(SnippetCollection.CMT)
@@ -493,12 +525,14 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         return left_opd
 
     if node.kind == NodeKind.INT_LIT:
-        opd = Operand(node.value, node.ntype, alloc_reg(), imm=True)
+        opd = Operand(node.value, node.ntype, imm=True)
+        opd.reg = alloc_reg(opd=opd)
         return opd
 
     if node.kind == NodeKind.CHAR_LIT:
         value = node.value.lstrip('\'').rstrip('\'')
-        opd = Operand(ord(value), node.ntype, alloc_reg(), imm=True)
+        opd = Operand(ord(value), node.ntype, imm=True)
+        opd.reg = alloc_reg(opd=opd)
         return opd
 
     if node.kind == NodeKind.STR_LIT:
@@ -509,7 +543,8 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             Def.str_lit_map[string] = f'str_{len(Def.str_lit_map)}'
         value = Def.str_lit_map.get(string)
 
-        opd = Operand(value, node.ntype, alloc_reg(), imm=True)
+        opd = Operand(value, node.ntype, imm=True)
+        opd.reg = alloc_reg(opd=opd)
         return opd
 
     if node.kind == NodeKind.IDENT:
@@ -524,17 +559,17 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
 
     # Dereference
     if node.kind == NodeKind.DEREF:
-        gen_load(left_opd)
-        # deref_snippet = bin_snippet(
-        #     SnippetCollection.DEREF_REG, left_opd, left_opd)
-        # print(deref_snippet.asm())
+        if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
+            gen_load(left_opd)
+            gen_load_ptr(left_opd)
         return left_opd
 
     # Array access
     if node.kind == NodeKind.ARR_ACC:
         gen_load(left_opd)
         opd = Operand(size_of(right_opd.var_type),
-                      right_opd.var_type, alloc_reg())
+                      right_opd.var_type)
+        opd.reg = alloc_reg(opd=opd)
 
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
         add_snippet = bin_snippet(
@@ -543,9 +578,7 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         print(add_snippet.asm())
 
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
-            deref_snippet = bin_snippet(
-                SnippetCollection.DEREF_REG, left_opd, left_opd)
-            print(deref_snippet.asm())
+            gen_load_ptr(left_opd)
 
         free_reg(right_opd.reg)
         return left_opd
@@ -556,9 +589,11 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         opd = copy_of(left_opd)
         if opd.var_type in (arr_type, ptr_type):
             if opd.reg == Register.id_max:
-                opd.reg = alloc_reg()
-                gen_load_addr(opd)
-                gen_write_ref(opd, right_opd)
+                opd.reg = alloc_reg(opd=opd)
+            gen_load_addr(opd)
+            if node.left.kind == NodeKind.DEREF:
+                gen_load_ptr(opd)
+            gen_write_ref(opd, right_opd)
         else:
             opd.reg = right_opd.reg
             gen_write_var(opd)
@@ -600,45 +635,84 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
 
     # Division/Modulo
     if node.kind in (NodeKind.OP_DIV, NodeKind.OP_MOD):
+        in_reg = Register.rax
         out_reg = Register.rax if node.kind == NodeKind.OP_DIV else Register.rdx
+        new_opd = gen_reg_chown(out_reg, left_opd, right_opd)
+        old_opd = left_opd
 
-        if out_reg not in (left_opd.reg, right_opd.reg):
-            left_opd.reg = out_reg
-            alloc_reg(out_reg)
+        # left_opd.reg => rax (in)
+        # right_opd.reg => reg (div)
+
+        #! Duplicated code block
+        if right_opd.reg == in_reg:
+            kind = left_opd.var_type.kind
+            tmp = Operand('', left_opd.var_type)
+            tmp.reg = alloc_reg(opd=tmp)
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            free_reg(tmp.reg)
+
+            tmp = Operand('', left_opd.var_type)
+            tmp.reg = alloc_reg(opd=tmp)
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(left_opd.var_type.kind))
+            snippet.add_arg(left_opd.reg_str())
+            snippet.add_arg(tmp.reg_str())
+            print(snippet.asm())
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(kind))
+            snippet.add_arg(right_opd.reg_str())
+            snippet.add_arg(left_opd.reg_str())
+            print(snippet.asm())
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(kind))
+            snippet.add_arg(tmp.reg_str())
+            snippet.add_arg(right_opd.reg_str())
+            print(snippet.asm())
+
+            free_reg(tmp.reg)
+
+        if node.kind == NodeKind.OP_MOD and right_opd.reg == out_reg:
+            kind = left_opd.var_type.kind
+            tmp = Operand('', left_opd.var_type)
+            tmp.reg = alloc_reg(opd=tmp)
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            free_reg(tmp.reg)
+
+            tmp = Operand('', left_opd.var_type)
+            tmp.reg = alloc_reg(opd=tmp)
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(left_opd.var_type.kind))
+            snippet.add_arg(left_opd.reg_str())
+            snippet.add_arg(tmp.reg_str())
+            print(snippet.asm())
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(kind))
+            snippet.add_arg(right_opd.reg_str())
+            snippet.add_arg(left_opd.reg_str())
+            print(snippet.asm())
+
+            snippet = copy_of(SnippetCollection.MOVE_REG)
+            snippet.add_arg(modf_of(kind))
+            snippet.add_arg(tmp.reg_str())
+            snippet.add_arg(right_opd.reg_str())
+            print(snippet.asm())
+
+            free_reg(tmp.reg)
 
         snippet = copy_of(SnippetCollection.XOR_RDX)
         print(snippet.asm())
 
-        kind = left_opd.var_type.kind
-        tmp = Operand('', left_opd.var_type, alloc_reg())
-        snippet = copy_of(SnippetCollection.MOVE_REG)
-        snippet.add_arg(modf_of(kind))
-        snippet.add_arg(left_opd.reg_str())
-        snippet.add_arg(tmp.reg_str())
-        print(snippet.asm())
-
-        snippet = copy_of(SnippetCollection.MOVE_REG)
-        snippet.add_arg(modf_of(kind))
-        snippet.add_arg(right_opd.reg_str())
-        snippet.add_arg(left_opd.reg_str())
-        print(snippet.asm())
-
-        snippet = copy_of(SnippetCollection.MOVE_REG)
-        snippet.add_arg(modf_of(kind))
-        snippet.add_arg(tmp.reg_str())
-        snippet.add_arg(right_opd.reg_str())
-        print(snippet.asm())
-
-        free_reg(tmp.reg)
-        left_opd.reg, right_opd.reg = right_opd.reg, left_opd.reg
-
         snippet = copy_of(SnippetCollection.DIV_MOD_OP)
-        snippet.add_arg(right_opd.reg_str())
+        snippet.add_arg(old_opd.reg_str())
         print(snippet.asm())
-        free_reg(right_opd.reg)
+        free_reg(old_opd.reg)
 
-        left_opd.reg = out_reg
-        return left_opd
+        return new_opd
 
     # Comparison
     if node_is_cmp(node.kind):

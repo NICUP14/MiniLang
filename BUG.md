@@ -1,5 +1,6 @@
 # Bugs
 
+- [ ] `nr % 10 + '0'` fails due to widen.
 - [X] Faulty load before an assignment (div).
 - [ ] Assignment of ptr lvalue to int literal.
 - [X] Assignment of array rvalue to ptr type

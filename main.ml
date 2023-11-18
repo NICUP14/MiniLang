@@ -15,7 +15,7 @@ fun U64ToStr(nr: int64, buff: int8*): int64
     let addr: int8* = buff
     let copy: int8* = addr
     while nr != 0
-        *addr = nr % 10
+        *addr = (nr % 10) + 48
         nr = nr / 10
         addr = addr + 1
     end
@@ -24,7 +24,7 @@ fun U64ToStr(nr: int64, buff: int8*): int64
 end
 
 fun main(): int64
-    let buff: int8[3] = [0, 0, 0]
+    let buff: int8[5] = [0, 0, 0, 0, 0]
     let res: int64 = U64ToStr(64, buff)
     printf("%lld %s", res, buff)
     exit(0)
