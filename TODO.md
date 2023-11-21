@@ -1,5 +1,7 @@
 # TODO
 
+- [ ] Type inference.
+- [ ] Type definitions.
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack allignment. (allign by 16-bits)

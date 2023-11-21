@@ -102,8 +102,7 @@ def next_line() -> str:
     parser_lines_idx += 1
 
     if no_more_lines():
-        print('next_line: No more lines in list')
-        exit(1)
+        print_error('next_line', 'No more lines in list')
 
     parser_tokens_idx = 0
     parser_tokens = tokenize(curr_line())
@@ -134,8 +133,8 @@ def match_token(kind: TokenKind) -> Token:
     token = curr_token()
 
     if token.kind != kind:
-        print(f'match_token: Expected token kind {kind}, got {token.kind}')
-        exit(1)
+        print_error('match_token',
+                    f'Expected token kind {kind}, got {token.kind}')
 
     next_token()
     return token
@@ -145,9 +144,8 @@ def match_token_from(kinds: Tuple[TokenKind]) -> Token:
     token = curr_token()
 
     if token.kind not in kinds:
-        print(
-            f'match_token_from: Expected token kinds {kinds}, got {token.kind}')
-        exit(1)
+        print_error('match_token_from',
+                    f'Expected token kinds {kinds}, got {token.kind}')
 
     next_token()
     return token
@@ -159,16 +157,14 @@ def token_list_to_tree() -> Node:
 
 def node_kind_of(kind: TokenKind) -> NodeKind:
     if kind not in NODE_KIND_MAP:
-        print(f'node_kind_of: Invalid token {kind}')
-        exit(1)
+        print_error('node_kind_of', f'Invalid token {kind}')
 
     return NODE_KIND_MAP.get(kind)
 
 
 def precedence_of(kind: TokenKind) -> int:
     if kind not in PRECEDENCE_MAP:
-        print(f'precedence_of: Expected operator, got {kind}')
-        exit(1)
+        print_error('precedence_of', f'Expected operator, got {kind}')
 
     return PRECEDENCE_MAP.get(kind)
 
@@ -208,17 +204,15 @@ def to_postfix(tokens: List[Token]) -> List[Token]:
                 elif token.kind == TokenKind.AMP:
                     op_token = Token(TokenKind.AMP, '&')
                 else:
-                    print(
-                        f'to_postfix: Invalid unary operator kind {token.kind}')
-                    exit(1)
+                    print_error('to_postfix',
+                                f'Invalid unary operator kind {token.kind}')
 
             while len(op_stack) > 0 and (not token_is_rassoc(op_stack[-1].kind)) and op_stack[-1].kind != TokenKind.LPAREN and cmp_precedence(op_token, op_stack[-1]):
                 postfix_tokens.append(op_stack.pop())
             op_stack.append(op_token)
 
         else:
-            print(f'to_postfix: Invalid token kind {token.kind}')
-            exit(1)
+            print_error('to_postfix', f'Invalid token kind {token.kind}')
 
         prev_token = token
 
@@ -250,9 +244,7 @@ def to_tree(tokens: List[Token]) -> Node:
                 kind = node_kind_of(token.kind)
 
                 if kind != NodeKind.FUN_CALL and kind not in allowed_op(node.ntype):
-                    print(
-                        f'to_tree: Incompatible type {node.ntype}')
-                    exit(1)
+                    print_error('to_tree', f'Incompatible type {node.ntype}')
 
                 node_stack.append(Node(kind, node.ntype, token.value, node))
 
@@ -280,14 +272,12 @@ def to_tree(tokens: List[Token]) -> Node:
                     if kind not in allowed_op(left.ntype):
                         print_error('to_tree',
                                     f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}')
-                        exit(1)
 
                     node_stack.append(
                         Node(kind, type_of_op(kind), token.value, left, right))
             else:
-                print(
-                    f'to_tree: Operator kind {token.kind} is neither binary or unary')
-                exit(1)
+                print_error('to_tree',
+                            f'Operator kind {token.kind} is neither binary or unary')
 
     return node_stack.pop()
 
@@ -356,19 +346,17 @@ def if_statement() -> Optional[Node]:
 
 def ret_statement() -> Optional[Node]:
     if Def.fun_name == '':
-        print('ret_statement: Cannot return from outside a function')
-        exit(1)
+        print_error('ret_statement', 'Cannot return from outside a function')
 
     fun = Def.fun_map.get(Def.fun_name)
     node = token_list_to_tree()
 
     if fun.ret_type == Def.void_type:
-        print('ret_statement: Cannot return from a void function')
-        exit(1)
+        print_error('ret_statement', 'Cannot return from a void function')
 
     if node.ntype != fun.ret_type:
-        print('ret_statement: The return type differs from the function\'s')
-        exit(1)
+        print_error('ret_statement',
+                    'The return type differs from the function\'s')
 
     return Node(NodeKind.RET, node.ntype, '', node)
 
@@ -476,9 +464,8 @@ def array_declaration(name: str) -> Node:
 
     arr = Def.arr_map[name]
     if len(elems) > arr.elem_cnt:
-        print(
-            f'array_declaration: Array {name} can only hold {arr.elem_cnt} elements')
-        exit(1)
+        print_error('array_declaration',
+                    f'Array {name} can only hold {arr.elem_cnt} elements')
 
     elems.reverse()
     nodes = list(map(to_node, elems))
@@ -573,7 +560,7 @@ def declaration() -> Optional[Node]:
         return array_declaration(full_name)
 
     if var_type.meta_kind == VariableMetaKind.PTR:
-        elem_type = VariableType(var_type.kind, VariableMetaKind.PTR)
+        elem_type = VariableType(kind, VariableMetaKind.PRIM)
         Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)
 
         match_token(TokenKind.ASSIGN)
@@ -581,5 +568,4 @@ def declaration() -> Optional[Node]:
         node = token_list_to_tree()
         return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-    print(f'declaration: Unknown meta kind {meta_kind}')
-    exit(1)
+    print_error('declaration', f'Unknown meta kind {meta_kind}')

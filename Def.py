@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 import enum
 from typing import List
 from typing import Dict
@@ -241,7 +242,7 @@ def print_error(loc: str, msg: str):
     from Parser import parser_lines_idx, parser_tokens_idx
     from Parser import curr_line
     line = '\"' + curr_line().lstrip('\t ').rstrip('\n') + '\"'
-    desc = color_str(f'{loc}: {msg}')
+    desc = color_str(Color.FAIL, f'{loc}: {msg}')
     print()
     print_stack()
     print()
@@ -250,10 +251,13 @@ def print_error(loc: str, msg: str):
     exit(1)
 
 
+def print_stdout(msg: str = ''):
+    print(msg, file=stdout)
+
+
 def alloc_reg(reg: Register = Register.id_max, opd: Operand = None) -> Register:
     if not reg_is_free(reg):
-        print(f'alloc_reg: Unavailable register {reg}')
-        exit(1)
+        print_error('alloc_reg', f'Unavailable register {reg}')
 
     if reg != Register.id_max:
         reg_avail_map[reg] = False
@@ -285,9 +289,8 @@ def reg_is_free(reg: Register) -> bool:
 
 
 def reg_table_at(reg: Register, kind: VariableKind) -> str:
-    # if reg == Register.id_max:
-    #     print(f'reg_table_at: Invalid register {reg}')
-    #     exit(1)
+    if reg == Register.id_max:
+        print_error('reg_table_at', f'Invalid register {reg}')
 
     return REG_TABLE[reg.value][kind.value]
 
@@ -301,8 +304,7 @@ def modf_of(kind: VariableKind) -> str:
     }
 
     if kind not in modf_map:
-        print(f'modf_of: Invalid kind: {kind}')
-        exit(1)
+        print_error('modf_of', f'Invalid kind: {kind}')
 
     return modf_map[kind]
 
@@ -316,8 +318,7 @@ def global_modf_of(kind: VariableKind) -> str:
     }
 
     if kind not in modf_map:
-        print(f'global_modf_of: Invalid kind: {kind}')
-        exit(1)
+        print_error('global_modf_of', f'Invalid kind: {kind}')
 
     return modf_map[kind]
 
@@ -332,8 +333,6 @@ def full_name_of(name: str):
 def off_of(ident: str) -> int:
     if ident not in ident_map:
         print_error('off_of', f'No such indentifier {ident}')
-        # print(f'off_of: No such identifier {ident}')
-        # exit(1)
 
     meta_kind = ident_map.get(ident)
 
@@ -349,8 +348,7 @@ def off_of(ident: str) -> int:
     if meta_kind == VariableMetaKind.PTR:
         return ptr_map.get(ident).off
 
-    print(f'off_of: No such meta kind {meta_kind}')
-    exit(1)
+    print_error('off_of', f'No such meta kind {meta_kind}')
 
 
 # Parses the type of the identifier
@@ -364,8 +362,7 @@ def type_of(sym: str) -> VariableType:
     }
 
     if sym not in kind_map:
-        print(f'type_of: Invalid type identifier {sym}')
-        exit(1)
+        print_error('type_of', f'Invalid type identifier {sym}')
 
     return VariableType(kind_map.get(sym), VariableMetaKind.PRIM)
 
@@ -402,8 +399,7 @@ def cmp_var_kind(kind: VariableKind, kind2: VariableKind):
 
 def type_of_ident(ident: str) -> VariableType:
     if ident not in ident_map:
-        print(f'type_of_ident: No such identifier {ident}')
-        exit(1)
+        print_error('type_of_ident', f'No such identifier {ident}')
 
     meta_kind = ident_map.get(ident)
 
@@ -416,8 +412,7 @@ def type_of_ident(ident: str) -> VariableType:
     if meta_kind == VariableMetaKind.PTR:
         return ptr_type
 
-    print(f'type_of_ident: No such meta kind {meta_kind}')
-    exit(1)
+    print_error('type_of_ident', f'No such meta kind {meta_kind}')
 
 
 def type_of_lit(kind: NodeKind):
@@ -428,8 +423,7 @@ def type_of_lit(kind: NodeKind):
     }
 
     if kind not in type_map:
-        print(f'type_of_lit: Invalid node kind {kind}')
-        exit(1)
+        print_error('type_of_lit', f'Invalid node kind {kind}')
 
     return type_map.get(kind)
 
@@ -458,8 +452,7 @@ def type_of_op(kind: NodeKind) -> VariableType:
     }
 
     if kind not in type_map:
-        print(f'type_of_op: Invalid node kind {kind}')
-        exit(1)
+        print_error('type_of_op', f'Invalid node kind {kind}')
 
     return type_map.get(kind)
 
@@ -491,6 +484,8 @@ def allowed_op(var_type: VariableType):
 
     if var_type == arr_type:
         return [
+            NodeKind.OP_ADD,
+            NodeKind.OP_SUB,
             NodeKind.DEREF,
             NodeKind.ARR_ACC,
             NodeKind.GLUE,
@@ -517,8 +512,7 @@ def allowed_op(var_type: VariableType):
             NodeKind.REF
         ]
 
-    print(f'allowed_op: Invalid type: {var_type}')
-    exit(1)
+    print_error('allowed_op', f'Invalid type: {var_type}')
 
 
 def needs_widen(var_type: VariableType, var_type2: VariableType):
@@ -537,8 +531,7 @@ def needs_widen(var_type: VariableType, var_type2: VariableType):
     if var_type.meta_kind == VariableMetaKind.PRIM and var_type2.meta_kind == VariableMetaKind.PRIM:
         return (2 if cmp_var_kind(var_type.kind, var_type2.kind) else 1)
 
-    print(f'needs_widen: Invalid type in ({var_type, var_type2})')
-    exit(1)
+    print_error('needs_widen', f'Invalid type in ({var_type, var_type2})')
 
 
 def size_of(var_type: VariableType):
@@ -560,8 +553,7 @@ def size_of(var_type: VariableType):
         if var_type.kind in size_map:
             return size_map.get(var_type.kind)
 
-    print(f'size_of: Invalid variable type {var_type}')
-    exit(1)
+    print_error('size_of', f'Invalid variable type {var_type}')
 
 
 def cmp_modf_of(kind: NodeKind) -> str:
@@ -575,7 +567,7 @@ def cmp_modf_of(kind: NodeKind) -> str:
     }
 
     if kind not in modf_map:
-        print(f'cmp_modf_of: Invalid kind: {kind}')
+        print_error('cmp_modf_of', f'Invalid kind: {kind}')
     return modf_map[kind]
 
 
@@ -625,6 +617,8 @@ CALL_REGS = (
 
 # Configuration flag
 color_enabled = True
+comments_enabled = True
+stdout = sys.stdout
 
 var_off = 0
 var_map: Dict[str, Variable] = dict()

@@ -2,6 +2,8 @@ import re
 import enum
 from typing import List
 from dataclasses import dataclass
+from Def import print_error
+
 
 OPERATORS = (
     '+',
@@ -184,8 +186,7 @@ def token_kind_of(value: str) -> TokenKind:
     if str.isalnum(value):
         return TokenKind.IDENT
 
-    print(f'token_kind_of: Invalid token {value}')
-    exit(1)
+    print_error('token_kind_of', f'Invalid token {value}')
 
 
 def token_is_rassoc(kind: TokenKind) -> bool:
@@ -194,7 +195,7 @@ def token_is_rassoc(kind: TokenKind) -> bool:
 
 def token_is_bin_op(kind: TokenKind) -> bool:
     if not token_is_op(kind):
-        print(f'token_is_bin_op: Invalid operator kind {kind}')
+        print_error('token_is_bin_op', f'Invalid operator kind {kind}')
 
     return kind in [
         TokenKind.PLUS,
@@ -216,7 +217,7 @@ def token_is_bin_op(kind: TokenKind) -> bool:
 
 def token_is_unary_op(kind: TokenKind) -> bool:
     if not token_is_op(kind):
-        print(f'token_is_bin_op: Invalid operator kind {kind}')
+        print_error('token_is_bin_op', f'Invalid operator kind {kind}')
 
     return kind in [
         TokenKind.DEREF,
@@ -244,6 +245,6 @@ def post_process(tokens: List[Token]):
     def flat_map(f, xs): return [y for ys in xs for y in f(ys)]
 
     if tokens.count(Token(TokenKind.LBRACE, '[')) != tokens.count(Token(TokenKind.RBRACE, ']')):
-        print('post_process: Expression contains unclosed braces')
+        print_error('post_process', 'Expression contains unclosed braces')
 
     return flat_map(process, tokens)

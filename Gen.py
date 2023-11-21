@@ -5,6 +5,7 @@ from Def import Operand
 from Def import VariableMetaKind
 from Def import VariableType
 from Def import Register
+from Def import comments_enabled
 from Def import CALL_REGS
 from Def import default_type
 from Def import arr_type
@@ -18,12 +19,13 @@ from Def import global_modf_of
 from Def import size_of
 from Def import off_of
 from Def import print_error
+from Def import print_stdout
 from Snippet import SnippetCollection
 from Snippet import copy_of
 import GenStr
 
+
 label_idx = 0
-code_comments = True
 
 
 def label() -> int:
@@ -37,7 +39,7 @@ def label() -> int:
 def gen_label(label: int) -> None:
     snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(label))
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_reg_chown(old_reg: Register, left_opd: Operand, right_opd: Operand) -> Operand:
@@ -54,15 +56,15 @@ def gen_reg_chown(old_reg: Register, left_opd: Operand, right_opd: Operand) -> O
         new_opd.unload()
 
         if old_opd is None:
-            print_error(
-                'gen_reg_chown', f'Cannot get ownership of {old_reg}')
+            print_error('gen_reg_chown',
+                        f'Cannot get ownership of {old_reg}')
 
         new_opd.load()
         snippet = copy_of(SnippetCollection.MOVE_REG)
         snippet.add_arg(modf_of(old_opd.var_type.kind))
         snippet.add_arg(new_opd.reg_str())
         snippet.add_arg(old_opd.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
         old_opd.reg = new_opd.reg
         new_opd.reg = old_reg
@@ -78,7 +80,7 @@ def gen_load_imm(opd: Operand) -> None:
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_load_str_lit(opd: Operand) -> None:
@@ -86,7 +88,7 @@ def gen_load_str_lit(opd: Operand) -> None:
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_load_local_str(opd: Operand) -> None:
@@ -100,8 +102,8 @@ def gen_load_local_str(opd: Operand) -> None:
 
     deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
 
-    print(snippet.asm())
-    print(deref_snippet.asm())
+    print_stdout(snippet.asm())
+    print_stdout(deref_snippet.asm())
 
 
 def gen_load_var(opd: Operand):
@@ -115,18 +117,18 @@ def gen_load_var(opd: Operand):
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(f'-{off}')
         snippet.add_arg(opd.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
     else:
         snippet = copy_of(SnippetCollection.LOAD_DATA_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(name)
         snippet.add_arg(opd.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
 
 def gen_load_ptr(opd: Operand):
     deref_snippet = bin_snippet(SnippetCollection.DEREF_REG, opd, opd)
-    print(deref_snippet.asm())
+    print_stdout(deref_snippet.asm())
 
 
 def gen_load_addr(opd: Operand):
@@ -137,7 +139,7 @@ def gen_load_addr(opd: Operand):
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_load(opd: Operand):
@@ -164,8 +166,7 @@ def gen_load(opd: Operand):
             gen_load_addr(opd)
             gen_load_ptr(opd)
         else:
-            print(f'gen_load: Invalid operand type {opd.var_type}')
-            exit(1)
+            print_error('gen_load', f'Invalid operand type {opd.var_type}')
 
 
 def gen_write(opd: Operand, opd2: Operand):
@@ -176,8 +177,7 @@ def gen_write(opd: Operand, opd2: Operand):
     elif vtype in (arr_type, ptr_type):
         gen_write_ref(opd, opd2)
     else:
-        print(f'gen_write: Invalid operand type {opd.var_type}')
-        exit(1)
+        print_error('gen_write', f'Invalid operand type {opd.var_type}')
 
 
 def gen_write_var(opd: Operand):
@@ -191,21 +191,28 @@ def gen_write_var(opd: Operand):
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(f'-{off}')
-        print(snippet.asm())
+        print_stdout(snippet.asm())
     else:
         snippet = copy_of(SnippetCollection.WRITE_DATA_VAR)
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(name)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
 
-def gen_write_ref(left_opd: Operand, right_opd: Operand):
+def gen_write_ref(left_opd: Operand, right_opd: Operand, deref: bool = False):
+    vtype = left_opd.var_type
+    if deref and vtype == ptr_type:
+        vtype = Def.ptr_map[left_opd.value].elem_type
+
+    opd = copy_of(right_opd)
+    opd.var_type = vtype
+
     snippet = copy_of(SnippetCollection.WRITEREF_REG)
-    snippet.add_arg(modf_of(right_opd.var_type.kind))
-    snippet.add_arg(right_opd.reg_str())
+    snippet.add_arg(modf_of(vtype.kind))
+    snippet.add_arg(opd.reg_str())
     snippet.add_arg(left_opd.reg_str())
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_widen(opd: Operand, var_type: VariableType):
@@ -214,7 +221,7 @@ def gen_widen(opd: Operand, var_type: VariableType):
     snippet = copy_of(SnippetCollection.EXTEND_REG)
     snippet.add_arg(opd2.reg_str())
     snippet.add_arg(opd.reg_str())
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen_if_tree(node: Node):
@@ -229,11 +236,11 @@ def gen_if_tree(node: Node):
     if node.right is not None:
         snippet = copy_of(SnippetCollection.JMP)
         snippet.add_arg(str(end_label))
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
     snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(false_label))
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
     if node.right is not None:
         gen_tree(node.right, node, -1)
@@ -241,7 +248,7 @@ def gen_if_tree(node: Node):
 
         snippet = copy_of(SnippetCollection.LABEL)
         snippet.add_arg(str(end_label))
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
 
 def gen_while_tree(node: Node):
@@ -250,7 +257,7 @@ def gen_while_tree(node: Node):
 
     snippet = copy_of(SnippetCollection.LABEL)
     snippet.add_arg(str(start_label))
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
     gen_tree(node.left, node, end_label)
     free_all_regs()
@@ -259,11 +266,11 @@ def gen_while_tree(node: Node):
 
     jmp_snippet = copy_of(SnippetCollection.JMP)
     jmp_snippet.add_arg(str(start_label))
-    print(jmp_snippet.asm())
+    print_stdout(jmp_snippet.asm())
 
     label_snippet = copy_of(SnippetCollection.LABEL)
     label_snippet.add_arg(str(end_label))
-    print(label_snippet.asm())
+    print_stdout(label_snippet.asm())
 
 
 # ? Work in progress
@@ -291,7 +298,7 @@ def gen_fun_call(node: Node):
         snippet.add_arg(modf_of(opd.var_type.kind))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(opd_dst.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
         free_reg(opd.reg)
         free_reg(opd_dst.reg)
@@ -308,7 +315,7 @@ def gen_fun_call(node: Node):
             snippet.add_arg(modf_of(opd.var_type.kind))
             snippet.add_arg(opd.reg_str())
             snippet.add_arg(opd_dst.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             free_reg(opd.reg)
             free_reg(opd_dst.reg)
@@ -320,11 +327,11 @@ def gen_fun_call(node: Node):
     fun = Def.fun_map.get(name)
     if fun.is_variadic:
         snippet = copy_of(SnippetCollection.XOR_RAX)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
     snippet = copy_of(SnippetCollection.CALL)
     snippet.add_arg(node.value)
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
     for reg in CALL_REGS:
         free_reg(reg)
@@ -332,8 +339,9 @@ def gen_fun_call(node: Node):
     return Operand('', default_type, Register.rax, True)
 
 
+# TODO: Replace the print with a snippet.
 def gen_sub_stack(off: int):
-    print(f'sub ${off}, %rsp')
+    print_stdout(f'sub ${off}, %rsp')
 
 
 def bin_snippet(snippet_base, left_opd: Operand, right_opd: Operand):
@@ -346,33 +354,33 @@ def bin_snippet(snippet_base, left_opd: Operand, right_opd: Operand):
 
 
 def gen_preamble():
-    print('.data')
-    print('fmt: .asciz \"%d\\n\"')
-    print('assert_num: .quad 0')
-    print('errmsg: .asciz "Assert %d failed\\n"')
-    print('.text')
-    print('assert:')
-    print('enter $0, $0')
-    print('cmp $1, %dil')
-    print('je LL1')
-    print('lea errmsg(%rip), %rdi')
-    print('mov assert_num(%rip), %rsi')
-    print('xor %rax, %rax')
-    print('call printf')
-    print('mov $1, %rax')
-    print('call exit')
-    print('LL1:')
-    print('addq $1, assert_num(%rip)')
-    print('leave')
-    print('ret')
-    print('print:')
-    print('enter $0, $0')
-    print('mov %rdi, %rsi')
-    print('lea fmt(%rip), %rdi')
-    print('xor %rax, %rax')
-    print('call printf')
-    print('leave')
-    print('ret')
+    print_stdout('.data')
+    print_stdout('fmt: .asciz \"%d\\n\"')
+    print_stdout('assert_num: .quad 0')
+    print_stdout('errmsg: .asciz "Assert %d failed\\n"')
+    print_stdout('.text')
+    print_stdout('assert:')
+    print_stdout('enter $0, $0')
+    print_stdout('cmp $1, %dil')
+    print_stdout('je LL1')
+    print_stdout('lea errmsg(%rip), %rdi')
+    print_stdout('mov assert_num(%rip), %rsi')
+    print_stdout('xor %rax, %rax')
+    print_stdout('call printf')
+    print_stdout('mov $1, %rax')
+    print_stdout('call exit')
+    print_stdout('LL1:')
+    print_stdout('addq $1, assert_num(%rip)')
+    print_stdout('leave')
+    print_stdout('ret')
+    print_stdout('print:')
+    print_stdout('enter $0, $0')
+    print_stdout('mov %rdi, %rsi')
+    print_stdout('lea fmt(%rip), %rdi')
+    print_stdout('xor %rax, %rax')
+    print_stdout('call printf')
+    print_stdout('leave')
+    print_stdout('ret')
 
 
 def gen_postamble():
@@ -383,28 +391,28 @@ def gen_postamble():
 
     funcs = list(filter(is_fun, Def.ident_map.items()))
 
-    print()
+    print_stdout()
     for fun_name, _ in funcs:
         fun = Def.fun_map.get(fun_name)
         if fun.is_extern:
-            print(f'.extern {fun_name}')
+            print_stdout(f'.extern {fun_name}')
         else:
-            print(f'.global {fun_name}')
-    print()
+            print_stdout(f'.global {fun_name}')
+    print_stdout()
 
-    print('.data')
+    print_stdout('.data')
     for (string, label) in Def.str_lit_map.items():
-        print(f'{label}: .asciz \"{string}\"')
+        print_stdout(f'{label}: .asciz \"{string}\"')
 
     for (name, var) in Def.var_map.items():
         if not var.is_local:
-            print(f'{name}: {global_modf_of(var.vtype.kind)} 0')
+            print_stdout(f'{name}: {global_modf_of(var.vtype.kind)} 0')
 
 
 def gen_fun_preamble(name: str):
     snippet = copy_of(SnippetCollection.FUN_PREAMBLE)
     snippet.add_arg(name)
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
     fun = Def.fun_map.get(name)
 
@@ -419,7 +427,7 @@ def gen_fun_preamble(name: str):
 
 def gen_fun_postamble():
     snippet = copy_of(SnippetCollection.FUN_POSTAMBLE)
-    print(snippet.asm())
+    print_stdout(snippet.asm())
 
 
 def gen(node: Node):
@@ -450,8 +458,7 @@ def opposite_of(kind: NodeKind) -> NodeKind:
     }
 
     if kind not in kind_map:
-        print(f'opposite_of: Invalid node kind {kind}')
-        exit(1)
+        print_error('opposite_of', f'Invalid node kind {kind}')
 
     return kind_map.get(kind)
 
@@ -463,17 +470,17 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
     if node is None:
         return
 
-    if code_comments and node.kind in (NodeKind.OP_ASSIGN,
-                                       NodeKind.IF,
-                                       NodeKind.WHILE,
-                                       NodeKind.RET,
-                                       NodeKind.FUN,
-                                       NodeKind.FUN_CALL):
+    if comments_enabled and node.kind in (NodeKind.OP_ASSIGN,
+                                          NodeKind.IF,
+                                          NodeKind.WHILE,
+                                          NodeKind.RET,
+                                          NodeKind.FUN,
+                                          NodeKind.FUN_CALL):
         body = GenStr.tree_str(node)
         for line in body.split('\n'):
             snippet = copy_of(SnippetCollection.CMT)
             snippet.add_arg(line)
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
     # If statement
     if node.kind == NodeKind.IF:
@@ -499,7 +506,7 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         gen_load(opd)
 
         snippet = bin_snippet(SnippetCollection.MOVE_REG, opd_dst, opd)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
         free_all_regs()
         return None
 
@@ -574,8 +581,8 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
         add_snippet = bin_snippet(
             SnippetCollection.ADD_OP, left_opd, opd)
-        print(mul_snippet.asm())
-        print(add_snippet.asm())
+        print_stdout(mul_snippet.asm())
+        print_stdout(add_snippet.asm())
 
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
             gen_load_ptr(left_opd)
@@ -588,12 +595,14 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         gen_load(right_opd)
         opd = copy_of(left_opd)
         if opd.var_type in (arr_type, ptr_type):
+            deref = node.left.kind == NodeKind.DEREF
+
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg(opd=opd)
             gen_load_addr(opd)
-            if node.left.kind == NodeKind.DEREF:
+            if deref:
                 gen_load_ptr(opd)
-            gen_write_ref(opd, right_opd)
+            gen_write_ref(opd, right_opd, deref=deref)
         else:
             opd.reg = right_opd.reg
             gen_write_var(opd)
@@ -608,14 +617,14 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
     if (node.kind == NodeKind.OP_ADD):
         snippet = bin_snippet(SnippetCollection.ADD_OP, left_opd, right_opd)
         free_reg(right_opd.reg)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
         return left_opd
 
     # Subtraction
     if (node.kind == NodeKind.OP_SUB):
         snippet = bin_snippet(SnippetCollection.SUB_OP, left_opd, right_opd)
         free_reg(right_opd.reg)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
         return left_opd
 
     # Multiplication
@@ -624,12 +633,11 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             if right_opd.reg == Register.rax:
                 left_opd, right_opd = right_opd, left_opd
             else:
-                print('gen_tree: Multiplication error')
-                exit(1)
+                print_error('gen_tree', 'Multiplication error')
 
         snippet = copy_of(SnippetCollection.MUL_OP)
         snippet.add_arg(right_opd.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
         free_reg(right_opd.reg)
         return left_opd
 
@@ -658,19 +666,19 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             snippet.add_arg(modf_of(left_opd.var_type.kind))
             snippet.add_arg(left_opd.reg_str())
             snippet.add_arg(tmp.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(kind))
             snippet.add_arg(right_opd.reg_str())
             snippet.add_arg(left_opd.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(kind))
             snippet.add_arg(tmp.reg_str())
             snippet.add_arg(right_opd.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             free_reg(tmp.reg)
 
@@ -688,28 +696,28 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             snippet.add_arg(modf_of(left_opd.var_type.kind))
             snippet.add_arg(left_opd.reg_str())
             snippet.add_arg(tmp.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(kind))
             snippet.add_arg(right_opd.reg_str())
             snippet.add_arg(left_opd.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(kind))
             snippet.add_arg(tmp.reg_str())
             snippet.add_arg(right_opd.reg_str())
-            print(snippet.asm())
+            print_stdout(snippet.asm())
 
             free_reg(tmp.reg)
 
         snippet = copy_of(SnippetCollection.XOR_RDX)
-        print(snippet.asm())
+        print_stdout(snippet.asm())
 
         snippet = copy_of(SnippetCollection.DIV_MOD_OP)
         snippet.add_arg(old_opd.reg_str())
-        print(snippet.asm())
+        print_stdout(snippet.asm())
         free_reg(old_opd.reg)
 
         return new_opd
@@ -719,7 +727,7 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
         cmp_snippet = copy_of(SnippetCollection.CMP_REG)
         cmp_snippet.add_arg(right_opd.reg_str())
         cmp_snippet.add_arg(left_opd.reg_str())
-        print(cmp_snippet.asm())
+        print_stdout(cmp_snippet.asm())
         opd = copy_of(left_opd)
         opd.var_type = node.ntype
 
@@ -727,15 +735,14 @@ def gen_tree(node: Node, parent: Node, curr_label: int):
             set_snippet = copy_of(SnippetCollection.SET_REG)
             set_snippet.add_arg(cmp_modf_of(node.kind))
             set_snippet.add_arg(opd.reg_str())
-            print(set_snippet.asm())
+            print_stdout(set_snippet.asm())
         else:
             jmp_snippet = copy_of(SnippetCollection.COND_JMP)
             jmp_snippet.add_arg(cmp_modf_of(opposite_of(node.kind)))
             jmp_snippet.add_arg(str(curr_label))
-            print(jmp_snippet.asm())
+            print_stdout(jmp_snippet.asm())
 
         free_reg(right_opd.reg)
         return opd
 
-    print(f'gen_tree: Invalid node kind: {node.kind}')
-    exit(1)
+    print_error('gen_tree', f'Invalid node kind: {node.kind}')

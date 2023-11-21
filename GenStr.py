@@ -4,6 +4,7 @@ import Def
 from Def import Color
 from Def import color_str
 from Def import rev_type_of
+from Def import print_error
 
 
 def has_indent(kind: NodeKind):
@@ -106,5 +107,4 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.DEREF:
         return f'*{left}'
 
-    print(f'tree_str: Invalid node kind {node.kind}')
-    exit(1)
+    print_error('tree_str', f'Invalid node kind {node.kind}')
