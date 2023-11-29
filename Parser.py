@@ -369,25 +369,26 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
     # Needed for extern
     arg_names = []
     arg_types = []
+    elem_types = []
     while curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
         arg_name = match_token(TokenKind.IDENT).value
         match_token(TokenKind.COLON)
 
         type_str = curr_token().value
         arg_type = type_of(type_str)
+        elem_type = arg_type
         next_token()
 
-        # ? Placeholder
         if not no_more_tokens() and curr_token().kind == TokenKind.MULT:
             next_token()
             arg_type = ptr_type
-            # arg_type.meta_kind = VariableMetaKind.PTR
 
         if not no_more_tokens() and curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
             match_token(TokenKind.COMMA)
 
         arg_names.append(arg_name)
         arg_types.append(arg_type)
+        elem_types.append(elem_type)
 
     token = match_token_from((TokenKind.RPAREN, TokenKind.PER_FUN))
     is_variadic = token.kind == TokenKind.PER_FUN
@@ -411,10 +412,17 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
     Def.label_list.append(name)
     Def.var_off = 8
 
-    for arg_idx, (arg_name, arg_type) in enumerate(zip(arg_names, arg_types)):
-        Def.ident_map[full_name_of(arg_name)] = VariableMetaKind.PRIM
-        Def.var_map[full_name_of(arg_name)] = Variable(
-            arg_type, Def.var_off, True)
+    # ? Temporary
+    for (arg_name, arg_type, elem_type) in zip(arg_names, arg_types, elem_types):
+        meta_kind = arg_type.meta_kind
+        Def.ident_map[full_name_of(arg_name)] = meta_kind
+
+        if meta_kind == VariableMetaKind.PRIM:
+            Def.var_map[full_name_of(arg_name)] = Variable(
+                arg_type, Def.var_off, True)
+        if meta_kind == VariableMetaKind.PTR:
+            Def.ptr_map[full_name_of(arg_name)] = Pointer(
+                full_name_of(arg_name), elem_type, Def.var_off)
         Def.var_off += size_of(arg_type)
 
     next_line()

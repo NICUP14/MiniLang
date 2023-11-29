@@ -1,6 +1,6 @@
+import Def
 from Parser import Node
 from Parser import NodeKind
-import Def
 from Def import Color
 from Def import color_str
 from Def import rev_type_of

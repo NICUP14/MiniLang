@@ -430,6 +430,7 @@ def type_of_lit(kind: NodeKind):
 
 def type_of_op(kind: NodeKind) -> VariableType:
     type_map = {
+        NodeKind.OP_MULT: default_type,
         NodeKind.OP_ADD: default_type,
         NodeKind.OP_SUB: default_type,
         NodeKind.OP_DIV: default_type,
@@ -636,4 +637,5 @@ arr_type = VariableType(VariableKind.INT64, VariableMetaKind.ARR)
 void_type = VariableType(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_type = VariableType(VariableKind.INT8, VariableMetaKind.PRIM)
 default_type = VariableType(VariableKind.INT64, VariableMetaKind.PRIM)
+fun_type = VariableType(VariableKind.INT64, VariableMetaKind.FUN)
 fun_name = ''

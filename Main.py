@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_option('-o', '--output', default='stdout',
                       help='Write contents to OUTPUT; When set, no-color is enabled by default.')
     parser.add_option('-d', '--debug', action='store_true',
-                      help='Dry run; Print the human-friendly AST representation')
+                      help='Dry run; Print the human-friendly AST representation.')
     parser.add_option('-c', '--no-color', action='store_true',
                       help='Do not use ANSI color sequences in the output.')
     parser.add_option('-C', '--no-comment', action='store_true',
