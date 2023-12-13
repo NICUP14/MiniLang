@@ -21,7 +21,7 @@ Minimal - As close as possible to actual assembly code while maintaining as many
 
 * [Bug list](BUG.md)
 * [TODO list](TODO.md)
-* [License](LICENSE.md)
+* [License](LICENSE)
 
 ## Syntax highlighter (VSCode)
 
