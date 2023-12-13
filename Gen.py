@@ -16,8 +16,8 @@ from Def import fun_type
 from Def import alloc_reg
 from Def import free_reg
 from Def import free_all_regs
-from Def import cmp_modf_of
 from Def import modf_of
+from Def import cmp_modf_of
 from Def import global_modf_of
 from Def import size_of
 from Def import off_of
@@ -494,7 +494,6 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
                                           NodeKind.FUN,
                                           NodeKind.FUN_CALL):
         # Local function variable
-        # ! BUG: Not working
         if node.kind == NodeKind.FUN:
             for name, meta_kind in Def.ident_map.items():
                 if name.startswith(node.value) and meta_kind != VariableMetaKind.FUN:
@@ -598,6 +597,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             gen_load(left_opd)
             gen_load_ptr(left_opd, elem_type)
             left_opd.var_type = elem_type
+            # !BUG: Widen
         return left_opd
 
     # Array access
