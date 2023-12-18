@@ -107,7 +107,7 @@ class Parser:
         self.lines_idx += 1
 
         if self.no_more_lines():
-            print_error('next_line', 'No more lines in list')
+            print_error('next_line', 'No more lines in list', self)
 
         self.tokens_idx = 0
         self.tokens = tokenize(self.curr_line())
@@ -121,7 +121,7 @@ class Parser:
 
     def curr_token(self) -> Token:
         if self.no_more_tokens():
-            print_error('curr_token', 'No more tokens in list.')
+            print_error('curr_token', 'No more tokens in list.', self)
 
         return self.tokens[self.tokens_idx]
 
@@ -133,7 +133,7 @@ class Parser:
 
         if token.kind != kind:
             print_error('self.match_token',
-                        f'Expected token kind {kind}, got {token.kind}')
+                        f'Expected token kind {kind}, got {token.kind}', self)
 
         self.next_token()
         return token
@@ -143,7 +143,7 @@ class Parser:
 
         if token.kind not in kinds:
             print_error('self.match_token_from',
-                        f'Expected token kinds {kinds}, got {token.kind}')
+                        f'Expected token kinds {kinds}, got {token.kind}', self)
 
         self.next_token()
         return token
@@ -153,14 +153,14 @@ class Parser:
 
     def node_kind_of(self, kind: TokenKind) -> NodeKind:
         if kind not in NODE_KIND_MAP:
-            print_error('node_kind_of', f'Invalid token {kind}')
+            print_error('node_kind_of', f'Invalid token {kind}', self)
 
         return NODE_KIND_MAP.get(kind)
 
     def precedence_of(self, kind: TokenKind) -> int:
         if kind not in PRECEDENCE_MAP:
             print_error('precedence_of',
-                        f'Expected operator, got {kind}')
+                        f'Expected operator, got {kind}', self)
 
         return PRECEDENCE_MAP.get(kind)
 
@@ -200,7 +200,7 @@ class Parser:
                         op_token = Token(TokenKind.AMP, '&')
                     else:
                         print_error('to_postfix',
-                                    f'Invalid unary operator kind {token.kind}')
+                                    f'Invalid unary operator kind {token.kind}', self)
 
                 while len(op_stack) > 0 and (not token_is_rassoc(op_stack[-1].kind)) and op_stack[-1].kind != TokenKind.LPAREN and cmp_precedence(op_token, op_stack[-1]):
                     postfix_tokens.append(op_stack.pop())
@@ -208,7 +208,7 @@ class Parser:
 
             else:
                 print_error('to_postfix',
-                            f'Invalid token kind {token.kind}')
+                            f'Invalid token kind {token.kind}', self)
 
             prev_token = token
 
@@ -239,8 +239,8 @@ class Parser:
                     kind = self.node_kind_of(token.kind)
 
                     if kind != NodeKind.FUN_CALL and kind not in allowed_op(node.ntype):
-                        print_error(self.in_file,
-                                    'to_tree', f'Incompatible type {node.ntype}')
+                        print_error(
+                            'to_tree', f'Incompatible type {node.ntype}', self)
 
                     node_stack.append(
                         Node(kind, node.ntype, token.value, node))
@@ -268,13 +268,13 @@ class Parser:
                         kind = self.node_kind_of(token.kind)
                         if kind not in allowed_op(left.ntype):
                             print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}')
+                                        f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}', self)
 
                         node_stack.append(
                             Node(kind, type_of_op(kind), token.value, left, right))
                 else:
                     print_error('to_tree',
-                                f'Operator kind {token.kind} is neither binary or unary')
+                                f'Operator kind {token.kind} is neither binary or unary', self)
 
         return node_stack.pop()
 
@@ -351,18 +351,18 @@ class Parser:
     def ret_statement(self) -> Optional[Node]:
         if Def.fun_name == '':
             print_error('ret_statement',
-                        'Cannot return from outside a function')
+                        'Cannot return from outside a function', self)
 
         fun = Def.fun_map.get(Def.fun_name)
         node = self.token_list_to_tree()
 
         if fun.ret_type == Def.void_type:
             print_error('ret_statement',
-                        'Cannot return from a void function')
+                        'Cannot return from a void function', self)
 
         if node.ntype != fun.ret_type:
             print_error('ret_statement',
-                        'The return type differs from the function\'s')
+                        'The return type differs from the function\'s', self)
 
         return Node(NodeKind.RET, node.ntype, '', node)
 
@@ -497,7 +497,7 @@ class Parser:
         arr = Def.arr_map[name]
         if len(elems) > arr.elem_cnt:
             print_error('array_declaration',
-                        f'Array {name} can only hold {arr.elem_cnt} elements')
+                        f'Array {name} can only hold {arr.elem_cnt} elements', self)
 
         elems.reverse()
         nodes = list(map(self.to_node, elems))
@@ -600,4 +600,4 @@ class Parser:
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         print_error('declaration',
-                    f'Unknown meta kind {meta_kind}')
+                    f'Unknown meta kind {meta_kind}', self)

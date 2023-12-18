@@ -1,10 +1,5 @@
-import second
-
 extern fun printf(fmt: int64, ...): int64
 extern fun exit(status: int32): void
-
-typedef uint = int64
-typedef ptr = int64*
 
 let nassert: int64 = 1
 fun assert(val: int64): void
@@ -15,7 +10,7 @@ fun assert(val: int64): void
     nassert = nassert + 1
 end
 
-fun main(): uint
+fun main(): int32
     let arr: int64[5] = [0, 1, 2, 4, 4]
     let p: int64* = arr
 

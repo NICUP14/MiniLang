@@ -6,6 +6,7 @@ from typing import Dict
 from typing import Optional
 from dataclasses import dataclass
 from traceback import print_stack
+import ParserClass
 
 
 class Color:
@@ -238,16 +239,18 @@ def color_str(color: Color, msg: str):
 
 
 #! Warning: Relies on parser state-related variables.
-def print_error(loc: str, msg: str):
-    from Parser import parser_lines_idx, parser_tokens_idx
-    from Parser import curr_line
-    line = '\"' + curr_line().lstrip('\t ').rstrip('\n') + '\"'
+def print_error(loc: str, msg: str, parser=None):
+    line = ('' if parser is None else '\"' +
+            parser.curr_line().lstrip('\t ').rstrip('\n') + '\"')
     desc = color_str(Color.FAIL, f'{loc}: {msg}')
     print()
     print_stack()
     print()
-    print(f'location: {color_str(Color.FAIL, line)}')
-    print(f'{parser_lines_idx}:{parser_tokens_idx}: {desc}')
+    if parser is not None:
+        print(f'location: {color_str(Color.FAIL, line)}')
+        print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}')
+    else:
+        print(f'ERROR: {desc}')
     exit(1)
 
 
