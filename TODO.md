@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 7/12
+Solved: 8/13
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
@@ -13,4 +13,5 @@ Solved: 7/12
 - [ ] Static type analysis.
 - [ ] Fix type system.
 - [ ] Type inference.
-- [ ] Type definitions.
+- [X] Type definitions.
+- [ ] Namespaces.

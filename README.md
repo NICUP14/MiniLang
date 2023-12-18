@@ -2,7 +2,8 @@
 
 A type-safe C successor that compiles directly to x86_64 assembly.
 
-**Warning:** The language is still under development.
+> [!WARNING]
+> The language is still under development.
 Some features are missing.
 
 **Check out [acwj-git](https://github.com/DoctorWkt/acwj.git)**, DoctorWkt's tutorial is the main (best) source of inspiration of this project's structure.
@@ -29,9 +30,27 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 
 `Extensions -> Views and more actions... (top-left three dots) -> Install from VSIX...`
 
+## Code statistics
+
+File          | Blank | Comment | Code
+--------------|-------|---------|-----
+Gen.py        | 166   | 38      | 553
+Def.py        | 141   | 65      | 464
+ParserClass.py| 125   | 14      | 464
+Parser.py     | 149   | 14      | 454
+Lexer.py      | 38    | 1       | 215
+Snippet.py    | 35    | 0       | 97
+GenStr.py     | 15    | 1       | 94
+Main.py       | 9     | 1       | 45
+SUM           | 678   | 134     | 2386
+
+> [!NOTE]
+> Statistics were generated with [cloc](github.com/AlDanial/cloc).
+
 ## QuickStart
 
-**Warning:** Source files should be terminated by an extra `end` keyword due to reusing `Parser.compund_statement` to parse the program's logic.
+> [!WARNING]
+> Source files should be terminated by an extra `end` keyword due to reusing `Parser.compund_statement` to parse the program's logic.
 
 `Main.py:44: root = Parser.compund_statement()`
 
@@ -47,7 +66,8 @@ int64
 
 ### Literals
 
-**Warning:** There is no safety measure regarding string literal manipulation. Doing this will most probably result in a segmentation fault.
+> [!WARNING]
+> There is no safety measure regarding string literal manipulation. Doing this will most probably result in a segmentation fault.
 
 ```txt
 # String literal (int8*)
@@ -83,7 +103,8 @@ at     | Binary | -        | Array access
 
 ### Type definitions
 
-**Warning:** Type definitions are not yet part of the language.
+> [!WARNING]
+> The type definitions defined below are not yet part of the language.
 
 ```txt
 typedef int = int32
