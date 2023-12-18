@@ -15,7 +15,7 @@
 				},
 				{
 					"name": "keyword.control.minilang",
-					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at)\\b"
+					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef)\\b"
 				},
 				{
 					"name": "keyword.type.minilang",

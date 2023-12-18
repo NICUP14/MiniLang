@@ -4,7 +4,7 @@ Solved: 7/12
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
-- [X] Implement stack allignment. (allign by 16-bits)
+- [X] Implement stack alignment. (align by 16-bits)
 - [X] Define operator token types (binary, unary)
 - [X] Implement right-assoc
 - [X] Implement lazy loading (gen).

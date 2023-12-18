@@ -1,4 +1,5 @@
-import Parser
+# import Parser
+import ParserClass
 import Gen
 import GenStr
 import optparse
@@ -38,17 +39,15 @@ if __name__ == '__main__':
             f'{sys.argv[0]}: {color_str(Color.FAIL, f"{in_file} does not exist.")}')
         exit(1)
 
-    Parser.parser_lines = list(filter(
-        lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(in_file, 'r').readlines()))
-    Parser.parser_tokens = Parser.tokenize(Parser.curr_line())
-    root = Parser.compund_statement()
-
     Def.color_enabled = not values_dict.get('no_color')
     Def.comments_enabled = not values_dict.get('no_comment')
 
     if out_file != 'stdout':
         Def.color_enabled = False
         Def.stdout = open(values_dict.get('output'), 'w')
+
+    parser = ParserClass.Parser()
+    root = parser.parse(in_file)
 
     if values_dict.get('debug'):
         print(GenStr.tree_str(root))

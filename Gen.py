@@ -144,6 +144,12 @@ def gen_load_addr(opd: Operand):
     name = opd.value
     off = off_of(name)
 
+    # if off > 0:
+    #     off_opd = Operand(off, default_type, imm=True)
+    #     off_opd.reg = alloc_reg(opd=off_opd)
+    #     snippet = bin_snippet(SnippetCollection.ADD_OP, opd, off_opd)
+    #     print_stdout(snippet.asm())
+
     snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
     snippet.add_arg(modf_of(opd.var_type.kind))
     snippet.add_arg(f'-{off}')
@@ -212,10 +218,12 @@ def gen_write_var(opd: Operand):
         print_stdout(snippet.asm())
 
 
-def gen_write_ref(left_opd: Operand, right_opd: Operand, deref: bool = False):
+def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     vtype = left_opd.var_type
-    if deref and vtype == ptr_type:
+    if is_acc and vtype == ptr_type:
         vtype = Def.ptr_map[left_opd.value].elem_type
+    if is_acc and vtype == arr_type:
+        vtype = Def.arr_map[left_opd.value].elem_type
 
     opd = copy_of(right_opd)
     opd.var_type = vtype
@@ -371,33 +379,10 @@ def bin_snippet(snippet_base: Snippet, left_opd: Operand, right_opd: Operand):
 
 
 def gen_preamble():
-    print_stdout('.data')
-    print_stdout('fmt: .asciz \"%d\\n\"')
-    print_stdout('assert_num: .quad 0')
-    print_stdout('errmsg: .asciz "Assert %d failed\\n"')
-    print_stdout('.text')
-    print_stdout('assert:')
-    print_stdout('enter $0, $0')
-    print_stdout('cmp $1, %dil')
-    print_stdout('je LL1')
-    print_stdout('lea errmsg(%rip), %rdi')
-    print_stdout('mov assert_num(%rip), %rsi')
-    print_stdout('xor %rax, %rax')
-    print_stdout('call printf')
-    print_stdout('mov $1, %rax')
-    print_stdout('call exit')
-    print_stdout('LL1:')
-    print_stdout('addq $1, assert_num(%rip)')
-    print_stdout('leave')
-    print_stdout('ret')
-    print_stdout('print:')
-    print_stdout('enter $0, $0')
-    print_stdout('mov %rdi, %rsi')
-    print_stdout('lea fmt(%rip), %rdi')
-    print_stdout('xor %rax, %rax')
-    print_stdout('call printf')
-    print_stdout('leave')
-    print_stdout('ret')
+    '''
+    Unused.
+    '''
+    pass
 
 
 def gen_postamble():
@@ -487,12 +472,12 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node is None:
         return
 
-    if comments_enabled and node.kind in (NodeKind.OP_ASSIGN,
-                                          NodeKind.IF,
-                                          NodeKind.WHILE,
-                                          NodeKind.RET,
-                                          NodeKind.FUN,
-                                          NodeKind.FUN_CALL):
+    if Def.comments_enabled == True and node.kind in (NodeKind.OP_ASSIGN,
+                                                      NodeKind.IF,
+                                                      NodeKind.WHILE,
+                                                      NodeKind.RET,
+                                                      NodeKind.FUN,
+                                                      NodeKind.FUN_CALL):
         # Local function variable
         if node.kind == NodeKind.FUN:
             for name, meta_kind in Def.ident_map.items():
@@ -603,9 +588,11 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     # Array access
     if node.kind == NodeKind.ARR_ACC:
         gen_load(left_opd)
+        gen_load(right_opd)
         opd = Operand(size_of(right_opd.var_type),
-                      right_opd.var_type)
+                      right_opd.var_type, imm=True)
         opd.reg = alloc_reg(opd=opd)
+        gen_load(opd)
 
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
         add_snippet = bin_snippet(
@@ -617,6 +604,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             gen_load_ptr(left_opd)
 
         free_reg(right_opd.reg)
+        free_reg(opd.reg)
         return left_opd
 
     # Assignment
@@ -624,14 +612,17 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         gen_load(right_opd)
         opd = copy_of(left_opd)
         if opd.var_type in (arr_type, ptr_type):
-            deref = node.left.kind == NodeKind.DEREF
-
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg(opd=opd)
-            gen_load_addr(opd)
-            if deref:
-                gen_load_ptr(opd)
-            gen_write_ref(opd, right_opd, deref=deref)
+
+            if node.left.kind != NodeKind.ARR_ACC:
+                gen_load_addr(opd)
+
+            is_deref = node.left.kind in (NodeKind.DEREF,
+                                          NodeKind.ARR_ACC)
+            # if is_deref:
+            #     gen_load_ptr(opd)
+            gen_write_ref(opd, right_opd, is_acc=is_deref)
         else:
             opd.reg = right_opd.reg
             gen_write_var(opd)

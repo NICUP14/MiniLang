@@ -89,6 +89,8 @@ class TokenKind(enum.Enum):
     STR_LIT = 38
     KW_EXTERN = 39
     PER_FUN = 40
+    KW_TYPEDEF = 41
+    KW_IMPORT = 42
 
 
 @dataclass
@@ -132,7 +134,9 @@ TOKEN_KIND_MAP = {
     'int8': TokenKind.KW_INT8,
     'char': TokenKind.KW_CHAR,
     'ret': TokenKind.KW_RET,
-    'extern': TokenKind.KW_EXTERN
+    'extern': TokenKind.KW_EXTERN,
+    'typedef': TokenKind.KW_TYPEDEF,
+    # 'import': TokenKind.KW_IMPORT
 }
 
 

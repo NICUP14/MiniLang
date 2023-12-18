@@ -1,5 +1,3 @@
-import second
-
 extern fun printf(fmt: int64, ...): int64
 extern fun exit(status: int32): void
 

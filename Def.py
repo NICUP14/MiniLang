@@ -352,23 +352,25 @@ def off_of(ident: str) -> int:
 
 
 # Parses the type of the identifier
-def type_of(sym: str) -> VariableType:
-    kind_map = {
-        'int64': VariableKind.INT64,
-        'int32': VariableKind.INT32,
-        'int16': VariableKind.INT16,
-        'int8': VariableKind.INT8,
-        'void': VariableKind.VOID
-    }
+def type_of(sym: str, use_mkind: bool = True) -> VariableType:
+    # kind_map = {
+    #     'int64': VariableKind.INT64,
+    #     'int32': VariableKind.INT32,
+    #     'int16': VariableKind.INT16,
+    #     'int8': VariableKind.INT8,
+    #     'void': VariableKind.VOID
+    # }
 
-    if sym not in kind_map:
+    if sym not in type_map:
         print_error('type_of', f'Invalid type identifier {sym}')
 
-    return VariableType(kind_map.get(sym), VariableMetaKind.PRIM)
+    vtype = type_map.get(sym)
+    meta_kind = VariableMetaKind.PRIM if not use_mkind else vtype.meta_kind
+    return VariableType(vtype.kind, meta_kind)
 
 
 def rev_type_of(vtype: VariableType) -> str:
-    kind_map = {
+    rev_kind_map = {
         VariableKind.INT64: 'int64',
         VariableKind.INT32: 'int32',
         VariableKind.INT16: 'int16',
@@ -376,13 +378,13 @@ def rev_type_of(vtype: VariableType) -> str:
         VariableKind.VOID: 'void',
     }
 
-    if vtype.kind not in kind_map:
+    if vtype.kind not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
     specf = '*' if vtype.meta_kind in (VariableMetaKind.PTR,
                                        VariableMetaKind.STR,
                                        VariableMetaKind.ARR) else ''
-    return specf + kind_map.get(vtype.kind)
+    return specf + rev_kind_map.get(vtype.kind)
 
 
 def cmp_var_kind(kind: VariableKind, kind2: VariableKind):
@@ -620,6 +622,30 @@ CALL_REGS = (
 color_enabled = True
 comments_enabled = True
 stdout = sys.stdout
+
+type_map = {
+    'int64': VariableType(VariableKind.INT64, VariableMetaKind.PRIM),
+    'int32': VariableType(VariableKind.INT32, VariableMetaKind.PRIM),
+    'int16': VariableType(VariableKind.INT16, VariableMetaKind.PRIM),
+    'int8': VariableType(VariableKind.INT8, VariableMetaKind.PRIM),
+    'void': VariableType(VariableKind.VOID, VariableMetaKind.PRIM)
+}
+
+# kind_map = {
+#     'int64': VariableKind.INT64,
+#     'int32': VariableKind.INT32,
+#     'int16': VariableKind.INT16,
+#     'int8': VariableKind.INT8,
+#     'void': VariableKind.VOID
+# }
+
+# rev_kind_map = {
+#     VariableKind.INT64: 'int64',
+#     VariableKind.INT32: 'int32',
+#     VariableKind.INT16: 'int16',
+#     VariableKind.INT8: 'int8',
+#     VariableKind.VOID: 'void',
+# }
 
 var_off = 0
 var_map: Dict[str, Variable] = dict()

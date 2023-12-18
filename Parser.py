@@ -51,7 +51,7 @@ PRECEDENCE_MAP = {
     TokenKind.MULT: 20,
     TokenKind.DIV: 20,
     TokenKind.PERC: 7,
-    TokenKind.KW_AT: 5,
+    TokenKind.KW_AT: 27,
     TokenKind.ASSIGN: 4,
     TokenKind.EQ: 6,
     TokenKind.NEQ: 6,
@@ -303,12 +303,18 @@ def statement() -> Optional[Node]:
         next_token()
         match_token(TokenKind.KW_FUN)
         return fun_declaration(is_extern=True)
+    if token.kind == TokenKind.KW_TYPEDEF:
+        next_token()
+        return type_definition()
+    if token.kind == TokenKind.KW_IMPORT:
+        next_token()
+        return import_statement()
 
     node = token_list_to_tree()
     return node
 
 
-def compund_statement() -> Optional[Node]:
+def compound_statement() -> Optional[Node]:
     node = None
     while not no_more_lines() and curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE):
         if node is None:
@@ -320,11 +326,20 @@ def compund_statement() -> Optional[Node]:
     return node
 
 
+#! BUG: non-working import statement
+def import_statement() -> Optional[Node]:
+    from Main import process_source
+    in_file = f'{match_token(TokenKind.IDENT).value}.ml'
+    proc = Process(target=process_source, args=(in_file,))
+    proc.start()
+    proc.join()
+
+
 def while_statement() -> Optional[Node]:
     cond_node = token_list_to_tree()
 
     next_line()
-    body = compund_statement()
+    body = compound_statement()
 
     return Node(NodeKind.WHILE, void_type, '', cond_node, body)
 
@@ -333,12 +348,12 @@ def if_statement() -> Optional[Node]:
     cond_node = token_list_to_tree()
 
     next_line()
-    true_node = compund_statement()
+    true_node = compound_statement()
 
     false_node = None
     if curr_token().kind == TokenKind.KW_ELSE:
         next_line()
-        false_node = compund_statement()
+        false_node = compound_statement()
 
     node = Node(NodeKind.IF, '', void_type, true_node, false_node, cond_node)
     return node
@@ -426,17 +441,40 @@ def fun_declaration(is_extern: bool = False) -> Optional[Node]:
         Def.var_off += size_of(arg_type)
 
     next_line()
-    body = compund_statement()
+    body = compound_statement()
 
     Def.fun_name = ''
     Def.label_list.pop()
 
     # Patch the stack offset
     off = Def.var_off
-    allign_off = 0 if off % 16 == 0 else 8 - (off % 8)
-    fun.off = off + allign_off
+    align_off = 0 if off % 16 == 0 else 8 - (off % 8)
+    fun.off = off + align_off
 
     return Node(NodeKind.FUN, default_type, name, body)
+
+
+def type_definition():
+    # typedef uint = int8*
+    alias = match_token(TokenKind.IDENT).value
+    match_token(TokenKind.ASSIGN)
+    type_str = curr_token().value
+
+    next_token()
+    meta_kind = VariableMetaKind.PRIM
+    if not no_more_tokens() and curr_token().kind == TokenKind.MULT:
+        meta_kind = VariableMetaKind.PTR
+
+    # ! Bug in type_of for ptr types.
+    vtype = type_of(type_str, False)
+    # print('DBG:', vtype, meta_kind)  # Debug
+    Def.ident_map[alias] = meta_kind
+    if meta_kind == VariableMetaKind.PRIM:
+        Def.type_map[alias] = vtype
+        Def.var_map[alias] = Variable(vtype, -1, True)
+    if meta_kind == VariableMetaKind.PTR:
+        Def.type_map[alias] = ptr_type
+        Def.ptr_map[alias] = Pointer(alias, vtype, -1)
 
 
 def to_node(token: Token) -> Node:
