@@ -132,7 +132,7 @@ TOKEN_KIND_MAP = {
     'int32': TokenKind.KW_INT32,
     'int16': TokenKind.KW_INT16,
     'int8': TokenKind.KW_INT8,
-    'char': TokenKind.KW_CHAR,
+    # 'char': TokenKind.KW_CHAR,
     'ret': TokenKind.KW_RET,
     'extern': TokenKind.KW_EXTERN,
     'typedef': TokenKind.KW_TYPEDEF,

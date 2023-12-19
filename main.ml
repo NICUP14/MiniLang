@@ -1,6 +1,12 @@
 extern fun printf(fmt: int64, ...): int64
 extern fun exit(status: int32): void
 
+typedef int = int32
+typedef ptr = void*
+typedef str = int8*
+typedef byte = int8
+typedef char = int8
+
 let nassert: int64 = 1
 fun assert(val: int64): void
     if val == 0
@@ -11,7 +17,7 @@ fun assert(val: int64): void
 end
 
 fun main(): int32
-    let arr: int64[5] = [0, 1, 2, 4, 4]
+    let arr: int64[5] = [0, 1, 2, 3, 4]
     let p: int64* = arr
 
     assert((p at 0) == 0)
