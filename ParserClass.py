@@ -90,10 +90,10 @@ class Parser:
         self.tokens = []
         self.tokens_idx = 0
 
-    def parse(self, in_file: str) -> Node:
-        self.in_file = in_file
+    def parse(self, source: str) -> Node:
+        self.source = source
         self.lines = list(filter(
-            lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(in_file, 'r').readlines()))
+            lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(source, 'r').readlines()))
         self.tokens = tokenize(self.curr_line())
         return self.compound_statement()
 
