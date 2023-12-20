@@ -1,10 +1,9 @@
-# import Parser
-import ParserClass
+import Def
 import Gen
 import GenStr
+import ParserClass
 import optparse
 import sys
-import Def
 from Def import Color
 from Def import color_str
 from os.path import exists

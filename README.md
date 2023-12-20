@@ -45,7 +45,7 @@ Main.py       | 9     | 1       | 45
 SUM           | 678   | 134     | 2386
 
 > [!NOTE]
-> Statistics were generated with [cloc](github.com/AlDanial/cloc).
+> Statistics were generated with [cloc](https://github.com/AlDanial/cloc.git).
 
 ## QuickStart
 

@@ -6,7 +6,6 @@ from typing import Dict
 from typing import Optional
 from dataclasses import dataclass
 from traceback import print_stack
-import ParserClass
 
 
 class Color:

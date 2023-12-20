@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 8/13
+Solved: 8/10
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
@@ -12,6 +12,3 @@ Solved: 8/13
 - [ ] Check args in function call.
 - [ ] Static type analysis.
 - [ ] Fix type system.
-- [ ] Type inference.
-- [X] Type definitions.
-- [ ] Namespaces.

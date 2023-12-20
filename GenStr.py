@@ -1,7 +1,7 @@
 import Def
-from Parser import Node
-from Parser import NodeKind
 from Def import Color
+from Def import Node
+from Def import NodeKind
 from Def import color_str
 from Def import rev_type_of
 from Def import print_error
