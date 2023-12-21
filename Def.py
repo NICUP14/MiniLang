@@ -410,6 +410,9 @@ def type_of_ident(ident: str) -> VariableType:
     meta_kind = ident_map.get(ident)
 
     if meta_kind == VariableMetaKind.PRIM:
+        if ident not in var_map:
+            print_error('type_of_ident', f'No such variable {ident}')
+
         return var_map.get(ident).vtype
 
     if meta_kind == VariableMetaKind.ARR:

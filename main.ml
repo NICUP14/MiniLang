@@ -12,8 +12,10 @@ extern fun printf(fmt: cstr, ...): int
 #     nassert = nassert + 1
 # end
 
-fun main(): int
-    let arr: int64[5]
+fun main(): int64
+    let arr: int64[5] = [0, 1, 2, 3, 4]
     let c = &arr
+    printf("%lld\n", (c at 3))
+    ret 0
 end
 end

@@ -20,9 +20,12 @@ Minimal - As close as possible to actual assembly code while maintaining as many
 
 ## Links
 
+* [Ideas](IDEAS.md)
 * [Bug list](BUG.md)
 * [TODO list](TODO.md)
 * [License](LICENSE)
+
+To suggest features/fixes, modify `IDEAS.md`/`BUG.md` and submit a pull request or contact me via the email address in my github profile.
 
 ## Syntax highlighter (VSCode)
 

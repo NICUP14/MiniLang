@@ -562,6 +562,7 @@ class Parser:
                     'Implicit array declaration is not permitted.', self)
 
             var_type = self.token_list_to_tree().ntype
+            kind, meta_kind = var_type.kind, var_type.meta_kind
         else:
             if meta_kind == VariableMetaKind.ARR:
                 var_type = arr_type
