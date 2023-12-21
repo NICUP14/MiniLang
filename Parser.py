@@ -84,7 +84,7 @@ NODE_KIND_MAP = {
 
 class Parser:
     def __init__(self) -> None:
-        self.in_file = ''
+        self.source = ''
         self.lines = []
         self.lines_idx = 0
         self.tokens = []
@@ -243,7 +243,7 @@ class Parser:
                             'to_tree', f'Incompatible type {node.ntype}', self)
 
                     node_stack.append(
-                        Node(kind, node.ntype, token.value, node))
+                        Node(kind, type_of_op(self.node_kind_of(token.kind)), token.value, node))
 
                 elif token_is_bin_op(token.kind):
                     right = node_stack.pop()
@@ -465,6 +465,10 @@ class Parser:
             Def.type_map[alias] = ptr_type
             Def.ptr_map[alias] = Pointer(alias, vtype, -1)
 
+    def defer_statement(self) -> Optional[Node]:
+        node = self.token_list_to_tree()
+        return Node(NodeKind.DEFER, node.ntype, '', node)
+
     def to_node(self, token: Token) -> Node:
         node = None
         kind = self.node_kind_of(token.kind)
@@ -525,11 +529,15 @@ class Parser:
 
     def declaration(self) -> Optional[Node]:
         name = self.match_token(TokenKind.IDENT).value
-        self.match_token(TokenKind.COLON)
 
-        var_type = type_of(self.curr_token().value)
-        kind, meta_kind = var_type.kind, var_type.meta_kind
-        self.next_token()
+        is_implicit = self.curr_token().kind != TokenKind.COLON
+        kind, meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
+        if not is_implicit:
+            self.match_token(TokenKind.COLON)
+
+            var_type = type_of(self.curr_token().value)
+            kind, meta_kind = var_type.kind, var_type.meta_kind
+            self.next_token()
 
         elem_cnt = 0
         if not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
@@ -543,11 +551,22 @@ class Parser:
             self.next_token()
             meta_kind = VariableMetaKind.PTR
 
+        if not self.no_more_tokens():
+            self.match_token(TokenKind.ASSIGN)
+
         var_type = VariableType(kind, meta_kind)
-        if meta_kind == VariableMetaKind.ARR:
-            var_type = arr_type
-        if meta_kind == VariableMetaKind.PTR:
-            var_type = ptr_type
+        if is_implicit:
+            if self.curr_token().kind == TokenKind.LBRACE:
+                print_error(
+                    'declaration',
+                    'Implicit array declaration is not permitted.', self)
+
+            var_type = self.token_list_to_tree().ntype
+        else:
+            if meta_kind == VariableMetaKind.ARR:
+                var_type = arr_type
+            if meta_kind == VariableMetaKind.PTR:
+                var_type = ptr_type
 
         full_name = full_name_of(name)
 
@@ -557,8 +576,6 @@ class Parser:
         if var_type.meta_kind == VariableMetaKind.PRIM:
             is_local = Def.fun_name != ''
             Def.var_map[full_name] = Variable(var_type, Def.var_off, is_local)
-
-            self.match_token(TokenKind.ASSIGN)
 
             node = self.token_list_to_tree()
 
@@ -570,8 +587,6 @@ class Parser:
         if var_type.meta_kind == VariableMetaKind.STR:
             Def.str_map[full_name] = String(
                 full_name, Def.var_off)
-
-            self.match_token(TokenKind.ASSIGN)
 
             node = self.token_list_to_tree()
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
@@ -585,7 +600,6 @@ class Parser:
             if self.no_more_tokens():
                 return None
 
-            self.match_token(TokenKind.ASSIGN)
             self.match_token(TokenKind.LBRACE)
 
             return self.array_declaration(full_name)
@@ -593,8 +607,6 @@ class Parser:
         if var_type.meta_kind == VariableMetaKind.PTR:
             elem_type = VariableType(kind, VariableMetaKind.PRIM)
             Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)
-
-            self.match_token(TokenKind.ASSIGN)
 
             node = self.token_list_to_tree()
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)

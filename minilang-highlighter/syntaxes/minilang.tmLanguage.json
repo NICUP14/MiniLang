@@ -15,7 +15,7 @@
 				},
 				{
 					"name": "keyword.control.minilang",
-					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef)\\b"
+					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef|defer)\\b"
 				},
 				{
 					"name": "keyword.type.minilang",
@@ -28,6 +28,17 @@
 				{
 					"name": "constant.numeric.minilang",
 					"match": "\\b\\d+\\b"
+				},
+				{
+					"name": "constant.character",
+					"begin": "'",
+					"end": "'",
+					"patterns": [
+						{
+							"name": "constant.character.escape.minilang",
+							"match": "\\\\."
+						}
+					]
 				},
 				{
 					"name": "string.quoted.double.minilang",

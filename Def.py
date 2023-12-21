@@ -171,6 +171,7 @@ class NodeKind(enum.Enum):
     REF = 26
     DEREF = 27
     STR_LIT = 28
+    DEFER = 29
 
 
 class Node:
@@ -371,6 +372,7 @@ def type_of(sym: str, use_mkind: bool = True) -> VariableType:
     return VariableType(vtype.kind, meta_kind)
 
 
+# TODO: Pass the node as a parameter (fix ptr types)
 def rev_type_of(vtype: VariableType) -> str:
     rev_kind_map = {
         VariableKind.INT64: 'int64',

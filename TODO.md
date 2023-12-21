@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 8/10
+Solved: 8/13
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
@@ -9,6 +9,9 @@ Solved: 8/10
 - [X] Implement right-assoc
 - [X] Implement lazy loading (gen).
 - [X] Add an output file parameter to the Gen module.
+- [ ] Improve Def.rev_type_of.
 - [ ] Check args in function call.
 - [ ] Static type analysis.
 - [ ] Fix type system.
+- [ ] Defer.
+- [ ] Import.

@@ -1,7 +1,7 @@
 import Def
 import Gen
 import GenStr
-import ParserClass
+import Parser
 import optparse
 import sys
 from Def import Color
@@ -45,7 +45,7 @@ if __name__ == '__main__':
         Def.color_enabled = False
         Def.stdout = open(values_dict.get('output'), 'w')
 
-    parser = ParserClass.Parser()
+    parser = Parser.Parser()
     root = parser.parse(in_file)
 
     if values_dict.get('debug'):

@@ -45,6 +45,7 @@ Main.py       | 9     | 1       | 45
 SUM           | 678   | 134     | 2386
 
 > [!NOTE]
+> Current statistics are out-of-date.
 > Statistics were generated with [cloc](https://github.com/AlDanial/cloc.git).
 
 ## QuickStart
@@ -52,7 +53,7 @@ SUM           | 678   | 134     | 2386
 > [!WARNING]
 > Source files should be terminated by an extra `end` keyword due to reusing `Parser.compund_statement` to parse the program's logic.
 
-`Main.py:44: root = Parser.compund_statement()`
+`Parser.py:98: return self.compund_statement()`
 
 ### Primitives
 
@@ -121,8 +122,10 @@ Thus, a stack variable of type void acts as a stack addr placeholder (its offset
 
 ```txt
 # Declaration syntax
+# The type for non-array variables is optional (type inference).
 let variable: type = value
 let pointer: type* = address
+let inferred = &variable
 let array: type[n] = [elem1, elem2, ..., elemn]
 
 # Array accesses (2 equivalent methods)

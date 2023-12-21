@@ -1,7 +1,8 @@
-# Idead
+# Ideas
 
-Solved: 1/3
+Solved: 2/4
 
-- [ ] Type inference.
+- [X] Type inference.
 - [X] Type definitions.
 - [ ] Namespaces.
+- [ ] Ruby-like heredocs.

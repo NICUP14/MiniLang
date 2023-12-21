@@ -1,6 +1,7 @@
 import re
 import enum
 from typing import List
+from typing import Optional
 from dataclasses import dataclass
 from Def import print_error
 
@@ -29,8 +30,12 @@ OPERATORS = (
 )
 
 
-def to_pattern(l): return '|'.join(l)
-def is_int(s: str): return re.search(INT_PATTERN, s) is not None
+def to_pattern(l):
+    return '|'.join(l)
+
+
+def is_int(s: str):
+    return re.search(INT_PATTERN, s) is not None
 
 
 INT_PATTERN = r'-?\d+'
@@ -76,9 +81,8 @@ class TokenKind(enum.Enum):
     COMMA = 25
     FUN_CALL = 26
     CHAR_LIT = 27
-    KW_CHAR = 28
-    KW_INT32 = 29,
-    KW_INT16 = 30,
+    KW_INT32 = 29
+    KW_INT16 = 30
     KW_INT8 = 31
     KW_RET = 32
     LBRACE = 33
@@ -91,6 +95,7 @@ class TokenKind(enum.Enum):
     PER_FUN = 40
     KW_TYPEDEF = 41
     KW_IMPORT = 42
+    KW_DEFER = 43
 
 
 @dataclass
@@ -132,10 +137,10 @@ TOKEN_KIND_MAP = {
     'int32': TokenKind.KW_INT32,
     'int16': TokenKind.KW_INT16,
     'int8': TokenKind.KW_INT8,
-    # 'char': TokenKind.KW_CHAR,
     'ret': TokenKind.KW_RET,
     'extern': TokenKind.KW_EXTERN,
     'typedef': TokenKind.KW_TYPEDEF,
+    # 'defer': TokenKind.KW_DEFER
     # 'import': TokenKind.KW_IMPORT
 }
 
@@ -178,7 +183,7 @@ def token_is_paren(kind: TokenKind) -> bool:
     )
 
 
-def token_kind_of(value: str) -> TokenKind:
+def token_kind_of(value: str) -> Optional[TokenKind]:
     if value in TOKEN_KIND_MAP:
         return TOKEN_KIND_MAP.get(value)
     if value.startswith('\'') and value.endswith('\''):
@@ -191,6 +196,7 @@ def token_kind_of(value: str) -> TokenKind:
         return TokenKind.IDENT
 
     print_error('token_kind_of', f'Invalid token {value}')
+    return None
 
 
 def token_is_rassoc(kind: TokenKind) -> bool:
@@ -246,7 +252,8 @@ def post_process(tokens: List[Token]):
             return (Token(TokenKind.KW_AT, 'at'), Token(TokenKind.LPAREN, '('))
         return (token,)
 
-    def flat_map(f, xs): return [y for ys in xs for y in f(ys)]
+    def flat_map(f, xs):
+        return [y for ys in xs for y in f(ys)]
 
     if tokens.count(Token(TokenKind.LBRACE, '[')) != tokens.count(Token(TokenKind.RBRACE, ']')):
         print_error('post_process', 'Expression contains unclosed braces')
