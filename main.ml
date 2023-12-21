@@ -15,6 +15,5 @@ extern fun printf(fmt: cstr, ...): int
 fun main(): int
     let arr: int64[5]
     let c = &arr
-    let c = [1, 2, 3]
 end
 end

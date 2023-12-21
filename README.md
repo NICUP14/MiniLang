@@ -48,6 +48,27 @@ SUM           | 678   | 134     | 2386
 > Current statistics are out-of-date.
 > Statistics were generated with [cloc](https://github.com/AlDanial/cloc.git).
 
+## Usage
+
+```txt
+Usage: Main.py [options]
+
+The mini language compiler, Version: 1.0.0, Source:
+https://github.com/NICUP14/MiniLang.git
+
+Options:
+  -h, --help            show this help message and exit
+  -i INPUT, --input=INPUT
+                        Read contents from INPUT.
+  -o OUTPUT, --output=OUTPUT
+                        Write contents to OUTPUT; When set, no-color is
+                        enabled by default.
+  -d, --debug           Dry run; Print the human-friendly AST representation.
+  -c, --no-color        Do not use ANSI color sequences in the output.
+  -C, --no-comment      Do not include human-readable comments in the
+                        generated assembly.
+```
+
 ## QuickStart
 
 > [!WARNING]
