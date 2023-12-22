@@ -53,9 +53,8 @@ class VariableMetaKind(enum.Enum):
     PRIM = 0
     PTR = 1
     ARR = 2
-    STRUCT = 3
-    FUN = 4
-    STR = 5
+    FUN = 3
+    STRUCT = 4
 
 
 class VariableKind(enum.Enum):
@@ -342,9 +341,6 @@ def off_of(ident: str) -> int:
     if meta_kind == VariableMetaKind.PRIM:
         return var_map.get(ident).off
 
-    if meta_kind == VariableMetaKind.STR:
-        return str_map.get(ident).off
-
     if meta_kind == VariableMetaKind.ARR:
         return arr_map.get(ident).off
 
@@ -386,7 +382,6 @@ def rev_type_of(vtype: VariableType) -> str:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
     specf = '*' if vtype.meta_kind in (VariableMetaKind.PTR,
-                                       VariableMetaKind.STR,
                                        VariableMetaKind.ARR) else ''
     return specf + rev_kind_map.get(vtype.kind)
 

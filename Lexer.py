@@ -7,6 +7,7 @@ from Def import print_error
 
 
 OPERATORS = (
+    '<<-',
     '+',
     '-',
     '*',
@@ -26,7 +27,7 @@ OPERATORS = (
     '[',
     ']',
     '&',
-    '...'
+    '...',
 )
 
 
@@ -39,9 +40,9 @@ def is_int(s: str):
 
 
 INT_PATTERN = r'-?\d+'
-CHAR_PATTERN = r'\'.+\''
-STR_PATTERN = r'\".+\"'
-SYM_PATTERN = r'\w+'
+CHAR_PATTERN = r'\'[^\']+\''
+STR_PATTERN = r'\"[^\"]+\"'
+SYM_PATTERN = r'\\?\w+'
 OP_PATTERN = to_pattern(map(re.escape, OPERATORS))
 PATTERN = to_pattern([
     INT_PATTERN,
@@ -96,6 +97,7 @@ class TokenKind(enum.Enum):
     KW_TYPEDEF = 41
     KW_IMPORT = 42
     KW_DEFER = 43
+    HEREDOC = 44
 
 
 @dataclass
@@ -125,6 +127,8 @@ TOKEN_KIND_MAP = {
     ']': TokenKind.RBRACE,
     '&': TokenKind.AMP,
     '...': TokenKind.PER_FUN,
+    '<<-': TokenKind.HEREDOC,
+    '\\end': TokenKind.IDENT,
     'at': TokenKind.KW_AT,
     'let': TokenKind.KW_LET,
     'if': TokenKind.KW_IF,
@@ -192,7 +196,7 @@ def token_kind_of(value: str) -> Optional[TokenKind]:
         return TokenKind.STR_LIT
     if str.isdigit(value):
         return TokenKind.INT_LIT
-    if str.isalnum(value):
+    if str.isalnum(value.replace('_', '')):
         return TokenKind.IDENT
 
     print_error('token_kind_of', f'Invalid token {value}')

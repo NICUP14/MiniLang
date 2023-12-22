@@ -527,6 +527,18 @@ class Parser:
 
         return root
 
+    def heredoc_declaration(self):
+        self.next_line()
+
+        parts = []
+        while not self.no_more_lines() and self.curr_token().kind != TokenKind.KW_END:
+            parts.append(self.curr_line().lstrip('\t '))
+            self.next_line()
+        self.next_line()
+
+        value = ''.join(parts).rstrip('\n')
+        return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), value)
+
     def declaration(self) -> Optional[Node]:
         name = self.match_token(TokenKind.IDENT).value
 
@@ -585,13 +597,6 @@ class Parser:
 
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-        if var_type.meta_kind == VariableMetaKind.STR:
-            Def.str_map[full_name] = String(
-                full_name, Def.var_off)
-
-            node = self.token_list_to_tree()
-            return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
-
         if var_type.meta_kind == VariableMetaKind.ARR:
             elem_type = VariableType(var_type.kind, VariableMetaKind.PRIM)
             Def.arr_map[full_name] = Array(
@@ -609,7 +614,13 @@ class Parser:
             elem_type = VariableType(kind, VariableMetaKind.PRIM)
             Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)
 
-            node = self.token_list_to_tree()
+            node = None
+            if self.curr_token().kind == TokenKind.HEREDOC:
+                self.next_token()
+                node = self.heredoc_declaration()
+            else:
+                node = self.token_list_to_tree()
+
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         print_error('declaration',

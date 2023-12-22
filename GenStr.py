@@ -46,8 +46,14 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
 
     indent = '\t' * cnt
 
-    if node.kind in (NodeKind.INT_LIT, NodeKind.CHAR_LIT, NodeKind.STR_LIT):
+    if node.kind == NodeKind.INT_LIT:
         return node.value
+    if node.kind == NodeKind.CHAR_LIT:
+        return f'\'{node.value}\''
+    if node.kind == NodeKind.STR_LIT:
+        string = node.value.replace('\n', '\\n').replace(
+            '\t', '\\t').replace('\\end', 'end')
+        return f'\"{string}\"'
     if node.kind == NodeKind.IDENT:
         return f'({color_str(Color.GREEN, rev_type_of(node.ntype))})({node.value})'
     if node.kind == NodeKind.OP_ADD:

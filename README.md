@@ -134,7 +134,7 @@ at     | Binary | -        | Array access
 ```txt
 typedef int = int32
 typedef ptr = void*
-typedef str = int8*
+typedef cstr = int8*
 typedef byte = int8
 typedef char = int8
 ```
@@ -146,11 +146,21 @@ Thus, a stack variable of type void acts as a stack addr placeholder (its offset
 
 ```txt
 # Declaration syntax
-# The type for non-array variables is optional (type inference).
+# Recommended naming convention: snake_case
+# The type for non-array variables is optional (type inference)
 let variable: type = value
 let pointer: type* = address
 let inferred = &variable
 let array: type[n] = [elem1, elem2, ..., elemn]
+
+# String & heredocs declaration syntax
+let str: cstr = "abcd"
+let heredoc_str: cstr = <<-
+    \end
+    HELLO end
+    HELLO WORLD
+    HELLO FROM BELOW
+end
 
 # Array accesses (2 equivalent methods)
 array at i = 15

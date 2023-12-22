@@ -553,7 +553,8 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         return opd
 
     if node.kind == NodeKind.STR_LIT:
-        string = node.value.lstrip('\"').rstrip('\"')
+        string = node.value.lstrip('\"').rstrip(
+            '\"').replace('\n', '\\n').replace('\t', '\\t').replace('\\end', 'end')
         value = ""
 
         if string not in Def.str_lit_map:
