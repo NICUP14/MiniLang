@@ -50,11 +50,11 @@ class VariableMetaKind(enum.Enum):
     between primitives, advanced or composite types.
     """
 
-    PRIM = 0
-    PTR = 1
-    ARR = 2
-    FUN = 3
-    STRUCT = 4
+    PRIM = enum.auto()
+    PTR = enum.auto()
+    ARR = enum.auto()
+    FUN = enum.auto()
+    STRUCT = enum.auto()
 
 
 class VariableKind(enum.Enum):
@@ -70,24 +70,43 @@ class VariableKind(enum.Enum):
 
 
 @dataclass
+class VariableCompKind:
+    kind: VariableKind
+    meta_kind: VariableMetaKind
+
+
 class VariableType:
     """
     Allows type checking in a structured manner.
     """
 
-    kind: VariableKind
-    meta_kind: VariableMetaKind
+    def __init__(self, ckind: VariableCompKind, elem_ckind: VariableCompKind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)) -> None:
+        self.ckind = ckind
+        self.elem_ckind = elem_ckind
+
+    def __eq__(self, other):
+        if isinstance(other, VariableType):
+            return (self.ckind, self.elem_ckind) == (other.ckind, self.elem_ckind)
+        return False
+
+    def __str__(self) -> str:
+        attrs = []
+        for key, value in vars(self).items():
+            attrs.append(f"{key}={value}")
+        return f"{self.__class__.__name__}({', '.join(attrs)})"
 
 
-@dataclass
 class Variable:
     """
     Contains the meta-data of a primitive type.
     """
 
-    vtype: VariableType
-    off: int
-    is_local: bool
+    # ? The value field is used to initialize global variables
+    def __init__(self, vtype: VariableType, off: int, is_local: bool = True, value: int = 0):
+        self.vtype = vtype
+        self.off = off
+        self.is_local = is_local
+        self.value = value
 
 
 @dataclass
@@ -133,7 +152,7 @@ class Function:
     arg_cnt: int
     arg_names: List[str]
     arg_types: List[VariableType]
-    ret_type: VariableKind
+    ret_type: VariableCompKind
     off: int
     is_variadic: bool
     is_extern: bool
@@ -144,33 +163,33 @@ class NodeKind(enum.Enum):
     Defines all the AST node identifiers.
     """
 
-    IDENT = 1
-    INT_LIT = 2
-    OP_ADD = 3
-    OP_SUB = 4
-    OP_MULT = 5
-    OP_DIV = 6
-    OP_MOD = 7
-    OP_ASSIGN = 8
-    OP_GT = 9
-    OP_LT = 10
-    OP_LTE = 11
-    OP_GTE = 12
-    OP_EQ = 13
-    OP_NEQ = 14
-    IF = 16
-    WHILE = 17
-    GLUE = 18
-    FUN = 19
-    FUN_CALL = 20
-    CHAR_LIT = 21
-    OP_WIDEN = 22
-    RET = 24
-    ARR_ACC = 25
-    REF = 26
-    DEREF = 27
-    STR_LIT = 28
-    DEFER = 29
+    IDENT = enum.auto()
+    INT_LIT = enum.auto()
+    OP_ADD = enum.auto()
+    OP_SUB = enum.auto()
+    OP_MULT = enum.auto()
+    OP_DIV = enum.auto()
+    OP_MOD = enum.auto()
+    OP_ASSIGN = enum.auto()
+    OP_GT = enum.auto()
+    OP_LT = enum.auto()
+    OP_LTE = enum.auto()
+    OP_GTE = enum.auto()
+    OP_EQ = enum.auto()
+    OP_NEQ = enum.auto()
+    IF = enum.auto()
+    WHILE = enum.auto()
+    GLUE = enum.auto()
+    FUN = enum.auto()
+    FUN_CALL = enum.auto()
+    CHAR_LIT = enum.auto()
+    OP_WIDEN = enum.auto()
+    RET = enum.auto()
+    ARR_ACC = enum.auto()
+    REF = enum.auto()
+    DEREF = enum.auto()
+    STR_LIT = enum.auto()
+    DEFER = enum.auto()
 
 
 class Node:
@@ -222,7 +241,7 @@ class Operand:
         return self
 
     def reg_str(self):
-        return reg_table_at(self.reg, self.var_type.kind)
+        return reg_table_at(self.reg, self.var_type.ckind.kind)
 
     def __str__(self) -> str:
         attrs = []
@@ -334,7 +353,7 @@ def full_name_of(name: str):
 
 def off_of(ident: str) -> int:
     if ident not in ident_map:
-        print_error('off_of', f'No such indentifier {ident}')
+        print_error('off_of', f'No such identifier {ident}')
 
     meta_kind = ident_map.get(ident)
 
@@ -352,23 +371,14 @@ def off_of(ident: str) -> int:
 
 # Parses the type of the identifier
 def type_of(sym: str, use_mkind: bool = True) -> VariableType:
-    # kind_map = {
-    #     'int64': VariableKind.INT64,
-    #     'int32': VariableKind.INT32,
-    #     'int16': VariableKind.INT16,
-    #     'int8': VariableKind.INT8,
-    #     'void': VariableKind.VOID
-    # }
-
-    if sym not in type_map:
+    if sym not in ckind_map:
         print_error('type_of', f'Invalid type identifier {sym}')
 
-    vtype = type_map.get(sym)
-    meta_kind = VariableMetaKind.PRIM if not use_mkind else vtype.meta_kind
-    return VariableType(vtype.kind, meta_kind)
+    ckind = ckind_map.get(sym)
+    meta_kind = VariableMetaKind.PRIM if not use_mkind else ckind.meta_kind
+    return VariableType(VariableCompKind(ckind.kind, meta_kind))
 
 
-# TODO: Pass the node as a parameter (fix ptr types)
 def rev_type_of(vtype: VariableType) -> str:
     rev_kind_map = {
         VariableKind.INT64: 'int64',
@@ -378,12 +388,16 @@ def rev_type_of(vtype: VariableType) -> str:
         VariableKind.VOID: 'void',
     }
 
-    if vtype.kind not in rev_kind_map:
+    if vtype.ckind.kind not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
-    specf = '*' if vtype.meta_kind in (VariableMetaKind.PTR,
-                                       VariableMetaKind.ARR) else ''
-    return specf + rev_kind_map.get(vtype.kind)
+    if vtype.ckind == ptr_ckind:
+        return f'*{rev_kind_map.get(vtype.elem_ckind.kind)}'
+
+    if vtype.ckind == arr_ckind:
+        return f'{rev_kind_map.get(vtype.elem_ckind.kind)}[]'
+
+    return rev_kind_map.get(vtype.ckind.kind)
 
 
 def cmp_var_kind(kind: VariableKind, kind2: VariableKind):
@@ -404,66 +418,66 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
+    if meta_kind == VariableMetaKind.ARR:
+        return VariableType(arr_ckind, default_ckind)
+
+    if meta_kind == VariableMetaKind.PTR:
+        return VariableType(ptr_ckind, default_ckind)
+
     if meta_kind == VariableMetaKind.PRIM:
         if ident not in var_map:
             print_error('type_of_ident', f'No such variable {ident}')
 
         return var_map.get(ident).vtype
 
-    if meta_kind == VariableMetaKind.ARR:
-        return arr_type
-
-    if meta_kind == VariableMetaKind.PTR:
-        return ptr_type
-
     print_error('type_of_ident', f'No such meta kind {meta_kind}')
 
 
-def type_of_lit(kind: NodeKind):
+def type_of_lit(kind: NodeKind) -> VariableType:
     type_map = {
-        NodeKind.STR_LIT: ptr_type,
-        NodeKind.INT_LIT: default_type,
-        NodeKind.CHAR_LIT: bool_type,
+        NodeKind.STR_LIT: ptr_ckind,
+        NodeKind.INT_LIT: default_ckind,
+        NodeKind.CHAR_LIT: bool_ckind,
     }
 
     if kind not in type_map:
         print_error('type_of_lit', f'Invalid node kind {kind}')
 
-    return type_map.get(kind)
+    return VariableType(type_map.get(kind), default_ckind)
 
 
 def type_of_op(kind: NodeKind) -> VariableType:
-    type_map = {
-        NodeKind.OP_MULT: default_type,
-        NodeKind.OP_ADD: default_type,
-        NodeKind.OP_SUB: default_type,
-        NodeKind.OP_DIV: default_type,
-        NodeKind.OP_MOD: default_type,
-        NodeKind.OP_GT: bool_type,
-        NodeKind.OP_LT: bool_type,
-        NodeKind.OP_LTE: bool_type,
-        NodeKind.OP_GTE: bool_type,
-        NodeKind.OP_EQ: bool_type,
-        NodeKind.OP_NEQ: bool_type,
-        NodeKind.IF: void_type,
-        NodeKind.WHILE: void_type,
-        NodeKind.GLUE: void_type,  # ? Temporary
-        NodeKind.FUN: void_type,
-        NodeKind.FUN_CALL: default_type,
-        NodeKind.OP_ASSIGN: default_type,
-        NodeKind.ARR_ACC: default_type,
-        NodeKind.REF: ptr_type,
-        NodeKind.DEREF: default_type
+    ckind_map = {
+        NodeKind.OP_MULT: default_ckind,
+        NodeKind.OP_ADD: default_ckind,
+        NodeKind.OP_SUB: default_ckind,
+        NodeKind.OP_DIV: default_ckind,
+        NodeKind.OP_MOD: default_ckind,
+        NodeKind.OP_GT: bool_ckind,
+        NodeKind.OP_LT: bool_ckind,
+        NodeKind.OP_LTE: bool_ckind,
+        NodeKind.OP_GTE: bool_ckind,
+        NodeKind.OP_EQ: bool_ckind,
+        NodeKind.OP_NEQ: bool_ckind,
+        NodeKind.IF: void_ckind,
+        NodeKind.WHILE: void_ckind,
+        NodeKind.GLUE: void_ckind,  # ? Temporary
+        NodeKind.FUN: void_ckind,
+        NodeKind.FUN_CALL: default_ckind,
+        NodeKind.OP_ASSIGN: default_ckind,
+        NodeKind.ARR_ACC: default_ckind,
+        NodeKind.REF: ptr_ckind,
+        NodeKind.DEREF: default_ckind
     }
 
-    if kind not in type_map:
+    if kind not in ckind_map:
         print_error('type_of_op', f'Invalid node kind {kind}')
 
-    return type_map.get(kind)
+    return VariableType(ckind_map.get(kind), default_ckind)
 
 
-def allowed_op(var_type: VariableType):
-    if var_type.meta_kind == VariableMetaKind.PRIM:
+def allowed_op(ckind: VariableCompKind):
+    if ckind.meta_kind == VariableMetaKind.PRIM:
         return [
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
@@ -481,13 +495,13 @@ def allowed_op(var_type: VariableType):
             NodeKind.REF,
         ]
 
-    if var_type == void_type:
+    if ckind == void_ckind:
         return [
             NodeKind.GLUE,
             NodeKind.REF
         ]
 
-    if var_type == arr_type:
+    if ckind == arr_ckind:
         return [
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
@@ -497,7 +511,7 @@ def allowed_op(var_type: VariableType):
             NodeKind.REF
         ]
 
-    if var_type == ptr_type:
+    if ckind == ptr_ckind:
         return [
             NodeKind.GLUE,
             NodeKind.ARR_ACC,
@@ -517,36 +531,36 @@ def allowed_op(var_type: VariableType):
             NodeKind.REF
         ]
 
-    print_error('allowed_op', f'Invalid type: {var_type}')
+    print_error('allowed_op', f'Invalid type: {ckind}')
 
 
-def needs_widen(var_type: VariableType, var_type2: VariableType):
-    if var_type == var_type2:
+def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
+    if ckind == ckind2:
         return 0
 
-    if var_type == ptr_type or var_type2 == ptr_type:
+    if ckind == ptr_ckind or ckind2 == ptr_ckind:
         return 0
 
-    if var_type == arr_type or var_type2 == arr_type:
+    if ckind == arr_ckind or ckind2 == arr_ckind:
         return 0
 
-    if var_type == void_type or var_type2 == void_type:
+    if ckind == void_ckind or ckind2 == void_ckind:
         return 0
 
-    if var_type.meta_kind == VariableMetaKind.PRIM and var_type2.meta_kind == VariableMetaKind.PRIM:
-        return (2 if cmp_var_kind(var_type.kind, var_type2.kind) else 1)
+    if ckind.meta_kind == VariableMetaKind.PRIM and ckind2.meta_kind == VariableMetaKind.PRIM:
+        return (2 if cmp_var_kind(ckind.kind, ckind2.kind) else 1)
 
-    print_error('needs_widen', f'Invalid type in ({var_type, var_type2})')
+    print_error('needs_widen', f'Invalid composite kinds ({ckind, ckind2})')
 
 
-def size_of(var_type: VariableType):
-    if var_type == ptr_type:
+def size_of(ckind: VariableCompKind):
+    if ckind == ptr_ckind:
         return 8
 
-    if var_type == arr_type:
+    if ckind == arr_ckind:
         return 8
 
-    if var_type.meta_kind == VariableMetaKind.PRIM:
+    if ckind.meta_kind == VariableMetaKind.PRIM:
         size_map = {
             VariableKind.INT64: 8,
             VariableKind.INT32: 4,
@@ -555,10 +569,10 @@ def size_of(var_type: VariableType):
             VariableKind.VOID: 0,
         }
 
-        if var_type.kind in size_map:
-            return size_map.get(var_type.kind)
+        if ckind.kind in size_map:
+            return size_map.get(ckind.kind)
 
-    print_error('size_of', f'Invalid variable type {var_type}')
+    print_error('size_of', f'Invalid variable type {ckind}')
 
 
 def cmp_modf_of(kind: NodeKind) -> str:
@@ -625,29 +639,13 @@ color_enabled = True
 comments_enabled = True
 stdout = sys.stdout
 
-type_map = {
-    'int64': VariableType(VariableKind.INT64, VariableMetaKind.PRIM),
-    'int32': VariableType(VariableKind.INT32, VariableMetaKind.PRIM),
-    'int16': VariableType(VariableKind.INT16, VariableMetaKind.PRIM),
-    'int8': VariableType(VariableKind.INT8, VariableMetaKind.PRIM),
-    'void': VariableType(VariableKind.VOID, VariableMetaKind.PRIM)
+ckind_map = {
+    'int64': VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM),
+    'int32': VariableCompKind(VariableKind.INT32, VariableMetaKind.PRIM),
+    'int16': VariableCompKind(VariableKind.INT16, VariableMetaKind.PRIM),
+    'int8': VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM),
+    'void': VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 }
-
-# kind_map = {
-#     'int64': VariableKind.INT64,
-#     'int32': VariableKind.INT32,
-#     'int16': VariableKind.INT16,
-#     'int8': VariableKind.INT8,
-#     'void': VariableKind.VOID
-# }
-
-# rev_kind_map = {
-#     VariableKind.INT64: 'int64',
-#     VariableKind.INT32: 'int32',
-#     VariableKind.INT16: 'int16',
-#     VariableKind.INT8: 'int8',
-#     VariableKind.VOID: 'void',
-# }
 
 var_off = 0
 var_map: Dict[str, Variable] = dict()
@@ -660,10 +658,13 @@ str_lit_map: Dict[str, str] = dict()
 opd_map = {reg: None for reg in REGS}
 reg_avail_map = {reg: True for reg in REGS}
 label_list: List[str] = []
-ptr_type = VariableType(VariableKind.INT64, VariableMetaKind.PTR)
-arr_type = VariableType(VariableKind.INT64, VariableMetaKind.ARR)
-void_type = VariableType(VariableKind.VOID, VariableMetaKind.PRIM)
-bool_type = VariableType(VariableKind.INT8, VariableMetaKind.PRIM)
-default_type = VariableType(VariableKind.INT64, VariableMetaKind.PRIM)
-fun_type = VariableType(VariableKind.INT64, VariableMetaKind.FUN)
+ptr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PTR)
+arr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ARR)
+void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
+bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)
+default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
+fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
+void_type = VariableType(void_ckind)
+bool_type = VariableType(bool_ckind)
+default_type = VariableType(default_ckind)
 fun_name = ''

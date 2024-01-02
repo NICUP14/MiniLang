@@ -5,33 +5,33 @@ from dataclasses import dataclass
 
 
 class SnippetId(enum.Enum):
-    CMT = -1
-    CALL = 0
-    LABEL = 1
-    JMP = 2
-    COND_JMP = 3
-    SET_REG = 4
-    CMP_REG = 5
-    MOVE_REG = 6
-    LOAD_IMM = 7
-    LOAD_STACK_VAR = 8
-    ADD_OP = 9
-    SUB_OP = 10
-    MUL_OP = 11
-    DIV_MOD_OP = 12
-    ASSIGN_OP = 13
-    WRITE_STACK_VAR = 14
-    FUN_PREAMBLE = 15
-    FUN_POSTAMBLE = 16
-    EXTEND_REG = 17
-    LOAD_STACK_ADDR = 18
-    LOAD_DATA_ADDR = 19
-    WRITEREF_REG = 20
-    DEREF_REG = 21
-    XOR_RAX = 22
-    LOAD_DATA_VAR = 23
-    WRITE_DATA_VAR = 24
-    XOR_RDX = 25
+    CMT = enum.auto()
+    CALL = enum.auto()
+    LABEL = enum.auto()
+    JMP = enum.auto()
+    COND_JMP = enum.auto()
+    SET_REG = enum.auto()
+    CMP_REG = enum.auto()
+    MOVE_REG = enum.auto()
+    LOAD_IMM = enum.auto()
+    LOAD_STACK_VAR = enum.auto()
+    ADD_OP = enum.auto()
+    SUB_OP = enum.auto()
+    MUL_OP = enum.auto()
+    DIV_MOD_OP = enum.auto()
+    ASSIGN_OP = enum.auto()
+    WRITE_STACK_VAR = enum.auto()
+    FUN_PREAMBLE = enum.auto()
+    FUN_POSTAMBLE = enum.auto()
+    EXTEND_REG = enum.auto()
+    LOAD_STACK_ADDR = enum.auto()
+    LOAD_DATA_ADDR = enum.auto()
+    WRITEREF_REG = enum.auto()
+    DEREF_REG = enum.auto()
+    XOR_RAX = enum.auto()
+    LOAD_DATA_VAR = enum.auto()
+    WRITE_DATA_VAR = enum.auto()
+    XOR_RDX = enum.auto()
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Snippet:
     args: List[str]
 
     def add_arg(self, arg: str):
-        self.args.append(arg)
+        self.args.append(str(arg))
         return self
 
     def asm(self):

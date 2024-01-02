@@ -1,11 +1,11 @@
 typedef int = int32
 typedef cstr = int8*
-extern fun exit(status: int): void
+extern fun exit(status: int32): void
 extern fun printf(fmt: cstr, ...): int
-extern fun strcpy(dest: cstr, src: cstr): int
+extern fun strlen(s: cstr): int
 
-let nassert: int64 = 1
-fun assert(val: int64): void
+let nassert = 1
+fun assert(val: int8): void
     if val == 0
         printf("Failed assertion %lld\n", nassert)
         exit(1)
@@ -14,11 +14,12 @@ fun assert(val: int64): void
 end
 
 fun main(): int64
-    let my_str: cstr = <<-
-        \end
-        HELLO end
-        HELLO WORLD
-        HELLO FROM BELOW
+    let idx = 0
+    let str: int8* = "abcd"
+
+    while idx < strlen(str)
+        printf("%lld %c\n", idx, str at idx)
+        idx = idx + 1
     end
     ret 0
 end

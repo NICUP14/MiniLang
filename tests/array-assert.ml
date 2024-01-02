@@ -17,7 +17,7 @@ fun assert(val: int64): void
 end
 
 fun main(): int32
-    let arr: int64[5] = [0, 1, 2, 3, 4]
+    let arr: int64[5] = [0, 1, 2, 4, 4]
     let p: int64* = arr
 
     assert((p at 0) == 0)

@@ -1,5 +1,7 @@
 # Mini Lang
 
+<img src="Logo.png" width="250px"></img>
+
 A type-safe C successor that compiles directly to x86_64 assembly.
 
 > [!WARNING]
