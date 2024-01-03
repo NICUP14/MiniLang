@@ -600,7 +600,7 @@ class Parser:
 
         if var_type.meta_kind() == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
-                var_type.kind(), VariableMetaKind.PRIM))
+                kind, VariableMetaKind.PRIM))
             Def.arr_map[full_name] = Array(
                 full_name, elem_cnt, elem_type, Def.var_off)
             Def.var_off += size_of(elem_type.ckind) * elem_cnt

@@ -126,8 +126,8 @@ def gen_load_var(opd: Operand):
 
 
 def gen_load_ptr(opd: Operand, vtype: VariableType = default_type):
-    if opd.value not in Def.ptr_map:
-        print_error('gen_load_ptr', f'No such pointer {opd.value}')
+    # if opd.value not in Def.ptr_map:
+    #     print_error('gen_load_ptr', f'No such pointer {opd.value}')
 
     # ? Placeholder
     tmp = copy_of(opd)
@@ -211,9 +211,9 @@ def gen_write_var(opd: Operand):
 
 def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     vtype = left_opd.var_type
-    if is_acc and vtype == ptr_ckind:
+    if is_acc and vtype.ckind == ptr_ckind:
         vtype = Def.ptr_map[left_opd.value].elem_type
-    if is_acc and vtype == arr_ckind:
+    if is_acc and vtype.ckind == arr_ckind:
         vtype = Def.arr_map[left_opd.value].elem_type
 
     opd = copy_of(right_opd)
@@ -226,7 +226,7 @@ def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     print_stdout(snippet.asm())
 
 
-def gen_widen(opd: Operand, var_type: VariableType = default_ckind):
+def gen_widen(opd: Operand, var_type: VariableType = default_type):
     if opd.var_type == var_type:
         return
 
@@ -306,6 +306,7 @@ def gen_fun_call(node: Node):
         opd = gen_tree(glue_node, node, -1)
         opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
+        # ?Temporary
         gen_load(opd)
 
         snippet = copy_of(SnippetCollection.MOVE_REG)
@@ -322,8 +323,8 @@ def gen_fun_call(node: Node):
             opd = gen_tree(glue_node.right, glue_node, -1)
             opd_dst = Operand('', opd.var_type, CALL_REGS[reg_cnt])
 
+            # ?Temporary
             gen_load(opd)
-            # gen_load(opd_dst)
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
             snippet.add_arg(modf_of(opd.var_type.kind()))
@@ -589,25 +590,40 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node.kind == NodeKind.ARR_ACC:
         gen_load(left_opd)
         gen_load(right_opd)
-        opd = Operand(size_of(right_opd.var_type.ckind),
-                      right_opd.var_type, imm=True)
+        opd = Operand(str(size_of(left_opd.var_type.elem_ckind)),
+                      VariableType(right_opd.var_type.elem_ckind), imm=True)
         opd.reg = alloc_reg(opd=opd)
         gen_load(opd)
 
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
-        add_snippet = bin_snippet(
-            SnippetCollection.ADD_OP, left_opd, opd)
+        sub_snippet = bin_snippet(
+            SnippetCollection.SUB_OP, left_opd, opd)
+        # add_snippet = bin_snippet(
+        #     SnippetCollection.ADD_OP, left_opd, opd)
         print_stdout(mul_snippet.asm())
-        print_stdout(add_snippet.asm())
+        print_stdout(sub_snippet.asm())
+        # print_stdout(add_snippet.asm())
 
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
-            if left_opd.var_type == ptr_ckind:
+            # ?Duplicated code block
+            if left_opd.var_type.ckind == arr_ckind:
+                arr = Def.arr_map.get(left_opd.value)
+                elem_type = arr.elem_type
+                gen_load_ptr(left_opd, elem_type)
+
+                left_opd.var_type = elem_type
+                left_opd.load()
+                gen_widen(left_opd)
+
+            elif left_opd.var_type.ckind == ptr_ckind:
                 ptr = Def.ptr_map.get(left_opd.value)
                 elem_type = ptr.elem_type
                 gen_load_ptr(left_opd, elem_type)
 
                 left_opd.var_type = elem_type
+                left_opd.load()
                 gen_widen(left_opd)
+
             else:
                 gen_load_ptr(left_opd)
 

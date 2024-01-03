@@ -385,6 +385,43 @@ def type_of(sym: str, use_mkind: bool = True) -> VariableType:
     return VariableType(VariableCompKind(ckind.kind, meta_kind))
 
 
+def rev_type_of_ident(name: str) -> str:
+    rev_kind_map = {
+        VariableKind.INT64: 'int64',
+        VariableKind.INT32: 'int32',
+        VariableKind.INT16: 'int16',
+        VariableKind.INT8: 'int8',
+        VariableKind.VOID: 'void',
+    }
+
+    if name not in ident_map:
+        print_error('rev_type_of_ident', f'No such identifier {name}')
+
+    meta_kind = ident_map.get(name)
+    if meta_kind == VariableMetaKind.PRIM:
+        if name not in var_map:
+            print_error('rev_type_of_ident', f'No such variable {name}')
+
+        var = var_map.get(name)
+        return rev_kind_map.get(var.vtype.kind())
+
+    if meta_kind == VariableMetaKind.PTR:
+        if name not in ptr_map:
+            print_error('rev_type_of_ident', f'No such pointer {name}')
+
+        ptr = ptr_map.get(name)
+        return f'{rev_kind_map.get(ptr.elem_type.kind())}*'
+
+    if meta_kind == VariableMetaKind.ARR:
+        if name not in arr_map:
+            print_error('rev_type_of_ident', f'No such array {name}')
+
+        arr = arr_map.get(name)
+        return f'{rev_kind_map.get(arr.elem_type.kind())}[{arr.elem_cnt}]'
+
+    print_error('rev_type_of_ident', f'No such meta kind {meta_kind}')
+
+
 def rev_type_of(vtype: VariableType) -> str:
     rev_kind_map = {
         VariableKind.INT64: 'int64',
@@ -425,10 +462,16 @@ def type_of_ident(ident: str) -> VariableType:
     meta_kind = ident_map.get(ident)
 
     if meta_kind == VariableMetaKind.ARR:
-        return VariableType(arr_ckind, default_ckind)
+        if ident not in arr_map:
+            print_error('type_of_ident', f'No such variable {ident}')
+
+        return VariableType(arr_ckind, arr_map.get(ident).elem_type.ckind)
 
     if meta_kind == VariableMetaKind.PTR:
-        return VariableType(ptr_ckind, default_ckind)
+        if ident not in ptr_map:
+            print_error('type_of_ident', f'No such variable {ident}')
+
+        return VariableType(ptr_ckind, ptr_map.get(ident).elem_type.ckind)
 
     if meta_kind == VariableMetaKind.PRIM:
         if ident not in var_map:
