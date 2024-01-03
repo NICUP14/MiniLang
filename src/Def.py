@@ -95,6 +95,12 @@ class VariableType:
             attrs.append(f"{key}={value}")
         return f"{self.__class__.__name__}({', '.join(attrs)})"
 
+    def kind(self):
+        return self.ckind.kind
+
+    def meta_kind(self):
+        return self.ckind.meta_kind
+
 
 class Variable:
     """
@@ -241,7 +247,7 @@ class Operand:
         return self
 
     def reg_str(self):
-        return reg_table_at(self.reg, self.var_type.ckind.kind)
+        return reg_table_at(self.reg, self.var_type.kind())
 
     def __str__(self) -> str:
         attrs = []
@@ -388,7 +394,7 @@ def rev_type_of(vtype: VariableType) -> str:
         VariableKind.VOID: 'void',
     }
 
-    if vtype.ckind.kind not in rev_kind_map:
+    if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
     if vtype.ckind == ptr_ckind:
@@ -397,7 +403,7 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.ckind == arr_ckind:
         return f'{rev_kind_map.get(vtype.elem_ckind.kind)}[]'
 
-    return rev_kind_map.get(vtype.ckind.kind)
+    return rev_kind_map.get(vtype.kind())
 
 
 def cmp_var_kind(kind: VariableKind, kind2: VariableKind):

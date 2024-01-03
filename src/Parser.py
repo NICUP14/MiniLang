@@ -421,7 +421,7 @@ class Parser:
 
         # ? Temporary
         for (arg_name, arg_type, elem_type) in zip(arg_names, arg_types, elem_types):
-            meta_kind = arg_type.ckind.meta_kind
+            meta_kind = arg_type.meta_kind()
             Def.ident_map[full_name_of(arg_name)] = meta_kind
 
             if meta_kind == VariableMetaKind.PRIM:
@@ -547,7 +547,7 @@ class Parser:
             self.match_token(TokenKind.COLON)
 
             var_type = type_of(self.curr_token().value)
-            kind, meta_kind = var_type.ckind.kind, var_type.ckind.meta_kind
+            kind, meta_kind = var_type.kind(), var_type.meta_kind()
             self.next_token()
 
         elem_cnt = 0
@@ -573,7 +573,7 @@ class Parser:
                     'Implicit array declaration is not permitted.', self)
 
             var_type = self.token_list_to_tree().ntype
-            kind, meta_kind = var_type.ckind.kind, var_type.ckind.meta_kind
+            kind, meta_kind = var_type.kind(), var_type.meta_kind()
         else:
             if meta_kind == VariableMetaKind.ARR:
                 var_type = VariableType(arr_ckind, default_ckind)
@@ -585,7 +585,7 @@ class Parser:
         Def.ident_map[full_name] = meta_kind
         Def.var_off += size_of(var_type.ckind)
 
-        if var_type.ckind.meta_kind == VariableMetaKind.PRIM:
+        if var_type.meta_kind() == VariableMetaKind.PRIM:
             is_local = Def.fun_name != ''
             value = 0 if is_local else self.curr_token().value
 
@@ -598,9 +598,9 @@ class Parser:
             node = self.token_list_to_tree()
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-        if var_type.ckind.meta_kind == VariableMetaKind.ARR:
+        if var_type.meta_kind() == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
-                var_type.ckind.kind, VariableMetaKind.PRIM))
+                var_type.kind(), VariableMetaKind.PRIM))
             Def.arr_map[full_name] = Array(
                 full_name, elem_cnt, elem_type, Def.var_off)
             Def.var_off += size_of(elem_type.ckind) * elem_cnt
@@ -612,7 +612,7 @@ class Parser:
 
             return self.array_declaration(full_name)
 
-        if var_type.ckind.meta_kind == VariableMetaKind.PTR:
+        if var_type.meta_kind() == VariableMetaKind.PTR:
             elem_type = VariableType(
                 VariableCompKind(kind, VariableMetaKind.PRIM))
             Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)

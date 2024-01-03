@@ -78,7 +78,7 @@ def gen_reg_chown(old_reg: Register, left_opd: Operand, right_opd: Operand) -> O
 
 def gen_load_imm(opd: Operand) -> None:
     snippet = copy_of(SnippetCollection.LOAD_IMM)
-    snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+    snippet.add_arg(modf_of(opd.var_type.kind()))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
     print_stdout(snippet.asm())
@@ -86,7 +86,7 @@ def gen_load_imm(opd: Operand) -> None:
 
 def gen_load_str_lit(opd: Operand) -> None:
     snippet = copy_of(SnippetCollection.LOAD_DATA_ADDR)
-    snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+    snippet.add_arg(modf_of(opd.var_type.kind()))
     snippet.add_arg(opd.value)
     snippet.add_arg(opd.reg_str())
     print_stdout(snippet.asm())
@@ -97,7 +97,7 @@ def gen_load_local_str(opd: Operand) -> None:
     off = off_of(name)
 
     snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
-    snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+    snippet.add_arg(modf_of(opd.var_type.kind()))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
     print_stdout(snippet.asm())
@@ -113,13 +113,13 @@ def gen_load_var(opd: Operand):
 
     if var.is_local:
         snippet = copy_of(SnippetCollection.LOAD_STACK_VAR)
-        snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+        snippet.add_arg(modf_of(opd.var_type.kind()))
         snippet.add_arg(f'-{off}')
         snippet.add_arg(opd.reg_str())
         print_stdout(snippet.asm())
     else:
         snippet = copy_of(SnippetCollection.LOAD_DATA_VAR)
-        snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+        snippet.add_arg(modf_of(opd.var_type.kind()))
         snippet.add_arg(name)
         snippet.add_arg(opd.reg_str())
         print_stdout(snippet.asm())
@@ -142,7 +142,7 @@ def gen_load_addr(opd: Operand):
     off = off_of(name)
 
     snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
-    snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+    snippet.add_arg(modf_of(opd.var_type.kind()))
     snippet.add_arg(f'-{off}')
     snippet.add_arg(opd.reg_str())
     print_stdout(snippet.asm())
@@ -164,7 +164,7 @@ def gen_load(opd: Operand):
             gen_load_imm(opd)
 
     else:
-        if vtype.ckind.meta_kind == VariableMetaKind.PRIM:
+        if vtype.meta_kind() == VariableMetaKind.PRIM:
             gen_load_var(opd)
         elif vtype.ckind == arr_ckind:
             gen_load_addr(opd)
@@ -178,7 +178,7 @@ def gen_load(opd: Operand):
 def gen_write(opd: Operand, opd2: Operand):
     vtype = opd.var_type
 
-    if vtype.ckind.meta_kind == VariableMetaKind.PRIM:
+    if vtype.meta_kind() == VariableMetaKind.PRIM:
         gen_write_var(opd)
     elif vtype in (arr_ckind, ptr_ckind):
         gen_write_ref(opd, opd2)
@@ -191,7 +191,7 @@ def gen_write_var(opd: Operand):
     off = off_of(name)
 
     # ? Fix for function parameters
-    kind = opd.var_type.ckind.kind
+    kind = opd.var_type.kind()
     var = Def.var_map.get(name)
     is_ptr = Def.ident_map.get(name) == VariableMetaKind.PTR
 
@@ -220,7 +220,7 @@ def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     opd.var_type = vtype
 
     snippet = copy_of(SnippetCollection.WRITEREF_REG)
-    snippet.add_arg(modf_of(vtype.ckind.kind))
+    snippet.add_arg(modf_of(vtype.kind()))
     snippet.add_arg(opd.reg_str())
     snippet.add_arg(left_opd.reg_str())
     print_stdout(snippet.asm())
@@ -309,7 +309,7 @@ def gen_fun_call(node: Node):
         gen_load(opd)
 
         snippet = copy_of(SnippetCollection.MOVE_REG)
-        snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+        snippet.add_arg(modf_of(opd.var_type.kind()))
         snippet.add_arg(opd.reg_str())
         snippet.add_arg(opd_dst.reg_str())
         print_stdout(snippet.asm())
@@ -326,7 +326,7 @@ def gen_fun_call(node: Node):
             # gen_load(opd_dst)
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
-            snippet.add_arg(modf_of(opd.var_type.ckind.kind))
+            snippet.add_arg(modf_of(opd.var_type.kind()))
             snippet.add_arg(opd.reg_str())
             snippet.add_arg(opd_dst.reg_str())
             print_stdout(snippet.asm())
@@ -371,7 +371,7 @@ def bin_snippet(snippet_base: Snippet, left_opd: Operand, right_opd: Operand) ->
     '''
 
     snippet = copy_of(snippet_base)
-    snippet.add_arg(modf_of(left_opd.var_type.ckind.kind))
+    snippet.add_arg(modf_of(left_opd.var_type.kind()))
     snippet.add_arg(right_opd.reg_str())
     snippet.add_arg(left_opd.reg_str())
     return snippet
@@ -406,7 +406,7 @@ def gen_postamble():
     for (name, var) in Def.var_map.items():
         if not var.is_local:
             print_stdout(
-                f'{name}: {global_modf_of(var.vtype.ckind.kind)} {var.value}')
+                f'{name}: {global_modf_of(var.vtype.kind())} {var.value}')
 
 
 def gen_fun_preamble(name: str):
@@ -678,12 +678,12 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
         #! Duplicated code block
         if right_opd.reg == in_reg:
-            kind = left_opd.var_type.ckind.kind
+            kind = left_opd.var_type.kind()
             tmp = Operand('', left_opd.var_type)
             tmp.reg = alloc_reg(opd=tmp)
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
-            snippet.add_arg(modf_of(left_opd.var_type.ckind.kind))
+            snippet.add_arg(modf_of(left_opd.var_type.kind()))
             snippet.add_arg(left_opd.reg_str())
             snippet.add_arg(tmp.reg_str())
             print_stdout(snippet.asm())
@@ -703,12 +703,12 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             free_reg(tmp.reg)
 
         if node.kind == NodeKind.OP_MOD and right_opd.reg == out_reg:
-            kind = left_opd.var_type.ckind.kind
+            kind = left_opd.var_type.kind()
             tmp = Operand('', left_opd.var_type)
             tmp.reg = alloc_reg(opd=tmp)
 
             snippet = copy_of(SnippetCollection.MOVE_REG)
-            snippet.add_arg(modf_of(left_opd.var_type.ckind.kind))
+            snippet.add_arg(modf_of(left_opd.var_type.kind()))
             snippet.add_arg(left_opd.reg_str())
             snippet.add_arg(tmp.reg_str())
             print_stdout(snippet.asm())
