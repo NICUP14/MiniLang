@@ -10,6 +10,14 @@ Some features are missing.
 
 **Check out [acwj-git](https://github.com/DoctorWkt/acwj.git)**, DoctorWkt's tutorial is the main (best) source of inspiration of this project's structure.
 
+## Branches
+
+* [main](https://github.com/NICUP14/MiniLang/tree/main)
+* [unstable](https://github.com/NICUP14/MiniLang/tree/unstable)
+
+> [!WARNING]
+> The **unstable** branch is updated more often than the **main** (stable) branch and offers access to experimental features, but is more prone to breakage/bugs.
+
 ## Features
 
 * Minimal
