@@ -2,6 +2,7 @@ import Def
 from typing import Optional
 from typing import List
 from typing import Tuple
+from os.path import exists
 from Lexer import Token
 from Lexer import TokenKind
 from Lexer import tokenize
@@ -323,9 +324,17 @@ class Parser:
 
         return node
 
-    #! BUG: non-working import statement
     def import_statement(self) -> Optional[Node]:
-        pass
+        if Def.fun_name != '':
+            print_error('import_statement',
+                        'Local imports are not allowed', self)
+
+        module = f'{self.curr_token().value}.ml'
+        if not exists(module):
+            print_error('import_statement',
+                        f'Module \'{module}\' does not exist.', self)
+
+        return Parser().parse(module)
 
     def while_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
@@ -388,7 +397,7 @@ class Parser:
 
             if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
                 self.next_token()
-                arg_type = ptr_ckind
+                arg_type = VariableType(ptr_ckind, arg_type.ckind)
 
             if not self.no_more_tokens() and self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
                 self.match_token(TokenKind.COMMA)

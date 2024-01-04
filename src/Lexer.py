@@ -145,7 +145,7 @@ TOKEN_KIND_MAP = {
     'extern': TokenKind.KW_EXTERN,
     'typedef': TokenKind.KW_TYPEDEF,
     # 'defer': TokenKind.KW_DEFER
-    # 'import': TokenKind.KW_IMPORT
+    'import': TokenKind.KW_IMPORT
 }
 
 
