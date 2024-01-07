@@ -49,6 +49,6 @@ if __name__ == '__main__':
     root = parser.parse(in_file)
 
     if values_dict.get('debug'):
-        print(GenStr.tree_str(root))
+        Def.print_stdout(GenStr.tree_str(root))
     else:
         Gen.gen(root)

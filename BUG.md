@@ -1,6 +1,6 @@
 # Bugs
 
-Solved: 2/7
+Solved: 3/9
 
 - [X] Faulty load before an assignment (div).
 - [X] Assignment of array rvalue to ptr type
@@ -8,4 +8,6 @@ Solved: 2/7
 - [ ] Assignment of ptr lvalue to int literal.
 - [ ] No non-int64 ptrs/arrays due to arr_type and ptr_type.
 - [ ] Save registers before calling a function.
-- [ ] *cstr results in a int64, not int8.
+- [X] *cstr results in a int64, not int8.
+- [ ] Cannot call function as a function param.
+- [ ] Add declared variables to fun's offset.

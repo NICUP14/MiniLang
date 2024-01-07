@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 10/14
+Solved: 10/15
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
@@ -12,6 +12,7 @@ Solved: 10/14
 - [ ] Global arrays.
 - [X] Improve Def.rev_type_of.
 - [ ] Check args in function call.
+- [ ] Widen during parsing.
 - [ ] Static type analysis.
 - [ ] Fix type system.
 - [ ] Defer.

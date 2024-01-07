@@ -10,6 +10,7 @@ class SnippetId(enum.Enum):
     LABEL = enum.auto()
     JMP = enum.auto()
     COND_JMP = enum.auto()
+    CSTM_JMP = enum.auto()
     SET_REG = enum.auto()
     CMP_REG = enum.auto()
     MOVE_REG = enum.auto()
@@ -19,6 +20,8 @@ class SnippetId(enum.Enum):
     SUB_OP = enum.auto()
     MUL_OP = enum.auto()
     DIV_MOD_OP = enum.auto()
+    AND_BIT_OP = enum.auto()
+    OR_BIT_OP = enum.auto()
     ASSIGN_OP = enum.auto()
     WRITE_STACK_VAR = enum.auto()
     FUN_PREAMBLE = enum.auto()
@@ -63,6 +66,9 @@ class SnippetCollection:
 
     COND_JMP = Snippet(SnippetId.COND_JMP,
                        'j{} L{}', [])
+
+    CSTM_JMP = Snippet(SnippetId.CSTM_JMP,
+                       'jmp {}', [])
 
     SET_REG = Snippet(SnippetId.SET_REG,
                       'set{} {}', [])
@@ -114,6 +120,12 @@ class SnippetCollection:
 
     DIV_MOD_OP = Snippet(SnippetId.DIV_MOD_OP,
                          'idiv {}', [])
+
+    AND_BIT_OP = Snippet(SnippetId.AND_BIT_OP,
+                         'and{} {}, {}', [])
+
+    OR_BIT_OP = Snippet(SnippetId.OR_BIT_OP,
+                        'or{} {}, {}', [])
 
     FUN_PREAMBLE = Snippet(SnippetId.FUN_PREAMBLE,
                            '{}:\npush %rbp\nmov %rsp, %rbp', [])

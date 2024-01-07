@@ -176,6 +176,8 @@ class NodeKind(enum.Enum):
     OP_MULT = enum.auto()
     OP_DIV = enum.auto()
     OP_MOD = enum.auto()
+    OP_AND = enum.auto()
+    OP_OR = enum.auto()
     OP_ASSIGN = enum.auto()
     OP_GT = enum.auto()
     OP_LT = enum.auto()
@@ -196,6 +198,8 @@ class NodeKind(enum.Enum):
     DEREF = enum.auto()
     STR_LIT = enum.auto()
     DEFER = enum.auto()
+    LABEL = enum.auto()
+    GOTO = enum.auto()
 
 
 class Node:
@@ -264,7 +268,7 @@ def color_str(color: Color, msg: str):
 
 #! Warning: Relies on parser state-related variables.
 def print_error(loc: str, msg: str, parser=None):
-    line = ('' if parser is None else '\"' +
+    line = ('' if parser is None or parser.no_more_lines() else '\"' +
             parser.curr_line().lstrip('\t ').rstrip('\n') + '\"')
     desc = color_str(Color.FAIL, f'{loc}: {msg}')
     print()
@@ -502,6 +506,8 @@ def type_of_op(kind: NodeKind) -> VariableType:
         NodeKind.OP_SUB: default_ckind,
         NodeKind.OP_DIV: default_ckind,
         NodeKind.OP_MOD: default_ckind,
+        NodeKind.OP_AND: default_ckind,
+        NodeKind.OP_OR: default_ckind,
         NodeKind.OP_GT: bool_ckind,
         NodeKind.OP_LT: bool_ckind,
         NodeKind.OP_LTE: bool_ckind,
@@ -510,7 +516,7 @@ def type_of_op(kind: NodeKind) -> VariableType:
         NodeKind.OP_NEQ: bool_ckind,
         NodeKind.IF: void_ckind,
         NodeKind.WHILE: void_ckind,
-        NodeKind.GLUE: void_ckind,  # ? Temporary
+        NodeKind.GLUE: void_ckind,
         NodeKind.FUN: void_ckind,
         NodeKind.FUN_CALL: default_ckind,
         NodeKind.OP_ASSIGN: default_ckind,
@@ -533,6 +539,8 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_MULT,
             NodeKind.OP_DIV,
             NodeKind.OP_MOD,
+            NodeKind.OP_AND,
+            NodeKind.OP_OR,
             NodeKind.OP_ASSIGN,
             NodeKind.OP_GT,
             NodeKind.OP_LT,

@@ -42,7 +42,7 @@ def label() -> int:
     return curr_label
 
 
-def gen_label(label: int) -> None:
+def gen_label(label: str) -> None:
     print_stdout(str_snippet(SnippetCollection.LABEL, label).asm())
 
 
@@ -216,7 +216,7 @@ def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     if is_acc and vtype.ckind == arr_ckind:
         vtype = Def.arr_map[left_opd.value].elem_type
 
-    opd = copy_of(right_opd)
+    opd: Operand = copy_of(right_opd)
     opd.var_type = vtype
 
     snippet = copy_of(SnippetCollection.WRITEREF_REG)
@@ -530,6 +530,14 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         free_all_regs()
         return None
 
+    if node.kind == NodeKind.LABEL:
+        gen_label(node.value)
+        return None
+
+    if node.kind == NodeKind.GOTO:
+        print_stdout(str_snippet(SnippetCollection.JMP, node.value).asm())
+        return None
+
     if (node.left != None):
         left_opd = gen_tree(node.left, node, -1)
     if (node.right != None):
@@ -582,8 +590,9 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             ptr = Def.ptr_map.get(left_opd.value)
             elem_type = ptr.elem_type
             gen_load(left_opd)
-            gen_load_ptr(left_opd, elem_type)
             left_opd.var_type = elem_type
+            gen_widen(left_opd)
+            left_opd.var_type = default_type
         return left_opd
 
     # Array access
@@ -639,8 +648,11 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg(opd=opd)
 
-            if node.left.kind != NodeKind.ARR_ACC:
+            if node.left.kind == NodeKind.IDENT:
                 gen_load_addr(opd)
+            if node.left.kind == NodeKind.DEREF:
+                gen_load_addr(opd)
+                gen_load_ptr(opd)
 
             is_deref = node.left.kind in (NodeKind.DEREF,
                                           NodeKind.ARR_ACC)
@@ -656,15 +668,31 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     gen_load(right_opd)
 
     # Addition
-    if (node.kind == NodeKind.OP_ADD):
+    if node.kind == NodeKind.OP_ADD:
         snippet = bin_snippet(SnippetCollection.ADD_OP, left_opd, right_opd)
         free_reg(right_opd.reg)
         print_stdout(snippet.asm())
         return left_opd
 
     # Subtraction
-    if (node.kind == NodeKind.OP_SUB):
+    if node.kind == NodeKind.OP_SUB:
         snippet = bin_snippet(SnippetCollection.SUB_OP, left_opd, right_opd)
+        free_reg(right_opd.reg)
+        print_stdout(snippet.asm())
+        return left_opd
+
+    # Bitwise and
+    if node.kind == NodeKind.OP_AND:
+        snippet = bin_snippet(
+            SnippetCollection.AND_BIT_OP, left_opd, right_opd)
+        free_reg(right_opd.reg)
+        print_stdout(snippet.asm())
+        return left_opd
+
+    # Bitwise or
+    if node.kind == NodeKind.OP_OR:
+        snippet = bin_snippet(
+            SnippetCollection.OR_BIT_OP, left_opd, right_opd)
         free_reg(right_opd.reg)
         print_stdout(snippet.asm())
         return left_opd

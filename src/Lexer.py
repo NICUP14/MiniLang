@@ -75,6 +75,8 @@ class TokenKind(enum.Enum):
     LBRACE = enum.auto()
     RBRACE = enum.auto()
     AMP = enum.auto()
+    OR = enum.auto()
+    AND = enum.auto()
     DEREF = enum.auto()
     COLON = enum.auto()
     COMMA = enum.auto()
@@ -125,7 +127,8 @@ TOKEN_KIND_MAP = {
     ',': TokenKind.COMMA,
     '[': TokenKind.LBRACE,
     ']': TokenKind.RBRACE,
-    '&': TokenKind.AMP,
+    '&': TokenKind.AND,
+    '|': TokenKind.OR,
     '...': TokenKind.PER_FUN,
     '<<-': TokenKind.HEREDOC,
     '\\end': TokenKind.IDENT,
@@ -145,7 +148,7 @@ TOKEN_KIND_MAP = {
     'extern': TokenKind.KW_EXTERN,
     'typedef': TokenKind.KW_TYPEDEF,
     # 'defer': TokenKind.KW_DEFER
-    'import': TokenKind.KW_IMPORT
+    'import': TokenKind.KW_IMPORT,
 }
 
 
@@ -165,6 +168,8 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.MULT,
         TokenKind.DIV,
         TokenKind.PERC,
+        TokenKind.AND,
+        TokenKind.OR,
         TokenKind.ASSIGN,
         TokenKind.EQ,
         TokenKind.NEQ,
@@ -217,6 +222,8 @@ def token_is_bin_op(kind: TokenKind) -> bool:
         TokenKind.MULT,
         TokenKind.DIV,
         TokenKind.PERC,
+        TokenKind.AND,
+        TokenKind.OR,
         TokenKind.EQ,
         TokenKind.GT,
         TokenKind.GTE,

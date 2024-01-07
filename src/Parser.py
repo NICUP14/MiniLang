@@ -49,6 +49,8 @@ PRECEDENCE_MAP = {
     TokenKind.MULT: 20,
     TokenKind.DIV: 20,
     TokenKind.PERC: 7,
+    TokenKind.AND: 7,
+    TokenKind.OR: 7,
     TokenKind.KW_AT: 27,
     TokenKind.ASSIGN: 4,
     TokenKind.EQ: 6,
@@ -68,6 +70,8 @@ NODE_KIND_MAP = {
     TokenKind.MULT: NodeKind.OP_MULT,
     TokenKind.DIV: NodeKind.OP_DIV,
     TokenKind.PERC: NodeKind.OP_MOD,
+    TokenKind.AND: NodeKind.OP_AND,
+    TokenKind.OR: NodeKind.OP_OR,
     TokenKind.ASSIGN: NodeKind.OP_ASSIGN,
     TokenKind.EQ: NodeKind.OP_EQ,
     TokenKind.NEQ: NodeKind.OP_NEQ,
@@ -199,7 +203,7 @@ class Parser:
                 if prev_token is None or token_is_op(prev_token.kind) or prev_token.kind == TokenKind.LPAREN:
                     if token.kind == TokenKind.MULT:
                         op_token = Token(TokenKind.DEREF, '*')
-                    elif token.kind == TokenKind.AMP:
+                    elif token.kind == TokenKind.AND:
                         op_token = Token(TokenKind.AMP, '&')
                     else:
                         print_error('to_postfix',
@@ -246,7 +250,7 @@ class Parser:
                             'to_tree', f'Incompatible type {node.ntype}', self)
 
                     node_stack.append(
-                        Node(kind, type_of_op(self.node_kind_of(token.kind)), token.value, node))
+                        Node(kind, type_of_op(kind), token.value, node))
 
                 elif token_is_bin_op(token.kind):
                     right = node_stack.pop()
@@ -261,6 +265,7 @@ class Parser:
                     else:
                         # Widens the operands if necessary
                         code = needs_widen(left.ntype.ckind, right.ntype.ckind)
+                        kind = self.node_kind_of(token.kind)
                         if code == 1 and kind != NodeKind.GLUE:
                             left = Node(NodeKind.OP_WIDEN,
                                         right.ntype, left.value, left)
@@ -268,7 +273,6 @@ class Parser:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
-                        kind = self.node_kind_of(token.kind)
                         if kind not in allowed_op(left.ntype.ckind):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}', self)
@@ -449,7 +453,7 @@ class Parser:
 
         # Patch the stack offset
         off = Def.var_off
-        align_off = 0 if off % 16 == 0 else 8 - (off % 8)
+        align_off = 0 if off % 16 == 0 else 16 - (off % 16)
         fun.off = off + align_off
 
         return Node(NodeKind.FUN, default_ckind, name, body)

@@ -2,6 +2,7 @@
 extern fun exit(status: int32): void
 extern fun printf(msg: int8*, ...): int32
 extern fun scanf(format: int8*, ...): int32
+extern fun puts(str: int8*): int32
 extern fun malloc(size: int64): void*
 extern fun free(ptr: void*): void
 extern fun memset(ptr: void*, value: int32, num: int64): void*
@@ -16,6 +17,7 @@ extern fun strncat(dest: int8*, src: int8*, num: int64): int8*
 extern fun strchr(str: int8*, character: int32): int8*
 extern fun strrchr(str: int8*, character: int32): int8*
 extern fun strstr(str1: int8*, str2: int8*): int8*
+extern fun isdigit(arg: int32): int32
 extern fun atoi(str: int8*): int32
 # extern fun atof(str: int8*): double
 extern fun abs(number: int32): int32

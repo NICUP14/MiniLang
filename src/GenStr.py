@@ -65,6 +65,10 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'({left} % {right})'
     if node.kind == NodeKind.OP_MULT:
         return f'({left} * {right})'
+    if node.kind == NodeKind.OP_AND:
+        return f'({left} & {right})'
+    if node.kind == NodeKind.OP_OR:
+        return f'({left} | {right})'
     if node.kind == NodeKind.OP_ASSIGN:
         return f'({left} = {right})'
     if node.kind == NodeKind.OP_GT:
