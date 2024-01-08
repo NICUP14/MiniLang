@@ -4,6 +4,7 @@ from Def import Node
 from Def import NodeKind
 from Def import Operand
 from Def import VariableKind
+from Def import VariableCompKind
 from Def import VariableMetaKind
 from Def import VariableType
 from Def import Register
@@ -166,11 +167,12 @@ def gen_load(opd: Operand):
     else:
         if vtype.meta_kind() == VariableMetaKind.PRIM:
             gen_load_var(opd)
-        elif vtype.ckind == arr_ckind:
-            gen_load_addr(opd)
         elif vtype.ckind == ptr_ckind:
             gen_load_addr(opd)
-            gen_load_ptr(opd)
+            if not opd.is_ref():
+                gen_load_ptr(opd)
+        elif vtype.ckind in arr_ckind:
+            gen_load_addr(opd)
         else:
             print_error('gen_load', f'Invalid operand type {opd.var_type}')
 
@@ -578,21 +580,31 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     # Reference
     if node.kind == NodeKind.REF:
-        opd = copy_of(left_opd)
+        opd: Operand = copy_of(left_opd)
+        opd.ref = True
+        opd.var_type = VariableType(
+            ptr_ckind, left_opd.var_type.ckind)
         opd.value = node.left.value
         return opd
 
     # Dereference
     if node.kind == NodeKind.DEREF:
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
-            # !BUG: Widen
             # !BUG: Dereference of int64* instead of int8*
-            ptr = Def.ptr_map.get(left_opd.value)
-            elem_type = ptr.elem_type
+            if left_opd.var_type.ckind == ptr_ckind:
+                ptr = Def.ptr_map.get(left_opd.value)
+                elem_type = ptr.elem_type
+
+            if left_opd.var_type.ckind == arr_ckind:
+                arr = Def.arr_map.get(left_opd.value)
+                elem_type = arr.elem_type
+
             gen_load(left_opd)
+            gen_load_ptr(left_opd, elem_type)
             left_opd.var_type = elem_type
             gen_widen(left_opd)
             left_opd.var_type = default_type
+
         return left_opd
 
     # Array access

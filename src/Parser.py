@@ -591,6 +591,7 @@ class Parser:
             if meta_kind == VariableMetaKind.ARR:
                 var_type = VariableType(arr_ckind, default_ckind)
             if meta_kind == VariableMetaKind.PTR:
+                meta_kind = VariableMetaKind.PTR
                 var_type = VariableType(ptr_ckind, default_ckind)
 
         full_name = full_name_of(name)
@@ -604,6 +605,10 @@ class Parser:
 
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
+
+            if var_type.ckind == void_ckind:
+                print_error('declaration',
+                            'Declaration of void primitive is not allowed.', self)
 
             if not is_local:
                 return None

@@ -1,6 +1,6 @@
 # Ideas
 
-Solved: 3/7
+Solved: 3/8
 
 - [X] Type inference.
 - [X] Type definitions.
@@ -9,3 +9,4 @@ Solved: 3/7
 - [ ] Integer literal prefix.
 - [ ] Non-integer boolean type.
 - [ ] `file` & `line` builtins.
+- [ ] Check for already-imported modules (import set).

@@ -1,6 +1,6 @@
 # Bugs
 
-Solved: 3/9
+Solved: 3/10
 
 - [X] Faulty load before an assignment (div).
 - [X] Assignment of array rvalue to ptr type
@@ -11,3 +11,4 @@ Solved: 3/9
 - [X] *cstr results in a int64, not int8.
 - [ ] Cannot call function as a function param.
 - [ ] Add declared variables to fun's offset.
+- [ ] References aren't working.

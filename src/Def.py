@@ -229,12 +229,16 @@ class Operand:
     to standardize snippet creation (`gen_*` functions return a list of snippets).
     """
 
-    def __init__(self, value: str, var_type: VariableType, reg: Register = Register.id_max, loaded: bool = False, imm: bool = False) -> None:
+    def __init__(self, value: str, var_type: VariableType, reg: Register = Register.id_max, loaded: bool = False, imm: bool = False, ref: bool = False) -> None:
         self.value = value
         self.var_type = var_type
         self.reg = reg
         self.loaded = loaded
         self.imm = imm
+        self.ref = ref
+
+    def is_ref(self) -> bool:
+        return self.ref
 
     def is_imm(self) -> bool:
         return self.imm
@@ -611,10 +615,7 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
 
 
 def size_of(ckind: VariableCompKind):
-    if ckind == ptr_ckind:
-        return 8
-
-    if ckind == arr_ckind:
+    if ckind in (ptr_ckind, arr_ckind):
         return 8
 
     if ckind.meta_kind == VariableMetaKind.PRIM:

@@ -1,10 +1,10 @@
 # TODO
 
-Solved: 10/15
+Solved: 10/16
 
 - [X] Fix array access.
 - [X] Fix array variable offset.
-- [X] Implement stack alignment. (align by 16-bits)
+- [X] Implement stack alignment. (align by 16-bytes)
 - [X] Define operator token types (binary, unary)
 - [X] Implement right-assoc
 - [X] Implement lazy loading (gen).
@@ -15,5 +15,6 @@ Solved: 10/15
 - [ ] Widen during parsing.
 - [ ] Static type analysis.
 - [ ] Fix type system.
+- [ ] Function assignment (alias).
 - [ ] Defer.
 - [X] Import.

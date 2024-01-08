@@ -1,48 +1,16 @@
-#  Roughly equivalent pseudocode 
-# while *format != NULL: 
-#     while *format != '%': 
-#         *str++ = *format++ 
-# 
-#     flag = 0 
-#     repeat: 
-#     format++ 
-#     if *format == '-': 
-#         flag |= minus_flag 
-#         goto repeat 
-#     if *format == '0': 
-#         flag |= zero_flag 
-#         goto repeat 
-#     if *format == '+': 
-#         flag |= plus_flag 
-#         goto repeat 
-#     if *format == ' ': 
-#         flag |= space_flag 
-#         goto repeat 
-#         
-#     if *format == '*': 
-#         width=get_next_arg(uint64) 
-#     else: 
-#         cnt = 0 
-#         while isdigit(*format) 
-#             cnt++ 
-#         width = str_to_uint64(*format, num, cnt) 
-#         
-#     if *format == '%': 
-#         *str++ = '%' 
-#         
-#     if *format == 's': 
-#         strcpy(str, buf) 
-#         
-#     if *format == 'd' || *format == 'u': 
-#         repr = (*format == 'd') 
-#         num = get_next_arg(uint64) 
-#         number(buf, num, ...) 
-
 import number
 import cstdlib
 
 extern fun _va_start(list: void*): void
 extern fun _va_arg(list: void*): int64
+
+fun va_start(list: int64*): void
+    let callee_rbp: int64* = &list - 8
+    let caller_rbp: int64* = *callee_rbp
+end
+
+# fun va_arg(list: int64*): int64
+# end
 
 fun custom_printf(format: int8*, ...): void
     let flag: int8 = 0
@@ -66,16 +34,21 @@ fun custom_printf(format: int8*, ...): void
             format = format + 1
             if *format == '-' 
                 flag = flag | minus_flag 
+                puts("minus-flag")
             else
                 if *format == '0' 
                     flag = flag | zero_flag 
+                    puts("zero-flag")
                 else
                     if *format == '+' 
                         flag = flag | plus_flag 
+                        puts("plus-flag")
                     else
                         if *format == ' ' 
                             flag = flag | space_flag 
+                            puts("space_flag")
                         else
+                            puts("repeat == 0")
                             repeat = 0
                         end
                     end
@@ -88,13 +61,15 @@ fun custom_printf(format: int8*, ...): void
             width = _va_arg(va_list) 
         else: 
             let cnt = 0 
-            while isdigit(*format) 
+            while isdigit(*format) == 1
                 cnt = cnt + 1
             end
 
             let num = 0
             width = strnToU64(*format, &num, cnt) 
         end
+
+        puts("specifier processing")
             
         if *format == '%' 
             *str = '%' 
