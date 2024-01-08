@@ -45,17 +45,21 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 
 ## Code statistics
 
-File          | Blank | Comment | Code
---------------|-------|---------|-----
-Gen.py        | 166   | 38      | 553
-Def.py        | 141   | 65      | 464
-ParserClass.py| 125   | 14      | 464
-Parser.py     | 149   | 14      | 454
-Lexer.py      | 38    | 1       | 215
-Snippet.py    | 35    | 0       | 97
-GenStr.py     | 15    | 1       | 94
-Main.py       | 9     | 1       | 45
-SUM           | 678   | 134     | 2386
+```txt
+-------------------------------------------------------------------------------
+File                             blank        comment           code
+-------------------------------------------------------------------------------
+src\Gen.py                         177             41            601
+src\Def.py                         158             45            525
+src\Parser.py                      131             11            506
+src\Lexer.py                        40              1            231
+src\Snippet.py                      38              0            106
+src\GenStr.py                       15              1            103
+src\Main.py                          9              0             45
+-------------------------------------------------------------------------------
+SUM:                               568             99           2117
+-------------------------------------------------------------------------------
+```
 
 > [!NOTE]
 > Current statistics are out-of-date.
