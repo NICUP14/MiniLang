@@ -41,7 +41,7 @@ def is_int(s: str):
 
 INT_PATTERN = r'-?\d+'
 CHAR_PATTERN = r'\'[^\']+\''
-STR_PATTERN = r'\"[^\"]+\"'
+STR_PATTERN = r'\"[^\"]*\"'
 SYM_PATTERN = r'\\?\w+'
 OP_PATTERN = to_pattern(map(re.escape, OPERATORS))
 PATTERN = to_pattern([
@@ -100,6 +100,7 @@ class TokenKind(enum.Enum):
     KW_TYPEDEF = enum.auto()
     KW_IMPORT = enum.auto()
     KW_DEFER = enum.auto()
+    KW_ASM = enum.auto()
 
 
 @dataclass
@@ -149,6 +150,7 @@ TOKEN_KIND_MAP = {
     'typedef': TokenKind.KW_TYPEDEF,
     # 'defer': TokenKind.KW_DEFER
     'import': TokenKind.KW_IMPORT,
+    'asm': TokenKind.KW_ASM
 }
 
 
@@ -181,7 +183,8 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_AT,
         TokenKind.AMP,
         TokenKind.DEREF,
-        TokenKind.FUN_CALL
+        TokenKind.FUN_CALL,
+        TokenKind.KW_ASM
     )
 
 
@@ -243,6 +246,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
     return kind in [
         TokenKind.DEREF,
         TokenKind.AMP,
+        TokenKind.KW_ASM,
         TokenKind.FUN_CALL
     ]
 

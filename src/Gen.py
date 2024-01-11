@@ -171,7 +171,7 @@ def gen_load(opd: Operand):
             gen_load_addr(opd)
             if not opd.is_ref():
                 gen_load_ptr(opd)
-        elif vtype.ckind in arr_ckind:
+        elif vtype.ckind == arr_ckind:
             gen_load_addr(opd)
         else:
             print_error('gen_load', f'Invalid operand type {opd.var_type}')
@@ -478,6 +478,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
                                                       NodeKind.WHILE,
                                                       NodeKind.RET,
                                                       NodeKind.FUN,
+                                                      NodeKind.ASM,
                                                       NodeKind.FUN_CALL):
         # Local function variable
         if node.kind == NodeKind.FUN:
@@ -524,20 +525,21 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node.kind == NodeKind.FUN_CALL:
         return gen_fun_call(node)
 
+    if node.kind == NodeKind.ASM:
+        # ? Temporary
+        if node.left.kind != NodeKind.STR_LIT:
+            print_error(
+                'gen_tree', 'The asm built-in accepts only one parameter.')
+
+        print_stdout(node.left.value.lstrip('\"').rstrip('\"'))
+        return None
+
     # Glue statement
     if node.kind == NodeKind.GLUE:
         gen_tree(node.left, node, -1)
         free_all_regs()
         gen_tree(node.right, node, -1)
         free_all_regs()
-        return None
-
-    if node.kind == NodeKind.LABEL:
-        gen_label(node.value)
-        return None
-
-    if node.kind == NodeKind.GOTO:
-        print_stdout(str_snippet(SnippetCollection.JMP, node.value).asm())
         return None
 
     if (node.left != None):
@@ -711,13 +713,9 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     # Multiplication
     if node.kind == NodeKind.OP_MULT:
-        if left_opd.reg != Register.rax:
-            if right_opd.reg == Register.rax:
-                left_opd, right_opd = right_opd, left_opd
-            else:
-                print_error('gen_tree', 'Multiplication error')
-
+        xor_snippet = copy_of(SnippetCollection.XOR_RDX)
         snippet = bin_snippet(SnippetCollection.MUL_OP, left_opd, right_opd)
+        print_stdout(xor_snippet.asm())
         print_stdout(snippet.asm())
         free_reg(right_opd.reg)
         return left_opd

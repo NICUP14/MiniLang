@@ -1,29 +1,31 @@
 import number
+import va_utils
 import cstdlib
 
-extern fun _va_start(list: void*): void
-extern fun _va_arg(list: void*): int64
-
-fun va_start(list: int64*): void
-    let callee_rbp: int64* = &list - 8
-    let caller_rbp: int64* = *callee_rbp
-end
-
-# fun va_arg(list: int64*): int64
-# end
-
 fun custom_printf(format: int8*, ...): void
+    let va_list: int64[3]
+
+    asm "stack_snapshot"
+    va_start(va_list)
+    va_arg(va_list)
+
+    # DBG
+    # asm "lea str_13(%rip), %rdi"
+    # asm "mov %rsp, %rsi"
+    # asm "xor %rax, %rax"
+    # asm "call printf"
+
     let flag: int8 = 0
     let repeat: int8 = 0
     let arr: int8[500]
     let str: int8* = arr
 
-    let va_list: int64[3]
-    _va_start(va_list)
+    # va_arg(va_list)
 
     while *format != 0 
         while *format != '%' 
-            *str = *format 
+            strncpy(str, format, 1)
+            # *str = *format 
             format = format + 1
             str = str + 1
         end
@@ -58,40 +60,48 @@ fun custom_printf(format: int8*, ...): void
         
         let width = 0
         if *format == '*' 
-            width = _va_arg(va_list) 
+            width = va_arg(va_list) 
         else: 
             let cnt = 0 
             while isdigit(*format) == 1
                 cnt = cnt + 1
             end
 
-            let num = 0
-            width = strnToU64(*format, &num, cnt) 
+            if cnt > 0
+                width = strnToU64(format, cnt) 
+            end
         end
 
-        puts("specifier processing")
-            
         if *format == '%' 
             *str = '%' 
             str = str + 1
-        end
-            
-        if *format == 's'
-            let buf: int8* = _va_arg(va_list)
-            strcpy(str, buf) 
-        end
-            
-        if *format == 'd'
-            let repr = (*format == 'd') 
-            let num: int64 = _va_arg(va_list) 
-            number(buf, num, flag, width) 
+            puts("percent")
         else
-            if *format == 'u'
-                let repr = (*format == 'd') 
-                let num: int64 = _va_arg(va_list) 
-                number(buf, num, flag, width) 
+            if *format == 's'
+                let buf: int8* = va_arg(va_list)
+                printf("string buf: %p %s\n", &buf, buf)
+                strcpy(str, buf) 
+                puts("string")
+            else
+                if *format == 'd'
+                    let repr = (*format == 'd') 
+                    let num: int64 = va_arg(va_list) 
+                    number(str, num, flag, width) 
+                    puts("signed iteger")
+                else
+                    if *format == 'u'
+                        puts("unsigned iteger")
+                        let repr = (*format == 'd') 
+                        let num: int64 = va_arg(va_list) 
+                        number(str, num, flag, width) 
+                    end
+                end
             end
         end
+
+        format = format + 1
     end
+
+    puts(arr)
 end
 end

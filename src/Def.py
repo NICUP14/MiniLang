@@ -198,8 +198,7 @@ class NodeKind(enum.Enum):
     DEREF = enum.auto()
     STR_LIT = enum.auto()
     DEFER = enum.auto()
-    LABEL = enum.auto()
-    GOTO = enum.auto()
+    ASM = enum.auto()
 
 
 class Node:
@@ -522,6 +521,7 @@ def type_of_op(kind: NodeKind) -> VariableType:
         NodeKind.WHILE: void_ckind,
         NodeKind.GLUE: void_ckind,
         NodeKind.FUN: void_ckind,
+        NodeKind.ASM: void_ckind,
         NodeKind.FUN_CALL: default_ckind,
         NodeKind.OP_ASSIGN: default_ckind,
         NodeKind.ARR_ACC: default_ckind,

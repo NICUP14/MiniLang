@@ -43,6 +43,7 @@ from Def import size_of
 PRECEDENCE_MAP = {
     TokenKind.DEREF: 26,
     TokenKind.AMP: 26,
+    TokenKind.KW_ASM: 25,
     TokenKind.FUN_CALL: 25,
     TokenKind.PLUS: 10,
     TokenKind.MINUS: 10,
@@ -85,7 +86,8 @@ NODE_KIND_MAP = {
     TokenKind.DEREF: NodeKind.DEREF,
     TokenKind.AMP: NodeKind.REF,
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
-    TokenKind.STR_LIT: NodeKind.STR_LIT
+    TokenKind.STR_LIT: NodeKind.STR_LIT,
+    TokenKind.KW_ASM: NodeKind.ASM
 }
 
 
@@ -198,6 +200,10 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
+                if token.kind == TokenKind.KW_ASM:
+                    op_stack.append(token)
+                    continue
+
                 # Handles Unary operator (token correction)
                 op_token = token
                 if prev_token is None or token_is_op(prev_token.kind) or prev_token.kind == TokenKind.LPAREN:
@@ -242,10 +248,13 @@ class Parser:
 
             if token_is_op(token.kind):
                 if token_is_unary_op(token.kind):
+                    if len(node_stack) == 0:
+                        print_error('to_tree', 'Missing operand', self)
+
                     node = node_stack.pop()
                     kind = self.node_kind_of(token.kind)
 
-                    if kind != NodeKind.FUN_CALL and kind not in allowed_op(node.ntype.ckind):
+                    if kind != NodeKind.ASM and kind != NodeKind.FUN_CALL and kind not in allowed_op(node.ntype.ckind):
                         print_error(
                             'to_tree', f'Incompatible type {node.ntype}', self)
 
@@ -338,7 +347,8 @@ class Parser:
             print_error('import_statement',
                         f'Module \'{module}\' does not exist.', self)
 
-        return Parser().parse(module)
+        module_root = Parser().parse(module)
+        return module_root
 
     def while_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()

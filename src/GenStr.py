@@ -100,6 +100,8 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
             return f'{indent if add_indent else empty_str}{left}\n{indent + right}'
     if node.kind == NodeKind.FUN_CALL:
         return f'{node.value}({fun_call_tree_str(node)})'
+    if node.kind == NodeKind.ASM:
+        return f'{color_str(Color.BLUE, node.value)}({fun_call_tree_str(node)})'
     if node.kind == NodeKind.FUN:
         fun = Def.fun_map.get(node.value)
         args_zip = zip(fun.arg_names, fun.arg_types)
