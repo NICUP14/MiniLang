@@ -14,6 +14,7 @@
 # 
 #     asm "stack_snapshot"
 #     va_start(va_list)
+#     asm "stack_rewind"
 # 
 #     let arg1 = va_arg(va_list)
 #     let arg2 = va_arg(va_list)
@@ -22,6 +23,7 @@
 #     printf("%lld\n", arg1)
 #     printf("%s\n", arg2)
 #     printf("%p\n", arg3)
+#     va_end(va_list)
 # end
 
 asm ".macro stack_snapshot"
@@ -75,5 +77,9 @@ fun va_arg(list: int64*): int64
     list[0] = list[0] + 1
     let addr: int64* = base + idx * 8
     ret *addr
+end
+
+fun va_end(list: int64*): void
+    free(list[1])
 end
 end

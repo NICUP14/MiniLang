@@ -8,21 +8,13 @@ fun custom_printf(format: int8*, ...): void
     asm "stack_snapshot"
     va_start(va_list)
     va_arg(va_list)
-    # asm "stack_rewind"
+    asm "stack_rewind"
 
     # DBG
     # asm "lea str_13(%rip), %rdi"
     # asm "mov %rsp, %rsi"
     # asm "xor %rax, %rax"
     # asm "call printf"
-
-    # DBG
-    # let arg1 = va_arg(va_list)
-    # let arg2 = va_arg(va_list)
-    # let arg3 = va_arg(va_list)
-    # printf("arg1: %s\n", arg1)
-    # printf("arg2: %s\n", arg2)
-    # printf("arg3: %lld\n", arg3)
 
     let flag: int8 = 0
     let repeat: int8 = 0
@@ -31,7 +23,7 @@ fun custom_printf(format: int8*, ...): void
 
     while *format != 0 
         while *format != '%' 
-            printf("char: '%c'\n", *format)
+            # printf("char: '%c'\n", *format)
             *str = *format 
             format = format + 1
             str = str + 1
@@ -110,5 +102,6 @@ fun custom_printf(format: int8*, ...): void
     end
 
     puts(arr)
+    va_end(va_list)
 end
 end
