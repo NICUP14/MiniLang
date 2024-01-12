@@ -599,6 +599,10 @@ class Parser:
                     'Implicit array declaration is not permitted.', self)
 
             var_type = self.token_list_to_tree().ntype
+            if var_type.ckind == void_ckind:
+                print_error('declaration',
+                            'Declaration of implicit void primitive is not allowed.', self)
+
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
         else:
             if meta_kind == VariableMetaKind.ARR:

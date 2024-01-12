@@ -49,21 +49,23 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 -------------------------------------------------------------------------------
 File                             blank        comment           code
 -------------------------------------------------------------------------------
-src\Gen.py                         177             41            601
-src\Def.py                         158             45            525
-src\Parser.py                      131             11            506
-src\Lexer.py                        40              1            231
-src\Snippet.py                      38              0            106
-src\GenStr.py                       15              1            103
-src\Main.py                          9              0             45
+src/Gen.py                         176             43            600
+src/Def.py                         158             45            525
+src/Parser.py                      133             11            521
+src/Lexer.py                        40              1            235
+src/Snippet.py                      38              0            106
+src/GenStr.py                       15              1            105
+src/Main.py                          9              0             45
 -------------------------------------------------------------------------------
-SUM:                               568             99           2117
+SUM:                               569            101           2137
 -------------------------------------------------------------------------------
 ```
 
+<!--
 > [!NOTE]
 > Current statistics are out-of-date.
 > Statistics were generated with [cloc](https://github.com/AlDanial/cloc.git).
+-->
 
 ## Usage
 
@@ -86,12 +88,19 @@ Options:
                         generated assembly.
 ```
 
+## Samples
+
+* [Fib](https://github.com/NICUP14/MiniLang/tree/unstable/samples/fib)
+* [FizzBuzz](https://github.com/NICUP14/MiniLang/tree/unstable/samples/fizzbuzz)
+* [Printf](https://github.com/NICUP14/MiniLang/tree/main/samples/printf)
+
+> [!NOTE]
+> All MiniLang samples (example projects) are located within the `samples` directory. All samples are written entirely in ML.
+
 ## QuickStart
 
 > [!WARNING]
 > Source files should be terminated by an extra `end` keyword due to reusing `Parser.compund_statement` to parse the program's logic.
-
-`Parser.py:98: return self.compund_statement()`
 
 ### Primitives
 
@@ -106,7 +115,7 @@ int64
 ### Literals
 
 > [!WARNING]
-> There is no safety measure regarding string literal manipulation. Doing this will most probably result in a segmentation fault.
+> There is no safety measure regarding string literal manipulation. Doing this results in undefined behavior.
 
 ```txt
 # String literal (int8*)
@@ -115,7 +124,7 @@ int64
 # Character literal (int8)
 'c'
 
-# Undefined behaviour
+# Undefined behavior
 "abc" at 0 = 'd'
 
 ```
@@ -129,6 +138,8 @@ Symbol | Type   | Location | Operation
 \*     | Binary | -        | Multiply
 /      | Binary | -        | Divide
 %      | Binary | -        | Modulo
+|      | Binary | -        | Bitwise or
+&      | Binary | -        | Bitwise and
 =      | Binary | -        | Assignment
 at     | Binary | -        | Array access
 ==     | Binary | -        | Comparison (Equals)
@@ -139,6 +150,38 @@ at     | Binary | -        | Array access
 \>     | Binary | -        | Greater-than comparison
 &      | Unary  | Prefix   | Address
 \*     | Unary  | Prefix   | Dereference
+
+### Inline assembly
+
+> [!WARNING]
+> The `asm` built-in does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack  leads to undefined behavior.
+
+```txt
+# From samples/printf/va_utils.ml:
+asm ".macro stack_snapshot"
+asm "   push %r9"
+asm "   push %r8"
+asm "   push %rcx"
+asm "   push %rdx"
+asm "   push %rsi"
+asm "   push %rdi"
+asm ".endm"
+...
+
+# From samples/printf/printf.ml:
+fun custom_printf(format: int8*, ...): void
+    let va_list: int64[3]
+
+    asm "stack_snapshot"
+    va_start(va_list)
+    va_arg(va_list)
+    asm "stack_rewind"
+...
+
+# Undefined behavior
+asm "sub $48, %rsp"
+
+```
 
 ### Type definitions
 
@@ -153,9 +196,6 @@ typedef byte = int8
 typedef char = int8
 ```
 
-Compared to C, MiniLang's `void` type doesn't take up any space.
-Thus, a stack variable of type void acts as a stack addr placeholder (its offset coincides with the next stack-allocated variable).
-
 ### Declaration/Assignment
 
 ```txt
@@ -165,7 +205,7 @@ Thus, a stack variable of type void acts as a stack addr placeholder (its offset
 let variable: type = value
 let pointer: type* = address
 let inferred = &variable
-let array: type[n] = [elem1, elem2, ..., elemn]
+let array: type[n] = [elem_1, elem_2, ..., elem_n]
 
 # String & heredocs declaration syntax
 let str: cstr = "abcd"
@@ -188,6 +228,8 @@ array[i] = 15
 # if expression1 sign expression2
 if a + 5 > 20
     a = 20
+else
+    a = 10
 end
 ```
 
@@ -201,6 +243,14 @@ while a >= 10
 end
 ```
 
+### Import statements
+
+```txt
+# Import statement syntax
+# Note: This instructs the compiler to include the cstdlib module (cstdlib.ml) in the build.
+import cstdlib
+```
+
 ### Functions
 
 ```txt
@@ -209,7 +259,7 @@ extern fun exit(status: int32): void
 extern fun printf(msg: int8*, ...): int32
 
 # Function syntax
-# fun myfun(param1: type, param2: type2, ...)
+# fun myfun(param_1: type, param_2: type2, ...)
 fun U64ToStrLen(nr: int64): int64
     let cnt: int64 = 0
     while nr != 0
