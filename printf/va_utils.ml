@@ -42,22 +42,23 @@ asm "	pop %r8"
 asm "	pop %r9"
 asm ".endm"
 
-# fun _caller_stack(base_ptr: int64*): int64*
-#     let callee_rbp: int64* = *(&base_ptr + 8)
-#     let caller_rbp: int64* = *callee_rbp
-#     ret caller_rbp
-# end
-
 fun va_start(list: int64*): void
     let callee_rbp: int64* = &list + 8
     let caller_rbp: int64* = *callee_rbp
+
+    # 24 = return_addr (from call) + rbp (from calle) + 8 (starting ML offset)
+    let reg_ptr: int64* = callee_rbp + 24
+    let stack_ptr: int64* = caller_rbp +  24
+
+    let addr: int64* = malloc(48)
+    memcpy(addr, reg_ptr, 48)
 
     # list[0] (list->idx) - Current list index
     # list[1] (list->reg_ptr) - A pointer to the stack-saved registers (caller's stack address)
     # list[2] (list->stack_ptr) - A pointer to the stack-saved values (caller's caller stack address)
     list[0] = 0
-    list[1] = callee_rbp + 16
-    list[2] = caller_rbp + 16
+    list[1] = addr
+    list[2] = stack_ptr
 end
 
 fun va_arg(list: int64*): int64

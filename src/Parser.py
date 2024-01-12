@@ -275,7 +275,7 @@ class Parser:
                         # Widens the operands if necessary
                         code = needs_widen(left.ntype.ckind, right.ntype.ckind)
                         kind = self.node_kind_of(token.kind)
-                        if code == 1 and kind != NodeKind.GLUE:
+                        if code == 1 and kind not in (NodeKind.GLUE, NodeKind.OP_ASSIGN):
                             left = Node(NodeKind.OP_WIDEN,
                                         right.ntype, left.value, left)
                         if code == 2 and kind != NodeKind.GLUE:
@@ -379,17 +379,20 @@ class Parser:
                         'Cannot return from outside a function', self)
 
         fun = Def.fun_map.get(Def.fun_name)
-        node = self.token_list_to_tree()
 
         if fun.ret_type == Def.void_type:
-            print_error('ret_statement',
-                        'Cannot return from a void function', self)
+            if not self.no_more_tokens():
+                print_error('ret_statement',
+                            'Cannot return a non-void value from a void function', self)
 
-        if node.ntype != fun.ret_type:
-            print_error('ret_statement',
-                        'The return type differs from the function\'s', self)
+            return None
+        else:
+            node = self.token_list_to_tree()
+            if node.ntype != fun.ret_type:
+                print_error('ret_statement',
+                            'The return type differs from the function\'s', self)
 
-        return Node(NodeKind.RET, node.ntype, '', node)
+            return Node(NodeKind.RET, node.ntype, '', node)
 
     def fun_declaration(self, is_extern: bool = False) -> Optional[Node]:
         # Needed for extern
@@ -447,13 +450,13 @@ class Parser:
             meta_kind = arg_type.meta_kind()
             Def.ident_map[full_name_of(arg_name)] = meta_kind
 
+            Def.var_off += size_of(arg_type.ckind)
             if meta_kind == VariableMetaKind.PRIM:
                 Def.var_map[full_name_of(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
             if meta_kind == VariableMetaKind.PTR:
                 Def.ptr_map[full_name_of(arg_name)] = Pointer(
                     full_name_of(arg_name), elem_type, Def.var_off)
-            Def.var_off += size_of(arg_type.ckind)
 
         self.next_line()
         body = self.compound_statement()
@@ -605,14 +608,13 @@ class Parser:
                 var_type = VariableType(ptr_ckind, default_ckind)
 
         full_name = full_name_of(name)
-
         Def.ident_map[full_name] = meta_kind
-        Def.var_off += size_of(var_type.ckind)
 
         if var_type.meta_kind() == VariableMetaKind.PRIM:
             is_local = Def.fun_name != ''
             value = 0 if is_local else self.curr_token().value
 
+            Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
 
@@ -629,9 +631,9 @@ class Parser:
         if var_type.meta_kind() == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
                 kind, VariableMetaKind.PRIM))
+            Def.var_off += size_of(elem_type.ckind) * elem_cnt
             Def.arr_map[full_name] = Array(
                 full_name, elem_cnt, elem_type, Def.var_off)
-            Def.var_off += size_of(elem_type.ckind) * elem_cnt
 
             if self.no_more_tokens():
                 return None
@@ -643,6 +645,7 @@ class Parser:
         if var_type.meta_kind() == VariableMetaKind.PTR:
             elem_type = VariableType(
                 VariableCompKind(kind, VariableMetaKind.PRIM))
+            Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)
 
             node = None

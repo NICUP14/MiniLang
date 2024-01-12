@@ -559,7 +559,9 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     if node.kind == NodeKind.CHAR_LIT:
         value = node.value.lstrip('\'').rstrip('\'')
-        opd = Operand(ord(value), node.ntype, imm=True)
+        # opd = Operand(ord(value), node.ntype, imm=True)
+        opd = Operand(
+            ord(bytes(value, 'utf-8').decode('unicode_escape')), node.ntype, imm=True)
         opd.reg = alloc_reg(opd=opd)
         return opd
 
@@ -619,13 +621,13 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         gen_load(opd)
 
         mul_snippet = bin_snippet(SnippetCollection.MUL_OP, opd, right_opd)
-        sub_snippet = bin_snippet(
-            SnippetCollection.SUB_OP, left_opd, opd)
-        # add_snippet = bin_snippet(
-        #     SnippetCollection.ADD_OP, left_opd, opd)
+        # sub_snippet = bin_snippet(
+        #     SnippetCollection.SUB_OP, left_opd, opd)
+        add_snippet = bin_snippet(
+            SnippetCollection.ADD_OP, left_opd, opd)
         print_stdout(mul_snippet.asm())
-        print_stdout(sub_snippet.asm())
-        # print_stdout(add_snippet.asm())
+        print_stdout(add_snippet.asm())
+        # print_stdout(sub_snippet.asm())
 
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
             # ?Duplicated code block

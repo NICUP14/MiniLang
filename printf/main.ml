@@ -14,7 +14,7 @@ fun main(): int64
     # asm "xor %rax, %rax"
     # asm "call printf"
 
-    custom_printf("Message: %s", "Hello world")
+    custom_printf("Message: %s %+d", "Hello world", 16)
 
     ret 0
 end

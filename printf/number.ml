@@ -8,7 +8,7 @@ let space_flag: int8 = 1
 
 fun U64ToStrLen(nr: int64): int64
     let cnt: int64 = 0
-    while nr != 0
+    while nr > 0
         nr = nr / 10
         cnt = cnt + 1
     end
@@ -48,7 +48,7 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
     let buff_tmp: int8* = buff
     let sign: int8 = 0
     let sign_ch = '_'
-    let width_ch = '_'
+    let width_ch: int32 = '_'
 
   	if zf_set > 0
   	    width_ch = '0'
@@ -75,12 +75,13 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
         end
     end
    
+    let len = U64ToStrLen(num)
     width = width - U64ToStrLen(num)
     if width < 0
         width = 0
     end
 
-    if mf_set > 0
+    if mf_set == 0
         memset(buff_tmp, width_ch, width)
         buff_tmp = buff_tmp + width
     end
