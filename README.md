@@ -140,6 +140,7 @@ lineno         | Integer literal      | Source line number
 size_of(ident) | Integer literal      | Variable size
 size_of(ident) | Integer literal      | Variable stack offset
 len_of(ident)  | Integer literal      | Element count of the array
+asm(statement) | Void                 | -
 
 ```txt
 # Source code (before parsing)
@@ -160,7 +161,7 @@ fun main()
   printf("off_of(a): %lld\n", 16)
   printf("size_of(a): %lld\n", 8)
   printf("%s:%s: Test\n", "main.ml", "main")
-  assert_extra(((int8*)(main_a) != 0), "assert_extra(a != 0, line, file, lineno)\n", "main.ml", 9)
+  assert_extra(((int8*)(main_a) != 0), "assert_extra(a != 0, line, file, lineno)", "main.ml", 9)
   ret 0
 end
 ```
@@ -288,6 +289,9 @@ import cstdlib
 ```
 
 ### Defer statements
+
+> [!TIP]
+> The `defer` statement is particularly useful for resource clean-up, such as freeing allocated memory, closing files or running cleanup tasks at the end of the function scope.
 
 ```txt
 # Source code (before parsing)
