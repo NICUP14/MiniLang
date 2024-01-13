@@ -129,6 +129,41 @@ int64
 
 ```
 
+### Builtins
+
+Builtin        | Type of expansion    | Expands to
+---------------|----------------------|----------
+fun            | String literal       | Function name
+file           | String literal       | Source file
+line           | String literal       | Source line
+lineno         | Integer literal      | Source line number
+size_of(ident) | Integer literal      | Variable size
+size_of(ident) | Integer literal      | Variable stack offset
+
+```txt
+# Source code (before parsing)
+# From test/builtin/main.ml:
+fun main(): int64
+    let a: int8* = 0
+    printf("off_of(a): %lld", off_of("a"))
+    printf("size_of(a): %lld", size_of("a"))
+    printf("%s:%s: Test", file, fun)
+    assert_extra(a != 0, line, file, lineno)
+    ret 0
+end
+
+# AST representation (afer parsing)
+# Command: "python src/Main.py -i test/builtin/main.ml -d"
+fun main()
+  ((int8*)(main_a) = 0)
+  printf("off_of(a): %lld\n", 16)
+  printf("size_of(a): %lld\n", 8)
+  printf("%s:%s: Test\n", "main.ml", "main")
+  assert_extra(((int8*)(main_a) != 0), "assert_extra(a != 0, line, file, lineno)\n", "main.ml", 9)
+  ret 0
+end
+```
+
 ### Operators
 
 Symbol | Type   | Location | Operation
@@ -154,7 +189,7 @@ at     | Binary | -        | Array access
 ### Inline assembly
 
 > [!WARNING]
-> The `asm` built-in does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack  leads to undefined behavior.
+> The `asm` builtin does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack  leads to undefined behavior.
 
 ```txt
 # From samples/printf/va_utils.ml:

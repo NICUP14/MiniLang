@@ -301,29 +301,19 @@ def gen_fun_call(node: Node):
         reg_cnt += 1
         glue_node = glue_node.left
 
-    glue_node = node.left
+    arg_cnt = 0
+    name = node.value
+    fun = Def.fun_map.get(name)
 
-    # Fix for single-argument functions
-    if glue_node.kind != NodeKind.GLUE:
-        opd = gen_tree(glue_node, node, -1)
-        opd_dst = Operand('', opd.var_type, CALL_REGS[0])
+    if fun.arg_cnt > 0:
+        glue_node = node.left
 
-        # ?Temporary
-        gen_load(opd)
+        # Fix for single-argument functions
+        if glue_node.kind != NodeKind.GLUE:
+            arg_cnt = 1
 
-        snippet = copy_of(SnippetCollection.MOVE_REG)
-        snippet.add_arg(modf_of(opd.var_type.kind()))
-        snippet.add_arg(opd.reg_str())
-        snippet.add_arg(opd_dst.reg_str())
-        print_stdout(snippet.asm())
-
-        free_reg(opd.reg)
-        free_reg(opd_dst.reg)
-
-    else:
-        while glue_node is not None:
-            opd = gen_tree(glue_node.right, glue_node, -1)
-            opd_dst = Operand('', opd.var_type, CALL_REGS[reg_cnt])
+            opd = gen_tree(glue_node, node, -1)
+            opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
             # ?Temporary
             gen_load(opd)
@@ -337,11 +327,36 @@ def gen_fun_call(node: Node):
             free_reg(opd.reg)
             free_reg(opd_dst.reg)
 
-            glue_node = glue_node.left
-            reg_cnt -= 1
+        else:
+            arg_cnt = reg_cnt + 1
 
-    name = node.value
-    fun = Def.fun_map.get(name)
+            while glue_node is not None:
+                opd = gen_tree(glue_node.right, glue_node, -1)
+                opd_dst = Operand('', opd.var_type, CALL_REGS[reg_cnt])
+
+                # ?Temporary
+                gen_load(opd)
+
+                snippet = copy_of(SnippetCollection.MOVE_REG)
+                snippet.add_arg(modf_of(opd.var_type.kind()))
+                snippet.add_arg(opd.reg_str())
+                snippet.add_arg(opd_dst.reg_str())
+                print_stdout(snippet.asm())
+
+                free_reg(opd.reg)
+                free_reg(opd_dst.reg)
+
+                glue_node = glue_node.left
+                reg_cnt -= 1
+
+    if fun.is_variadic:
+        if arg_cnt < fun.arg_cnt:
+            print_error('gen_fun_call',
+                        f'Variadic function {fun.name} expects {fun.arg_cnt} parameters, but only {arg_cnt} were provided')
+    elif arg_cnt != fun.arg_cnt:
+        print_error('gen_fun_call',
+                    f'Function {fun.name} expects {fun.arg_cnt} parameters, but only {arg_cnt} were provided')
+
     if fun.is_variadic:
         snippet = copy_of(SnippetCollection.XOR_RAX)
         print_stdout(snippet.asm())
@@ -526,12 +541,14 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         return gen_fun_call(node)
 
     if node.kind == NodeKind.ASM:
-        # ? Temporary
         if node.left.kind != NodeKind.STR_LIT:
             print_error(
-                'gen_tree', 'The asm built-in accepts only one parameter.')
+                'gen_tree', 'The asm builtin only accepts string literals')
 
         print_stdout(node.left.value.lstrip('\"').rstrip('\"'))
+        return None
+
+    if node.kind == NodeKind.END:
         return None
 
     # Glue statement

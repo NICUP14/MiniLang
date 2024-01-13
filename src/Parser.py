@@ -30,6 +30,7 @@ from Def import default_ckind
 from Def import void_type
 from Def import bool_type
 from Def import default_type
+from Def import str_type
 from Def import print_error
 from Def import type_of
 from Def import type_of_op
@@ -87,7 +88,7 @@ NODE_KIND_MAP = {
     TokenKind.AMP: NodeKind.REF,
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
     TokenKind.STR_LIT: NodeKind.STR_LIT,
-    TokenKind.KW_ASM: NodeKind.ASM
+    TokenKind.KW_ASM: NodeKind.ASM,
 }
 
 
@@ -101,8 +102,11 @@ class Parser:
 
     def parse(self, source: str) -> Node:
         self.source = source
-        self.lines = list(filter(
-            lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(source, 'r').readlines()))
+        # self.lines = list(filter(
+        #     lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(source, 'r').readlines()))
+        self.lines = open(source, 'r').readlines()
+        self.skip_blank_lines()
+
         self.tokens = tokenize(self.curr_line())
         return self.compound_statement()
 
@@ -112,11 +116,16 @@ class Parser:
     def curr_line(self) -> str:
         return self.lines[self.lines_idx]
 
+    def skip_blank_lines(self) -> None:
+        while self.curr_line().lstrip('\t ') == '\n' or self.curr_line().lstrip('\t ').startswith('#'):
+            self.next_line()
+
     def next_line(self) -> str:
         self.lines_idx += 1
 
         if self.no_more_lines():
             print_error('next_line', 'No more lines in list', self)
+        self.skip_blank_lines()
 
         self.tokens_idx = 0
         self.tokens = tokenize(self.curr_line())
@@ -200,7 +209,8 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
-                if token.kind == TokenKind.KW_ASM:
+                # Assembly, offset and size builtin pass-trough
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE):
                     op_stack.append(token)
                     continue
 
@@ -235,8 +245,29 @@ class Parser:
 
         for token in tokens:
             if token_is_param(token.kind):
+                # Lineno builtin
+                if token.kind == TokenKind.KW_LINENO:
+                    node_stack.append(
+                        Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(self.lines_idx + 1)))
+
+                # Line builtin
+                elif token.kind == TokenKind.KW_LINE:
+                    chars = '\t '
+                    node_stack.append(
+                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{self.curr_line().lstrip(chars)}"'))
+
+                # Func builtin
+                elif token.kind == TokenKind.KW_FUN:
+                    node_stack.append(
+                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{Def.fun_name}"'))
+
+                # File builtin
+                elif token.kind == TokenKind.KW_FILE:
+                    node_stack.append(
+                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{self.source}"'))
+
                 # Distinguishes between identifiers and literals
-                if token.kind == TokenKind.IDENT:
+                elif token.kind == TokenKind.IDENT:
                     full_name = full_name_of(token.value)
                     node_stack.append(
                         Node(self.node_kind_of(token.kind), type_of_ident(full_name), full_name))
@@ -248,13 +279,46 @@ class Parser:
 
             if token_is_op(token.kind):
                 if token_is_unary_op(token.kind):
+                    # No-argument function fix
+                    if token.kind == TokenKind.FUN_CALL:
+                        fun = Def.fun_map.get(token.value)
+                        kind = self.node_kind_of(token.kind)
+
+                        if fun.arg_cnt == 0:
+                            node_stack.append(
+                                Node(kind, type_of_op(kind), token.value))
+                            continue
+
                     if len(node_stack) == 0:
                         print_error('to_tree', 'Missing operand', self)
-
                     node = node_stack.pop()
-                    kind = self.node_kind_of(token.kind)
 
-                    if kind != NodeKind.ASM and kind != NodeKind.FUN_CALL and kind not in allowed_op(node.ntype.ckind):
+                    # Offset builtin
+                    if token.kind == TokenKind.KW_OFF:
+                        if node.kind != NodeKind.STR_LIT:
+                            print_error('to_tree',
+                                        'The off_of builtin only accepts string literals')
+
+                        off = Def.off_of(full_name_of(
+                            node.value.lstrip('\"').rstrip('\"')))
+                        node_stack.append(
+                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(off)))
+                        continue
+
+                    # Size builtin
+                    if token.kind == TokenKind.KW_SIZE:
+                        if node.kind != NodeKind.STR_LIT:
+                            print_error('to_tree',
+                                        'The size_of builtin only accepts string literals')
+
+                        size = Def.size_of_ident(full_name_of(
+                            node.value.lstrip('\"').rstrip('\"')))
+                        node_stack.append(
+                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(size)))
+                        continue
+
+                    kind = self.node_kind_of(token.kind)
+                    if kind not in (NodeKind.ASM, NodeKind.FUN_CALL) and kind not in allowed_op(node.ntype.ckind):
                         print_error(
                             'to_tree', f'Incompatible type {node.ntype}', self)
 
@@ -356,7 +420,9 @@ class Parser:
         self.next_line()
         body = self.compound_statement()
 
-        return Node(NodeKind.WHILE, void_type, '', cond_node, body)
+        node = Node(NodeKind.GLUE, void_type, '', Node(
+            NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
+        return node
 
     def if_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
@@ -369,8 +435,8 @@ class Parser:
             self.next_line()
             false_node = self.compound_statement()
 
-        node = Node(NodeKind.IF, '', void_type,
-                    true_node, false_node, cond_node)
+        node = Node(NodeKind.GLUE, void_type, '', Node(NodeKind.IF, '', void_type,
+                    true_node, false_node, cond_node), Node(NodeKind.END, void_type, 'end'))
         return node
 
     def ret_statement(self) -> Optional[Node]:
@@ -469,7 +535,9 @@ class Parser:
         align_off = 0 if off % 16 == 0 else 16 - (off % 16)
         fun.off = off + align_off
 
-        return Node(NodeKind.FUN, default_ckind, name, body)
+        node = Node(NodeKind.GLUE, void_type, '', Node(
+            NodeKind.FUN, default_ckind, name, body), Node(NodeKind.END, void_type, 'end'))
+        return node
 
     def type_definition(self):
         alias = self.match_token(TokenKind.IDENT).value

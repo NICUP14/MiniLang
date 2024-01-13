@@ -101,6 +101,11 @@ class TokenKind(enum.Enum):
     KW_IMPORT = enum.auto()
     KW_DEFER = enum.auto()
     KW_ASM = enum.auto()
+    KW_FILE = enum.auto()
+    KW_LINE = enum.auto()
+    KW_LINENO = enum.auto()
+    KW_OFF = enum.auto()
+    KW_SIZE = enum.auto()
 
 
 @dataclass
@@ -150,12 +155,21 @@ TOKEN_KIND_MAP = {
     'typedef': TokenKind.KW_TYPEDEF,
     # 'defer': TokenKind.KW_DEFER
     'import': TokenKind.KW_IMPORT,
-    'asm': TokenKind.KW_ASM
+    'asm': TokenKind.KW_ASM,
+    'file': TokenKind.KW_FILE,
+    'line': TokenKind.KW_LINE,
+    'lineno': TokenKind.KW_LINENO,
+    'off_of': TokenKind.KW_OFF,
+    'size_of': TokenKind.KW_SIZE
 }
 
 
 def token_is_param(kind: TokenKind) -> bool:
     return kind in (
+        TokenKind.KW_FUN,
+        TokenKind.KW_LINE,
+        TokenKind.KW_FILE,
+        TokenKind.KW_LINENO,
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
@@ -184,7 +198,9 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.AMP,
         TokenKind.DEREF,
         TokenKind.FUN_CALL,
-        TokenKind.KW_ASM
+        TokenKind.KW_ASM,
+        TokenKind.KW_OFF,
+        TokenKind.KW_SIZE
     )
 
 
@@ -247,6 +263,8 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.DEREF,
         TokenKind.AMP,
         TokenKind.KW_ASM,
+        TokenKind.KW_OFF,
+        TokenKind.KW_SIZE,
         TokenKind.FUN_CALL
     ]
 

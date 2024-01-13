@@ -17,6 +17,11 @@ def has_indent(kind: NodeKind):
 
 
 def fun_call_tree_str(node: Node):
+    name = node.value
+    fun = Def.fun_map.get(name)
+    if fun.arg_cnt == 0:
+        return ''
+
     args = []
     glue_node = node.left
 
@@ -41,11 +46,13 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return ''
 
     if node.kind != NodeKind.FUN_CALL and node.left:
-        left = tree_str(node.left, node, cnt + has_indent(node.kind))
+        left = tree_str(node.left, node, cnt +
+                        has_indent(node.kind) - (node.kind == NodeKind.END))
     if node.kind != NodeKind.FUN_CALL and node.right:
-        right = tree_str(node.right, node, cnt + has_indent(node.kind))
+        right = tree_str(node.right, node, cnt +
+                         has_indent(node.kind) - (node.kind == NodeKind.END))
 
-    indent = '\t' * cnt
+    indent = '  ' * cnt
 
     if node.kind in (NodeKind.INT_LIT, NodeKind.CHAR_LIT):
         return node.value
@@ -85,9 +92,9 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'{left}[{right}]'
     if node.kind == NodeKind.IF:
         if right is not None:
-            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n\t{indent + left}\n{indent}{color_str(Color.BLUE, "else")}\n\t{indent + right}'
+            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n  {indent + left}\n{indent}{color_str(Color.BLUE, "else")}\n  {indent + right}'
         else:
-            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n\t{indent + left}\n'
+            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n  {indent + left}'
 
     if node.kind == NodeKind.WHILE:
         return f'{color_str(Color.BLUE, "while")} {left}\n{right}'
@@ -101,13 +108,14 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.FUN_CALL:
         return f'{node.value}({fun_call_tree_str(node)})'
     if node.kind == NodeKind.ASM:
-        return f'{color_str(Color.BLUE, node.value)}({fun_call_tree_str(node)})'
+        return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:
         fun = Def.fun_map.get(node.value)
         args_zip = zip(fun.arg_names, fun.arg_types)
         args_map = map(
             lambda t: f'({color_str(Color.BLUE, rev_type_of(t[1]))})({t[0]})', args_zip)
-        args_str = ", ".join(args_map)
+        args_str = ", ".join(
+            list(args_map) + (['...'] if fun.is_variadic else []))
         return f'{color_str(Color.BLUE, "fun")} {node.value}({args_str})\n{left}'
     if node.kind == NodeKind.OP_WIDEN:
         return f'widen({left})'
@@ -117,5 +125,7 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'&{left}'
     if node.kind == NodeKind.DEREF:
         return f'*{left}'
+    if node.kind == NodeKind.END:
+        return color_str(Color.BLUE, 'end')
 
     print_error('tree_str', f'Invalid node kind {node.kind}')

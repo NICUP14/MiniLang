@@ -199,6 +199,7 @@ class NodeKind(enum.Enum):
     STR_LIT = enum.auto()
     DEFER = enum.auto()
     ASM = enum.auto()
+    END = enum.auto()
 
 
 class Node:
@@ -614,7 +615,7 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     print_error('needs_widen', f'Invalid composite kinds ({ckind, ckind2})')
 
 
-def size_of(ckind: VariableCompKind):
+def size_of(ckind: VariableCompKind) -> int:
     if ckind in (ptr_ckind, arr_ckind):
         return 8
 
@@ -631,6 +632,25 @@ def size_of(ckind: VariableCompKind):
             return size_map.get(ckind.kind)
 
     print_error('size_of', f'Invalid variable type {ckind}')
+
+
+def size_of_ident(ident: str) -> int:
+    if ident not in ident_map:
+        print_error('size_of_ident', f'No such identifier {ident}')
+
+    meta_kind = ident_map.get(ident)
+
+    if meta_kind == VariableMetaKind.PRIM:
+        return size_of(var_map.get(ident).vtype.ckind)
+
+    if meta_kind == VariableMetaKind.ARR:
+        arr = arr_map.get(ident)
+        return size_of(arr.elem_type.ckind) * arr.elem_cnt
+
+    if meta_kind == VariableMetaKind.PTR:
+        return size_of(ptr_ckind)
+
+    print_error('size_of_ident', f'No such meta kind {meta_kind}')
 
 
 def cmp_modf_of(kind: NodeKind) -> str:
@@ -725,4 +745,6 @@ fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
+str_type = VariableType(ptr_ckind, VariableCompKind(
+    VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
