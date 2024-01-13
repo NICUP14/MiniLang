@@ -139,10 +139,11 @@ line           | String literal       | Source line
 lineno         | Integer literal      | Source line number
 size_of(ident) | Integer literal      | Variable size
 size_of(ident) | Integer literal      | Variable stack offset
+len_of(ident)  | Integer literal      | Element count of the array
 
 ```txt
 # Source code (before parsing)
-# From test/builtin/main.ml:
+# From tests/builtins/main.ml:
 fun main(): int64
     let a: int8* = 0
     printf("off_of(a): %lld", off_of("a"))
@@ -152,8 +153,8 @@ fun main(): int64
     ret 0
 end
 
-# AST representation (afer parsing)
-# Command: "python src/Main.py -i test/builtin/main.ml -d"
+# AST representation (after parsing)
+# Command: "python src/Main.py -i tests/builtins/main.ml -d"
 fun main()
   ((int8*)(main_a) = 0)
   printf("off_of(a): %lld\n", 16)
@@ -173,7 +174,7 @@ Symbol | Type   | Location | Operation
 \*     | Binary | -        | Multiply
 /      | Binary | -        | Divide
 %      | Binary | -        | Modulo
-|      | Binary | -        | Bitwise or
+\|     | Binary | -        | Bitwise or
 &      | Binary | -        | Bitwise and
 =      | Binary | -        | Assignment
 at     | Binary | -        | Array access
@@ -284,6 +285,51 @@ end
 # Import statement syntax
 # Note: This instructs the compiler to include the cstdlib module (cstdlib.ml) in the build.
 import cstdlib
+```
+
+### Defer statements
+
+```txt
+# Source code (before parsing)
+# From tests/defer/main.ml:
+fun main(): int64
+    let arr: int64[5] = [0, 1, 2, 4, 4]
+    let arr_size = size_of "arr"
+
+    let ptr: int64* = malloc(arr_size)
+    memcpy(ptr, arr, arr_size)
+    defer free(ptr)
+
+    let idx = 0
+    while idx < len_of("arr")
+        printf("%d", arr at idx)
+        idx = idx + 1
+    end
+    ret 0
+end
+
+# AST representation (after parsing)
+# Command: "python src/Main.py -i tests/defer/main.ml -d"
+fun main()
+  ((int64[5])(main_arr)[0] = 0)
+  ((int64[5])(main_arr)[1] = 1)
+  ((int64[5])(main_arr)[2] = 2)
+  ((int64[5])(main_arr)[3] = 4)
+  ((int64[5])(main_arr)[4] = 4)
+  ((int64)(main_arr_size) = 40)
+
+  ((int64*)(main_ptr) = malloc((int64)(main_arr_size)))
+  memcpy((int64*)(main_ptr), (int64[5])(main_arr), (int64)(main_arr_size))
+
+  ((int64)(main_idx) = 0)
+  while ((int64)(main_idx) < 5)
+    printf("%d", (int64[5])(main_arr)[(int64)(main_idx)])
+    ((int64)(main_idx) = ((int64)(main_idx) + 1))
+  end
+
+  free((int64*)(main_ptr))
+  ret 0
+end
 ```
 
 ### Functions

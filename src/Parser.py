@@ -209,8 +209,8 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
-                # Assembly, offset and size builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE):
+                # Assembly, offset, size and len builtin pass-trough
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN):
                     op_stack.append(token)
                     continue
 
@@ -253,8 +253,9 @@ class Parser:
                 # Line builtin
                 elif token.kind == TokenKind.KW_LINE:
                     chars = '\t '
+                    newline = '\n'
                     node_stack.append(
-                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{self.curr_line().lstrip(chars)}"'))
+                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{self.curr_line().lstrip(chars).rstrip(newline)}"'))
 
                 # Func builtin
                 elif token.kind == TokenKind.KW_FUN:
@@ -315,6 +316,25 @@ class Parser:
                             node.value.lstrip('\"').rstrip('\"')))
                         node_stack.append(
                             Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(size)))
+                        continue
+
+                    if token.kind == TokenKind.KW_LEN:
+                        if node.kind != NodeKind.STR_LIT:
+                            print_error('to_tree',
+                                        'The len_of builtin only accepts string literals')
+
+                        ident = full_name_of(
+                            node.value.lstrip('\"').rstrip('\"'))
+                        if ident not in Def.ident_map:
+                            print_error('to_tree',
+                                        'The len_of builtin only accepts pre-declared identifiers')
+                        if Def.ident_map.get(ident) != VariableMetaKind.ARR:
+                            print_error('to_tree',
+                                        'The len_of builtin only accepts array identifiers')
+
+                        arr = Def.arr_map.get(ident)
+                        node_stack.append(
+                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arr.elem_cnt)))
                         continue
 
                     kind = self.node_kind_of(token.kind)
@@ -385,6 +405,9 @@ class Parser:
         if token.kind == TokenKind.KW_IMPORT:
             self.next_token()
             return self.import_statement()
+        if token.kind == TokenKind.KW_DEFER:
+            self.next_token()
+            return self.defer_statement()
 
         node = self.token_list_to_tree()
         return node
@@ -458,7 +481,9 @@ class Parser:
                 print_error('ret_statement',
                             'The return type differs from the function\'s', self)
 
-            return Node(NodeKind.RET, node.ntype, '', node)
+            node = Node(NodeKind.GLUE, void_type, '', Def.deferred,
+                        Node(NodeKind.RET, node.ntype, '', node))
+            return node
 
     def fun_declaration(self, is_extern: bool = False) -> Optional[Node]:
         # Needed for extern
@@ -525,18 +550,20 @@ class Parser:
                     full_name_of(arg_name), elem_type, Def.var_off)
 
         self.next_line()
-        body = self.compound_statement()
+        body = self.compound_statement() if fun.ret_type != void_type else (
+            Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
 
         Def.fun_name = ''
         Def.label_list.pop()
+        Def.deferred = None
 
         # Patch the stack offset
         off = Def.var_off
         align_off = 0 if off % 16 == 0 else 16 - (off % 16)
         fun.off = off + align_off
 
-        node = Node(NodeKind.GLUE, void_type, '', Node(
-            NodeKind.FUN, default_ckind, name, body), Node(NodeKind.END, void_type, 'end'))
+        node = Node(NodeKind.GLUE, void_type, '',
+                    Node(NodeKind.FUN, default_ckind, name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
     def type_definition(self):
@@ -558,9 +585,13 @@ class Parser:
             Def.ckind_map[alias] = ptr_ckind
             Def.ptr_map[alias] = Pointer(alias, vtype, -1)
 
-    def defer_statement(self) -> Optional[Node]:
+    def defer_statement(self) -> None:
         node = self.token_list_to_tree()
-        return Node(NodeKind.DEFER, node.ntype, '', node)
+        if Def.deferred is None:
+            Def.deferred = node
+        else:
+            Def.deferred = Node(NodeKind.GLUE, void_type,
+                                '', Def.deferred, node)
 
     def to_node(self, token: Token) -> Node:
         node = None

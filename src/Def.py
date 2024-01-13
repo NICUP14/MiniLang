@@ -748,3 +748,4 @@ default_type = VariableType(default_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
+deferred: Optional[Node] = None
