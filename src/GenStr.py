@@ -17,10 +17,11 @@ def has_indent(kind: NodeKind):
 
 
 def fun_call_tree_str(node: Node):
-    name = node.value
-    fun = Def.fun_map.get(name)
-    if fun.arg_cnt == 0:
-        return ''
+    if node.kind == NodeKind.FUN_CALL:
+        name = node.value
+        fun = Def.fun_map.get(name)
+        if fun.arg_cnt == 0:
+            return ''
 
     args = []
     glue_node = node.left
@@ -119,6 +120,8 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'{color_str(Color.BLUE, "fun")} {node.value}({args_str})\n{left}'
     if node.kind == NodeKind.OP_WIDEN:
         return f'widen({left})'
+    if node.kind == NodeKind.CAST:
+        return f'{color_str(Color.BLUE, "cast")}(\"{rev_type_of(node.ntype)}\", {left})'
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "ret")} {left}'
     if node.kind == NodeKind.REF:

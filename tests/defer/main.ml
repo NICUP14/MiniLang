@@ -1,4 +1,4 @@
-import cstdlib
+import "../../cstdlib"
 
 fun void_fun(): void
     let arr: int64[5] = [0, 1, 2, 4, 4]

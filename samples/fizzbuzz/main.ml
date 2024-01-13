@@ -1,4 +1,4 @@
-import cstdlib
+import "cstdlib"
 
 fun fizz_buzz(num: int64): void
     let idx = 1

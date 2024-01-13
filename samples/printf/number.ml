@@ -1,4 +1,4 @@
-import cstdlib
+import "cstdlib"
 
 let mzf_mask: int8 = 12
 let minus_flag: int8 = 8

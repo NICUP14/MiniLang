@@ -1,7 +1,8 @@
 # TODO
 
-Solved: 10/16
+Solved: 11/16
 
+- [ ] Include section in README regarding miscellaneous features (references, fixed-len pointers)
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack alignment. (align by 16-bytes)
@@ -16,5 +17,5 @@ Solved: 10/16
 - [ ] Static type analysis.
 - [ ] Fix type system.
 - [ ] Function assignment (alias).
-- [ ] Defer.
+- [X] Defer.
 - [X] Import.

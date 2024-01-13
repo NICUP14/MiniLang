@@ -1,6 +1,6 @@
 # Ideas
 
-Solved: 3/8
+Solved: 4/10
 
 - [X] Type inference.
 - [X] Type definitions.
@@ -8,5 +8,7 @@ Solved: 3/8
 - [X] Ruby-like heredocs.
 - [ ] Integer literal prefix.
 - [ ] Non-integer boolean type.
-- [ ] `file` & `line` builtins.
+- [X] `file` & `line` builtins.
 - [ ] Check for already-imported modules (import set).
+- [ ] References.
+- [ ] Cast builtin.

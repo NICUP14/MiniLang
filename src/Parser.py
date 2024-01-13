@@ -24,6 +24,7 @@ from Def import Function
 from Def import Array
 from Def import Pointer
 from Def import ptr_ckind
+from Def import ref_ckind
 from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
@@ -38,6 +39,7 @@ from Def import type_of_ident
 from Def import type_of_lit
 from Def import full_name_of
 from Def import needs_widen
+from Def import type_of_cast
 from Def import allowed_op
 from Def import size_of
 
@@ -89,6 +91,7 @@ NODE_KIND_MAP = {
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
     TokenKind.STR_LIT: NodeKind.STR_LIT,
     TokenKind.KW_ASM: NodeKind.ASM,
+    TokenKind.KW_CAST: NodeKind.CAST
 }
 
 
@@ -209,8 +212,8 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
-                # Assembly, offset, size and len builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN):
+                # Assembly, offset, size, len, cast builtin pass-trough
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
                     op_stack.append(token)
                     continue
 
@@ -239,6 +242,37 @@ class Parser:
             postfix_tokens.append(op_stack.pop())
 
         return postfix_tokens
+
+    def cast_builtin(self, node: Node) -> Node:
+        glue_node = node
+        if node.left.kind != NodeKind.GLUE:
+            print_error('cast_builtin',
+                        'The cast builtin expects exactly 2 arguments, only one was provided', self)
+
+        arg_cnt = 0
+        args: list[Node] = []
+        while glue_node is not None:
+            arg_cnt += 1
+            args.append(glue_node.right)
+            glue_node = glue_node.left
+
+        if arg_cnt != 2:
+            print_error('cast_builtin',
+                        f'The cast builtin expects exactly 2 parameters, {arg_cnt} were provided', self)
+
+        str_node = args.pop()
+        target_node = args.pop()
+
+        if str_node is None or str_node.kind != NodeKind.STR_LIT:
+            print_error('cast_builtin',
+                        'The first argument passed to the cast builtin is not a string literal', self)
+
+        # if target_node is None or target_node.kind != NodeKind.IDENT:
+        #     print_error('cast_builtin',
+        #                 'The second argument passed to the cast builtin is not an identifier', self)
+
+        type_str = str_node.value.lstrip('\"').rstrip('\"')
+        return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
 
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
@@ -318,6 +352,7 @@ class Parser:
                             Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(size)))
                         continue
 
+                    # Length builtin
                     if token.kind == TokenKind.KW_LEN:
                         if node.kind != NodeKind.STR_LIT:
                             print_error('to_tree',
@@ -325,16 +360,29 @@ class Parser:
 
                         ident = full_name_of(
                             node.value.lstrip('\"').rstrip('\"'))
+                        meta_kind = Def.ident_map.get(ident)
                         if ident not in Def.ident_map:
                             print_error('to_tree',
                                         'The len_of builtin only accepts pre-declared identifiers')
-                        if Def.ident_map.get(ident) != VariableMetaKind.ARR:
+                        if meta_kind not in (VariableMetaKind.ARR, VariableMetaKind.PTR):
                             print_error('to_tree',
-                                        'The len_of builtin only accepts array identifiers')
+                                        'The len_of builtin only accepts array/pointer identifiers')
 
-                        arr = Def.arr_map.get(ident)
+                        elem_cnt = 0
+                        if meta_kind == VariableMetaKind.ARR:
+                            arr = Def.arr_map.get(ident)
+                            elem_cnt = arr.elem_cnt
+                        if meta_kind == VariableMetaKind.PTR:
+                            ptr = Def.ptr_map.get(ident)
+                            elem_cnt = ptr.elem_cnt
+
                         node_stack.append(
-                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arr.elem_cnt)))
+                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(elem_cnt)))
+                        continue
+
+                    # Cast builtin
+                    if token.kind == TokenKind.KW_CAST:
+                        node_stack.append(self.cast_builtin(node))
                         continue
 
                     kind = self.node_kind_of(token.kind)
@@ -348,6 +396,22 @@ class Parser:
                 elif token_is_bin_op(token.kind):
                     right = node_stack.pop()
                     left = node_stack.pop()
+
+                    # Validates fixed-index array acesses
+                    if token.kind == TokenKind.KW_AT and right.kind == NodeKind.INT_LIT:
+                        elem_cnt = 0
+                        if Def.ident_map.get(left.value) == VariableMetaKind.PTR:
+                            elem_cnt = Def.ptr_map.get(left.value).elem_cnt
+                        elif Def.ident_map.get(left.value) == VariableMetaKind.ARR:
+                            elem_cnt = Def.arr_map.get(left.value).elem_cnt
+                        else:
+                            print_error('to_tree',
+                                        f'Invalid identifier {left.value}')
+
+                        idx = int(right.value)
+                        if elem_cnt > 0 and idx >= elem_cnt:
+                            print_error('to_tree',
+                                        f'Cannot access element at {idx} from {left.value}', self)
 
                     # Creates the initial parameter tree of a function call
                     if token.kind == TokenKind.COMMA and (
@@ -429,12 +493,14 @@ class Parser:
             print_error('import_statement',
                         'Local imports are not allowed', self)
 
-        module = f'{self.curr_token().value}.ml'
-        if not exists(module):
+        module = self.match_token(
+            TokenKind.STR_LIT).value.lstrip('\"').rstrip('\"')
+        module_source = f'{module}.ml'
+        if not exists(module_source):
             print_error('import_statement',
-                        f'Module \'{module}\' does not exist.', self)
+                        f'Module \'{module_source}\' does not exist.', self)
 
-        module_root = Parser().parse(module)
+        module_root = Parser().parse(module_source)
         return module_root
 
     def while_statement(self) -> Optional[Node]:
@@ -494,6 +560,7 @@ class Parser:
         arg_names: list[str] = []
         arg_types: list[VariableType] = []
         elem_types: list[VariableType] = []
+        elem_cnts: list[int] = []
         while self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
             arg_name = self.match_token(TokenKind.IDENT).value
             self.match_token(TokenKind.COLON)
@@ -501,11 +568,23 @@ class Parser:
             type_str = self.curr_token().value
             arg_type = type_of(type_str)
             elem_type = arg_type
+            elem_cnt = 0
             self.next_token()
 
-            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                self.next_token()
+                arg_type = VariableType(ref_ckind, arg_type.ckind)
+
+            elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
                 self.next_token()
                 arg_type = VariableType(ptr_ckind, arg_type.ckind)
+
+            elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
+                self.next_token()
+                arg_type = VariableType(ptr_ckind, arg_type.ckind)
+                elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
+                self.match_token(TokenKind.RBRACE)
+                self.match_token(TokenKind.MULT)
 
             if not self.no_more_tokens() and self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
                 self.match_token(TokenKind.COMMA)
@@ -513,6 +592,7 @@ class Parser:
             arg_names.append(arg_name)
             arg_types.append(arg_type)
             elem_types.append(elem_type)
+            elem_cnts.append(elem_cnt)
 
         token = self.match_token_from((TokenKind.RPAREN, TokenKind.PER_FUN))
         is_variadic = token.kind == TokenKind.PER_FUN
@@ -537,7 +617,7 @@ class Parser:
         Def.var_off = 8
 
         # ? Temporary
-        for (arg_name, arg_type, elem_type) in zip(arg_names, arg_types, elem_types):
+        for (arg_name, arg_type, elem_type, elem_cnt) in zip(arg_names, arg_types, elem_types, elem_cnts):
             meta_kind = arg_type.meta_kind()
             Def.ident_map[full_name_of(arg_name)] = meta_kind
 
@@ -545,9 +625,9 @@ class Parser:
             if meta_kind == VariableMetaKind.PRIM:
                 Def.var_map[full_name_of(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
-            if meta_kind == VariableMetaKind.PTR:
+            if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
                 Def.ptr_map[full_name_of(arg_name)] = Pointer(
-                    full_name_of(arg_name), elem_type, Def.var_off)
+                    full_name_of(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
@@ -577,13 +657,12 @@ class Parser:
             meta_kind = VariableMetaKind.PTR
 
         vtype = type_of(type_str, False)
-        Def.ident_map[alias] = meta_kind
         if meta_kind == VariableMetaKind.PRIM:
             Def.ckind_map[alias] = vtype.ckind
-            Def.var_map[alias] = Variable(vtype, -1, True)
         if meta_kind == VariableMetaKind.PTR:
             Def.ckind_map[alias] = ptr_ckind
-            Def.ptr_map[alias] = Pointer(alias, vtype, -1)
+        if meta_kind == VariableMetaKind.REF:
+            Def.ckind_map[alias] = ref_ckind
 
     def defer_statement(self) -> None:
         node = self.token_list_to_tree()
@@ -687,6 +766,10 @@ class Parser:
             self.next_token()
             meta_kind = VariableMetaKind.PTR
 
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+            self.next_token()
+            meta_kind = VariableMetaKind.REF
+
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
 
@@ -703,12 +786,17 @@ class Parser:
                             'Declaration of implicit void primitive is not allowed.', self)
 
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
+            if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+                kind = var_type.elem_ckind.kind
         else:
             if meta_kind == VariableMetaKind.ARR:
                 var_type = VariableType(arr_ckind, default_ckind)
             if meta_kind == VariableMetaKind.PTR:
                 meta_kind = VariableMetaKind.PTR
                 var_type = VariableType(ptr_ckind, default_ckind)
+            if meta_kind == VariableMetaKind.REF:
+                meta_kind = VariableMetaKind.REF
+                var_type = VariableType(ref_ckind, default_ckind)
 
         full_name = full_name_of(name)
         Def.ident_map[full_name] = meta_kind
@@ -745,11 +833,12 @@ class Parser:
 
             return self.array_declaration(full_name)
 
-        if var_type.meta_kind() == VariableMetaKind.PTR:
+        if var_type.meta_kind() in (VariableMetaKind.PTR, VariableMetaKind.REF):
             elem_type = VariableType(
                 VariableCompKind(kind, VariableMetaKind.PRIM))
             Def.var_off += size_of(var_type.ckind)
-            Def.ptr_map[full_name] = Pointer(full_name, elem_type, Def.var_off)
+            Def.ptr_map[full_name] = Pointer(
+                full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

@@ -1,5 +1,5 @@
-import debug
-import cstdlib
+import "debug"
+import "cstdlib"
 
 fun main(): int64
     let a: int8* = 0

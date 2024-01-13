@@ -52,6 +52,7 @@ class VariableMetaKind(enum.Enum):
 
     PRIM = enum.auto()
     PTR = enum.auto()
+    REF = enum.auto()
     ARR = enum.auto()
     FUN = enum.auto()
     STRUCT = enum.auto()
@@ -122,8 +123,10 @@ class Pointer:
     """
 
     name: str
+    elem_cnt: int
     elem_type: VariableType
     off: int
+    ref: bool
 
 
 @dataclass
@@ -199,6 +202,7 @@ class NodeKind(enum.Enum):
     STR_LIT = enum.auto()
     DEFER = enum.auto()
     ASM = enum.auto()
+    CAST = enum.auto()
     END = enum.auto()
 
 
@@ -377,7 +381,7 @@ def off_of(ident: str) -> int:
     if meta_kind == VariableMetaKind.ARR:
         return arr_map.get(ident).off
 
-    if meta_kind == VariableMetaKind.PTR:
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         return ptr_map.get(ident).off
 
     print_error('off_of', f'No such meta kind {meta_kind}')
@@ -391,6 +395,13 @@ def type_of(sym: str, use_mkind: bool = True) -> VariableType:
     ckind = ckind_map.get(sym)
     meta_kind = VariableMetaKind.PRIM if not use_mkind else ckind.meta_kind
     return VariableType(VariableCompKind(ckind.kind, meta_kind))
+
+
+def type_of_cast(sym: str) -> VariableType:
+    if sym.endswith("*"):
+        return VariableType(ptr_ckind, type_of(sym[:-1]).ckind)
+
+    return type_of(sym)
 
 
 def rev_type_of_ident(name: str) -> str:
@@ -413,19 +424,26 @@ def rev_type_of_ident(name: str) -> str:
         var = var_map.get(name)
         return rev_kind_map.get(var.vtype.kind())
 
-    if meta_kind == VariableMetaKind.PTR:
-        if name not in ptr_map:
-            print_error('rev_type_of_ident', f'No such pointer {name}')
-
-        ptr = ptr_map.get(name)
-        return f'{rev_kind_map.get(ptr.elem_type.kind())}*'
-
     if meta_kind == VariableMetaKind.ARR:
         if name not in arr_map:
             print_error('rev_type_of_ident', f'No such array {name}')
 
         arr = arr_map.get(name)
         return f'{rev_kind_map.get(arr.elem_type.kind())}[{arr.elem_cnt}]'
+
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        if name not in ptr_map:
+            print_error('rev_type_of_ident', f'No such pointer {name}')
+
+        ptr = ptr_map.get(name)
+        specf = ''
+        if ptr.ref:
+            specf = '&'
+        elif ptr.elem_cnt == 0:
+            specf = '*'
+        else:
+            specf = f'[{ptr.elem_cnt}]*'
+        return f'{rev_kind_map.get(ptr.elem_type.kind())}{specf}'
 
     print_error('rev_type_of_ident', f'No such meta kind {meta_kind}')
 
@@ -442,8 +460,11 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
+    if vtype.ckind == ref_ckind:
+        return f'{rev_kind_map.get(vtype.elem_ckind.kind)}&'
+
     if vtype.ckind == ptr_ckind:
-        return f'*{rev_kind_map.get(vtype.elem_ckind.kind)}'
+        return f'{rev_kind_map.get(vtype.elem_ckind.kind)}*'
 
     if vtype.ckind == arr_ckind:
         return f'{rev_kind_map.get(vtype.elem_ckind.kind)}[]'
@@ -469,17 +490,18 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        if ident not in ptr_map:
+            print_error('type_of_ident', f'No such variable {ident}')
+
+        ckind = ptr_ckind if meta_kind == VariableMetaKind.PTR else ref_ckind
+        return VariableType(ckind, ptr_map.get(ident).elem_type.ckind)
+
     if meta_kind == VariableMetaKind.ARR:
         if ident not in arr_map:
             print_error('type_of_ident', f'No such variable {ident}')
 
         return VariableType(arr_ckind, arr_map.get(ident).elem_type.ckind)
-
-    if meta_kind == VariableMetaKind.PTR:
-        if ident not in ptr_map:
-            print_error('type_of_ident', f'No such variable {ident}')
-
-        return VariableType(ptr_ckind, ptr_map.get(ident).elem_type.ckind)
 
     if meta_kind == VariableMetaKind.PRIM:
         if ident not in var_map:
@@ -505,6 +527,7 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
 def type_of_op(kind: NodeKind) -> VariableType:
     ckind_map = {
+        NodeKind.CAST: default_ckind,
         NodeKind.OP_MULT: default_ckind,
         NodeKind.OP_ADD: default_ckind,
         NodeKind.OP_SUB: default_ckind,
@@ -539,6 +562,7 @@ def type_of_op(kind: NodeKind) -> VariableType:
 def allowed_op(ckind: VariableCompKind):
     if ckind.meta_kind == VariableMetaKind.PRIM:
         return [
+            NodeKind.CAST,
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
             NodeKind.OP_MULT,
@@ -559,12 +583,14 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == void_ckind:
         return [
+            NodeKind.CAST,
             NodeKind.GLUE,
             NodeKind.REF
         ]
 
     if ckind == arr_ckind:
         return [
+            NodeKind.CAST,
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
             NodeKind.DEREF,
@@ -575,6 +601,7 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == ptr_ckind:
         return [
+            NodeKind.CAST,
             NodeKind.GLUE,
             NodeKind.ARR_ACC,
             NodeKind.OP_ADD,
@@ -593,11 +620,33 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.REF
         ]
 
+    if ckind == ref_ckind:
+        return [
+            NodeKind.CAST,
+            NodeKind.GLUE,
+            NodeKind.OP_ADD,
+            NodeKind.OP_SUB,
+            NodeKind.OP_MULT,
+            NodeKind.OP_DIV,
+            NodeKind.OP_MOD,
+            NodeKind.OP_ASSIGN,
+            NodeKind.OP_GT,
+            NodeKind.OP_LT,
+            NodeKind.OP_LTE,
+            NodeKind.OP_GTE,
+            NodeKind.OP_EQ,
+            NodeKind.OP_NEQ,
+            NodeKind.REF
+        ]
+
     print_error('allowed_op', f'Invalid type: {ckind}')
 
 
 def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
+        return 0
+
+    if ckind == ref_ckind or ckind2 == ref_ckind:
         return 0
 
     if ckind == ptr_ckind or ckind2 == ptr_ckind:
@@ -616,7 +665,7 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
 
 
 def size_of(ckind: VariableCompKind) -> int:
-    if ckind in (ptr_ckind, arr_ckind):
+    if ckind in (ptr_ckind, ref_ckind, arr_ckind):
         return 8
 
     if ckind.meta_kind == VariableMetaKind.PRIM:
@@ -648,7 +697,8 @@ def size_of_ident(ident: str) -> int:
         return size_of(arr.elem_type.ckind) * arr.elem_cnt
 
     if meta_kind == VariableMetaKind.PTR:
-        return size_of(ptr_ckind)
+        ptr = ptr_map.get(ident)
+        return size_of(ptr_ckind) if ptr.elem_cnt == 0 else size_of(ptr.elem_type.ckind) * ptr.elem_cnt
 
     print_error('size_of_ident', f'No such meta kind {meta_kind}')
 
@@ -737,6 +787,7 @@ opd_map = {reg: None for reg in REGS}
 reg_avail_map = {reg: True for reg in REGS}
 label_list: List[str] = []
 ptr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PTR)
+ref_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.REF)
 arr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ARR)
 void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)

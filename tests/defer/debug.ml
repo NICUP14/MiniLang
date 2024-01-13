@@ -1,4 +1,4 @@
-import cstdlib
+import "cstdlib"
 
 asm ".macro printf_rsp fmt"
 asm "   lea \fmt, %rdi"

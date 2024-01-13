@@ -1,4 +1,4 @@
-import cstdlib
+import "cstdlib"
 
 fun print_fib(num: int64): void
     let term1 = 1

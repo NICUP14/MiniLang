@@ -14,17 +14,20 @@ from Def import default_ckind
 from Def import default_type
 from Def import arr_ckind
 from Def import ptr_ckind
+from Def import ref_ckind
 from Def import fun_ckind
 from Def import alloc_reg
 from Def import free_reg
 from Def import free_all_regs
 from Def import modf_of
+from Def import type_of_cast
 from Def import cmp_modf_of
 from Def import global_modf_of
 from Def import size_of
 from Def import off_of
 from Def import print_error
 from Def import print_stdout
+from Def import needs_widen
 from Snippet import Snippet
 from Snippet import SnippetCollection
 from Snippet import copy_of
@@ -167,12 +170,23 @@ def gen_load(opd: Operand):
     else:
         if vtype.meta_kind() == VariableMetaKind.PRIM:
             gen_load_var(opd)
+        elif vtype.ckind == arr_ckind:
+            gen_load_addr(opd)
         elif vtype.ckind == ptr_ckind:
             gen_load_addr(opd)
             if not opd.is_ref():
                 gen_load_ptr(opd)
-        elif vtype.ckind == arr_ckind:
+        elif vtype.ckind == ref_ckind:
+            ptr = Def.ptr_map.get(opd.value)
+            elem_type = ptr.elem_type
+
             gen_load_addr(opd)
+            gen_load_ptr(opd)
+            if not opd.is_ref():
+                gen_load_ptr(opd, elem_type)
+                opd.var_type = elem_type
+                gen_widen(opd)
+                opd.var_type = default_type
         else:
             print_error('gen_load', f'Invalid operand type {opd.var_type}')
 
@@ -182,7 +196,7 @@ def gen_write(opd: Operand, opd2: Operand):
 
     if vtype.meta_kind() == VariableMetaKind.PRIM:
         gen_write_var(opd)
-    elif vtype in (arr_ckind, ptr_ckind):
+    elif vtype in (arr_ckind, ptr_ckind, ref_ckind):
         gen_write_ref(opd, opd2)
     else:
         print_error('gen_write', f'Invalid operand type {opd.var_type}')
@@ -195,7 +209,8 @@ def gen_write_var(opd: Operand):
     # ? Fix for function parameters
     kind = opd.var_type.kind()
     var = Def.var_map.get(name)
-    is_ptr = Def.ident_map.get(name) == VariableMetaKind.PTR
+    is_ptr = Def.ident_map.get(name) in (
+        VariableMetaKind.PTR, VariableMetaKind.REF)
 
     if is_ptr or var.is_local:
         snippet = copy_of(SnippetCollection.WRITE_STACK_VAR)
@@ -213,10 +228,10 @@ def gen_write_var(opd: Operand):
 
 def gen_write_ref(left_opd: Operand, right_opd: Operand, is_acc: bool = False):
     vtype = left_opd.var_type
-    if is_acc and vtype.ckind == ptr_ckind:
-        vtype = Def.ptr_map[left_opd.value].elem_type
     if is_acc and vtype.ckind == arr_ckind:
         vtype = Def.arr_map[left_opd.value].elem_type
+    if is_acc and vtype.ckind in (ptr_ckind, ref_ckind):
+        vtype = Def.ptr_map[left_opd.value].elem_type
 
     opd: Operand = copy_of(right_opd)
     opd.var_type = vtype
@@ -540,6 +555,13 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node.kind == NodeKind.FUN_CALL:
         return gen_fun_call(node)
 
+    if node.kind == NodeKind.CAST:
+        opd = gen_tree(node.left, node, -1)
+        if needs_widen(opd.var_type.ckind, node.ntype.ckind) == 1:
+            gen_load(opd)
+            gen_widen(opd, node.ntype)
+        return opd
+
     if node.kind == NodeKind.ASM:
         if node.left.kind != NodeKind.STR_LIT:
             print_error(
@@ -611,7 +633,6 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     # Dereference
     if node.kind == NodeKind.DEREF:
         if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
-            # !BUG: Dereference of int64* instead of int8*
             if left_opd.var_type.ckind == ptr_ckind:
                 ptr = Def.ptr_map.get(left_opd.value)
                 elem_type = ptr.elem_type
@@ -677,18 +698,23 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node.kind == NodeKind.OP_ASSIGN:
         gen_load(right_opd)
         opd = copy_of(left_opd)
-        if opd.var_type.ckind in (arr_ckind, ptr_ckind):
+        if opd.var_type.ckind in (arr_ckind, ptr_ckind, ref_ckind):
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg(opd=opd)
 
             if node.left.kind == NodeKind.IDENT:
                 gen_load_addr(opd)
+                if opd.var_type.ckind == ref_ckind:
+                    gen_load_ptr(opd)
+
             if node.left.kind == NodeKind.DEREF:
                 gen_load_addr(opd)
                 gen_load_ptr(opd)
 
-            is_deref = node.left.kind in (NodeKind.DEREF,
-                                          NodeKind.ARR_ACC)
+            # is_deref =  opd.var_type.ckind == ref_ckind or (
+            #    node.left.kind in (NodeKind.DEREF, NodeKind.ARR_ACC))
+            is_deref = (
+                node.left.kind in (NodeKind.DEREF, NodeKind.ARR_ACC))
             gen_write_ref(opd, right_opd, is_acc=is_deref)
         else:
             opd.reg = right_opd.reg
