@@ -411,9 +411,31 @@ def bin_snippet(snippet_base: Snippet, left_opd: Operand, right_opd: Operand) ->
 
 
 def gen_preamble():
-    '''
-    Unused.
-    '''
+    # ? Unused
+    # print_stdout('.set ml_cstdlib_exit, exit')
+    # print_stdout('.set ml_cstdlib_printf, printf')
+    # print_stdout('.set ml_cstdlib_scanf, scanf')
+    # print_stdout('.set ml_cstdlib_puts, puts')
+    # print_stdout('.set ml_cstdlib_malloc, malloc')
+    # print_stdout('.set ml_cstdlib_free, free')
+    # print_stdout('.set ml_cstdlib_memset, memset')
+    # print_stdout('.set ml_cstdlib_memcpy, memcpy')
+    # print_stdout('.set ml_cstdlib_strlen, strlen')
+    # print_stdout('.set ml_cstdlib_strcpy, strcpy')
+    # print_stdout('.set ml_cstdlib_strncpy, strncpy')
+    # print_stdout('.set ml_cstdlib_strcmp, strcmp')
+    # print_stdout('.set ml_cstdlib_strncmp, strncmp')
+    # print_stdout('.set ml_cstdlib_strcat, strcat')
+    # print_stdout('.set ml_cstdlib_strncat, strncat')
+    # print_stdout('.set ml_cstdlib_strchr, strchr')
+    # print_stdout('.set ml_cstdlib_strrchr, strrchr')
+    # print_stdout('.set ml_cstdlib_strstr, strstr')
+    # print_stdout('.set ml_cstdlib_isdigit, isdigit')
+    # print_stdout('.set ml_cstdlib_atoi, atoi')
+    # print_stdout('.set ml_cstdlib_abs, abs')
+    # print_stdout('.set ml_cstdlib_labs, labs')
+    # print_stdout('.set ml_cstdlib_rand, rand')
+    # print_stdout('.set ml_cstdlib_srand, srand')
     pass
 
 

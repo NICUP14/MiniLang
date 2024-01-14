@@ -362,11 +362,28 @@ def global_modf_of(kind: VariableKind) -> str:
     return modf_map[kind]
 
 
-def full_name_of(name: str):
+def full_name_of_fun(name: str, force_global: bool = False):
+    # Namespace match
+    global_name = "_".join(module_name_list + [name])
+    if force_global or global_name in fun_map:
+        return global_name
+
+    # Direct match (guess)
+    return name
+
+
+def full_name_of_var(name: str, force_global: bool = False):
+    # Namespace match
+    global_name = "_".join(module_name_list + [name])
+    if force_global or global_name in var_map:
+        return global_name
+
+    # Direct match
     if name in var_map:
         return name
-    else:
-        return "_".join(label_list + [name])
+
+    # Local match (guess)
+    return "_".join(fun_name_list + [name])
 
 
 def off_of(ident: str) -> int:
@@ -398,6 +415,9 @@ def type_of(sym: str, use_mkind: bool = True) -> VariableType:
 
 
 def type_of_cast(sym: str) -> VariableType:
+    if sym.endswith("&"):
+        return VariableType(ref_ckind, type_of(sym[:-1]).ckind)
+
     if sym.endswith("*"):
         return VariableType(ptr_ckind, type_of(sym[:-1]).ckind)
 
@@ -785,7 +805,8 @@ ident_map: Dict[str, VariableMetaKind] = dict()
 str_lit_map: Dict[str, str] = dict()
 opd_map = {reg: None for reg in REGS}
 reg_avail_map = {reg: True for reg in REGS}
-label_list: List[str] = []
+fun_name_list: List[str] = []
+module_name_list: List[str] = ['ml']
 ptr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PTR)
 ref_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.REF)
 arr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ARR)

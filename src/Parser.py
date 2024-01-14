@@ -37,7 +37,8 @@ from Def import type_of
 from Def import type_of_op
 from Def import type_of_ident
 from Def import type_of_lit
-from Def import full_name_of
+from Def import full_name_of_var
+from Def import full_name_of_fun
 from Def import needs_widen
 from Def import type_of_cast
 from Def import allowed_op
@@ -196,8 +197,9 @@ class Parser:
         for token in tokens:
             if token_is_param(token.kind):
                 # Detects if the token is a function call (token correction)
-                if Def.ident_map.get(token.value) == VariableMetaKind.FUN:
-                    op_stack.append(Token(TokenKind.FUN_CALL, token.value))
+                fun_name = full_name_of_fun(token.value)
+                if Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
+                    op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
 
                 else:
                     postfix_tokens.append(token)
@@ -267,10 +269,6 @@ class Parser:
             print_error('cast_builtin',
                         'The first argument passed to the cast builtin is not a string literal', self)
 
-        # if target_node is None or target_node.kind != NodeKind.IDENT:
-        #     print_error('cast_builtin',
-        #                 'The second argument passed to the cast builtin is not an identifier', self)
-
         type_str = str_node.value.lstrip('\"').rstrip('\"')
         return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
 
@@ -303,7 +301,7 @@ class Parser:
 
                 # Distinguishes between identifiers and literals
                 elif token.kind == TokenKind.IDENT:
-                    full_name = full_name_of(token.value)
+                    full_name = full_name_of_var(token.value)
                     node_stack.append(
                         Node(self.node_kind_of(token.kind), type_of_ident(full_name), full_name))
 
@@ -334,7 +332,7 @@ class Parser:
                             print_error('to_tree',
                                         'The off_of builtin only accepts string literals')
 
-                        off = Def.off_of(full_name_of(
+                        off = Def.off_of(full_name_of_var(
                             node.value.lstrip('\"').rstrip('\"')))
                         node_stack.append(
                             Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(off)))
@@ -346,7 +344,7 @@ class Parser:
                             print_error('to_tree',
                                         'The size_of builtin only accepts string literals')
 
-                        size = Def.size_of_ident(full_name_of(
+                        size = Def.size_of_ident(full_name_of_var(
                             node.value.lstrip('\"').rstrip('\"')))
                         node_stack.append(
                             Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(size)))
@@ -358,7 +356,7 @@ class Parser:
                             print_error('to_tree',
                                         'The len_of builtin only accepts string literals')
 
-                        ident = full_name_of(
+                        ident = full_name_of_var(
                             node.value.lstrip('\"').rstrip('\"'))
                         meta_kind = Def.ident_map.get(ident)
                         if ident not in Def.ident_map:
@@ -394,6 +392,9 @@ class Parser:
                         Node(kind, type_of_op(kind), token.value, node))
 
                 elif token_is_bin_op(token.kind):
+                    if len(node_stack) < 2:
+                        print_error('to_tree', 'Missing operand', self)
+
                     right = node_stack.pop()
                     left = node_stack.pop()
 
@@ -469,6 +470,9 @@ class Parser:
         if token.kind == TokenKind.KW_IMPORT:
             self.next_token()
             return self.import_statement()
+        if token.kind == TokenKind.KW_NAMESPACE:
+            self.next_token()
+            return self.namespace_statement()
         if token.kind == TokenKind.KW_DEFER:
             self.next_token()
             return self.defer_statement()
@@ -502,6 +506,20 @@ class Parser:
 
         module_root = Parser().parse(module_source)
         return module_root
+
+    def namespace_statement(self) -> Optional[Node]:
+        if Def.fun_name != '':
+            print_error('import_statement',
+                        'Local namespaces are not allowed', self)
+
+        namespace = self.match_token(TokenKind.IDENT).value
+        self.next_line()
+
+        Def.module_name_list.append(namespace)
+        body = self.compound_statement()
+        Def.module_name_list.pop()
+
+        return body
 
     def while_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
@@ -554,6 +572,7 @@ class Parser:
     def fun_declaration(self, is_extern: bool = False) -> Optional[Node]:
         # Needed for extern
         name = self.match_token(TokenKind.IDENT).value
+        full_name = name if is_extern else full_name_of_fun(name, True)
         self.match_token(TokenKind.LPAREN)
 
         # Needed for extern
@@ -603,38 +622,38 @@ class Parser:
 
         # Needed for extern
         ret_type = type_of(self.curr_token().value)
-        fun = Function(name, len(arg_types), arg_names,
+        fun = Function(full_name, len(arg_types), arg_names,
                        arg_types, ret_type, 0, is_variadic, is_extern)
 
-        Def.ident_map[name] = VariableMetaKind.FUN
-        Def.fun_map[name] = fun
+        Def.ident_map[full_name] = VariableMetaKind.FUN
+        Def.fun_map[full_name] = fun
 
         if is_extern:
             return None
 
-        Def.fun_name = name
-        Def.label_list.append(name)
+        Def.fun_name = full_name
+        Def.fun_name_list.append(full_name)
         Def.var_off = 8
 
         # ? Temporary
         for (arg_name, arg_type, elem_type, elem_cnt) in zip(arg_names, arg_types, elem_types, elem_cnts):
             meta_kind = arg_type.meta_kind()
-            Def.ident_map[full_name_of(arg_name)] = meta_kind
+            Def.ident_map[full_name_of_var(arg_name)] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
             if meta_kind == VariableMetaKind.PRIM:
-                Def.var_map[full_name_of(arg_name)] = Variable(
+                Def.var_map[full_name_of_var(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
             if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
-                Def.ptr_map[full_name_of(arg_name)] = Pointer(
-                    full_name_of(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
+                Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
+                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
             Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
 
         Def.fun_name = ''
-        Def.label_list.pop()
+        Def.fun_name_list.pop()
         Def.deferred = None
 
         # Patch the stack offset
@@ -643,7 +662,7 @@ class Parser:
         fun.off = off + align_off
 
         node = Node(NodeKind.GLUE, void_type, '',
-                    Node(NodeKind.FUN, default_ckind, name, body), Node(NodeKind.END, void_type, 'end'))
+                    Node(NodeKind.FUN, default_ckind, full_name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
     def type_definition(self):
@@ -678,7 +697,7 @@ class Parser:
         if token.kind != TokenKind.IDENT:
             node = Node(kind, type_of_lit(kind), token.value)
         else:
-            full_name = full_name_of(token.value)
+            full_name = full_name_of_var(token.value)
             node = Node(kind, type_of_ident(full_name), full_name)
 
         return node
@@ -798,11 +817,12 @@ class Parser:
                 meta_kind = VariableMetaKind.REF
                 var_type = VariableType(ref_ckind, default_ckind)
 
-        full_name = full_name_of(name)
+        is_local = Def.fun_name != ''
+        var_name = full_name_of_var(name)
+        full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind
 
         if var_type.meta_kind() == VariableMetaKind.PRIM:
-            is_local = Def.fun_name != ''
             value = 0 if is_local else self.curr_token().value
 
             Def.var_off += size_of(var_type.ckind)

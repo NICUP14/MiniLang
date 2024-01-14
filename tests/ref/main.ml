@@ -1,9 +1,11 @@
 import "cstdlib"
 
-fun swap(term1: int64&, term2: int64&): void
-    let tmp: int64 = term1
-    term1 = term2
-    term2 = tmp
+namespace namesp
+
+fun x(): void
+    let c: void* = 15
+    printf("%d", *x)
+    printf("%d", 15)
 end
 
 fun test(ptr: int64[2]*): void
@@ -13,6 +15,13 @@ fun test(ptr: int64[2]*): void
     let ch = 'c'
     let widen = cast("int64", ch)
     let unwiden = cast("int8*", 15)
+    let ref = cast("int8&", &ch)
+end
+
+fun swap(term1: int64&, term2: int64&): void
+    let tmp: int64 = term1
+    term1 = term2
+    term2 = tmp
 end
 
 fun main(): int64
@@ -23,5 +32,6 @@ fun main(): int64
     swap(&term1, &term2)
     printf("Terms: %lld %lld", term1, term2)
     ret 0
+end
 end
 end

@@ -99,6 +99,7 @@ class TokenKind(enum.Enum):
     KW_EXTERN = enum.auto()
     KW_TYPEDEF = enum.auto()
     KW_IMPORT = enum.auto()
+    KW_NAMESPACE = enum.auto()
     KW_DEFER = enum.auto()
     KW_ASM = enum.auto()
     KW_FILE = enum.auto()
@@ -107,7 +108,7 @@ class TokenKind(enum.Enum):
     KW_OFF = enum.auto()
     KW_SIZE = enum.auto(),
     KW_LEN = enum.auto(),
-    KW_CAST = enum.auto()
+    KW_CAST = enum.auto(),
 
 
 @dataclass
@@ -157,6 +158,7 @@ TOKEN_KIND_MAP = {
     'typedef': TokenKind.KW_TYPEDEF,
     'defer': TokenKind.KW_DEFER,
     'import': TokenKind.KW_IMPORT,
+    'namespace': TokenKind.KW_NAMESPACE,
     'asm': TokenKind.KW_ASM,
     'file': TokenKind.KW_FILE,
     'line': TokenKind.KW_LINE,
