@@ -1,4 +1,4 @@
-import "cstdlib"
+import "../../cstdlib"
 
 namespace namesp
 

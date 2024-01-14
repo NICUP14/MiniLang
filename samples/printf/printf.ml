@@ -1,6 +1,6 @@
 import "number"
 import "va_utils"
-import "cstdlib"
+import "../../cstdlib"
 
 fun custom_printf(format: int8*, ...): void
     let va_list: int64[3]

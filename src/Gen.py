@@ -29,6 +29,8 @@ from Def import off_of
 from Def import print_error
 from Def import print_stdout
 from Def import needs_widen
+from Def import type_compatible
+from Def import rev_type_of
 from Snippet import Snippet
 from Snippet import SnippetCollection
 from Snippet import copy_of
@@ -331,6 +333,10 @@ def gen_fun_call(node: Node):
             opd = gen_tree(glue_node, node, -1)
             opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
+            if not type_compatible(opd.var_type.ckind, fun.arg_types[0].ckind):
+                print_error('gen_fun_call',
+                            f'Incompatible type in {name}\'s function call (name={fun.arg_names[0]}, type1={rev_type_of(opd.var_type)}, type2={rev_type_of(fun.arg_types[0])}, param_idx=0)')
+
             # ?Temporary
             gen_load(opd)
 
@@ -345,10 +351,15 @@ def gen_fun_call(node: Node):
 
         else:
             arg_cnt = reg_cnt + 1
+            # arg_cnt = reg_cnt + 1
 
             while glue_node is not None:
                 opd = gen_tree(glue_node.right, glue_node, -1)
                 opd_dst = Operand('', opd.var_type, CALL_REGS[reg_cnt])
+
+                if reg_cnt < fun.arg_cnt and not type_compatible(opd.var_type.ckind, fun.arg_types[reg_cnt].ckind):
+                    print_error('gen_fun_call',
+                                f'Incompatible type in {name}\'s function call (name={fun.arg_names[reg_cnt]}, type1={rev_type_of(opd.var_type)}, type2={rev_type_of(fun.arg_types[reg_cnt])}, param_idx={reg_cnt})')
 
                 # ?Temporary
                 gen_load(opd)
@@ -569,7 +580,8 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     if node.kind == NodeKind.CAST:
         opd = gen_tree(node.left, node, -1)
-        if needs_widen(opd.var_type.ckind, node.ntype.ckind) == 1:
+
+        if needs_widen(node.left.ntype.ckind, node.ntype.ckind) == 1:
             gen_load(opd)
             gen_widen(opd, node.ntype)
         return opd
@@ -721,7 +733,8 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
             if node.left.kind == NodeKind.IDENT:
                 gen_load_addr(opd)
-                if opd.var_type.ckind == ref_ckind:
+
+                if opd.var_type.ckind == ref_ckind and node.right.ntype.ckind not in (ptr_ckind, ref_ckind):
                     gen_load_ptr(opd)
 
             if node.left.kind == NodeKind.DEREF:

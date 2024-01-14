@@ -285,7 +285,7 @@ end
 ```txt
 # Import statement syntax
 # Note: This instructs the compiler to include the cstdlib module (cstdlib.ml) in the build.
-import "cstdlib"
+import "../../cstdlib"
 ```
 
 ### Defer statements

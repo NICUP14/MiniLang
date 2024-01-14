@@ -597,7 +597,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         NodeKind.GLUE: void_ckind,
         NodeKind.FUN: void_ckind,
         NodeKind.ASM: void_ckind,
-        NodeKind.FUN_CALL: default_ckind,
+        # NodeKind.FUN_CALL: default_ckind,
         NodeKind.OP_ASSIGN: default_ckind,
         NodeKind.ARR_ACC: default_ckind
     }
@@ -606,6 +606,16 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         print_error('type_of_op', f'Invalid node kind {kind}')
 
     return VariableType(ckind_map.get(kind), default_ckind)
+
+
+def type_compatible(ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
+    if ckind == ckind2:
+        return True
+
+    if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
+        return True
+
+    return False
 
 
 def allowed_op(ckind: VariableCompKind):
@@ -708,9 +718,6 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
         return 0
 
-    if ckind == bool_ckind or ckind2 == bool_ckind:
-        return 0
-
     if ckind == ref_ckind or ckind2 == ref_ckind:
         return 0
 
@@ -723,7 +730,11 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == void_ckind or ckind2 == void_ckind:
         return 0
 
-    if ckind.meta_kind == VariableMetaKind.PRIM and ckind2.meta_kind == VariableMetaKind.PRIM:
+    meta_kinds = (VariableMetaKind.PRIM, VariableMetaKind.BOOL)
+    if ckind.meta_kind in meta_kinds and ckind2.meta_kind in meta_kinds:
+        if ckind.kind == ckind2.kind:
+            return 0
+
         return (2 if cmp_var_kind(ckind.kind, ckind2.kind) else 1)
 
     print_error('needs_widen', f'Invalid composite kinds ({ckind, ckind2})')

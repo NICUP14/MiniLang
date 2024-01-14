@@ -123,7 +123,7 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.OP_WIDEN:
         return f'widen({left})'
     if node.kind == NodeKind.CAST:
-        return f'{color_str(Color.BLUE, "cast")}(\"{rev_type_of(node.ntype)}\", {left})'
+        return f'{color_str(Color.BLUE, "cast")}(\"{color_str(Color.GREEN, rev_type_of(node.ntype))}\", {left})'
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "ret")} {left}'
     if node.kind == NodeKind.REF:

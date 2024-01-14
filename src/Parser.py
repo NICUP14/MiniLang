@@ -317,15 +317,23 @@ class Parser:
 
             if token_is_op(token.kind):
                 if token_is_unary_op(token.kind):
-                    # No-argument function fix
+                    # Function call fix
                     if token.kind == TokenKind.FUN_CALL:
                         fun = Def.fun_map.get(token.value)
                         kind = self.node_kind_of(token.kind)
 
                         if fun.arg_cnt == 0:
                             node_stack.append(
-                                Node(kind, type_of_op(kind), token.value))
-                            continue
+                                Node(kind, fun.ret_type, token.value))
+                        else:
+                            if len(node_stack) == 0:
+                                print_error('to_tree',
+                                            'Missing function operand', self)
+                            node = node_stack.pop()
+
+                            node_stack.append(
+                                Node(kind, fun.ret_type, token.value, node))
+                        continue
 
                     if len(node_stack) == 0:
                         print_error('to_tree', 'Missing operand', self)
@@ -392,6 +400,11 @@ class Parser:
                     if kind not in (NodeKind.ASM, NodeKind.FUN_CALL) and kind not in allowed_op(node.ntype.ckind):
                         print_error(
                             'to_tree', f'Incompatible type {node.ntype}', self)
+
+                    op_type = type_of_op(kind, node.ntype)
+                    if kind == NodeKind.DEREF and op_type == void_type:
+                        print_error('to_tree',
+                                    f'Cannot dereference the {node.value} pointer-to-void')
 
                     node_stack.append(
                         Node(kind, type_of_op(kind, node.ntype), token.value, node))
@@ -641,6 +654,20 @@ class Parser:
 
         # Needed for extern
         ret_type = type_of(self.curr_token().value)
+        self.next_token()
+
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+            self.next_token()
+            ret_type = VariableType(ptr_ckind, ret_type.ckind)
+
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+            self.next_token()
+            ret_type = VariableType(ref_ckind, ret_type.ckind)
+
+        if not self.no_more_tokens():
+            print_error('fun_declaration',
+                        'Junk after function declaration', self)
+
         fun = Function(full_name, len(arg_types), arg_names,
                        arg_types, ret_type, 0, is_variadic, is_extern)
 

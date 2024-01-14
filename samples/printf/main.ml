@@ -1,5 +1,5 @@
 import "printf"
-import "cstdlib"
+import "../../cstdlib"
 
 fun main(): int64
     let repr: int8 = 1
