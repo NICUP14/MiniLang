@@ -15,11 +15,11 @@
 				},
 				{
 					"name": "keyword.control.minilang",
-					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef|import|namespace|defer|asm|file|line|lineno|off_of|size_of|len_of|cast)\\b"
+					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef|import|namespace|defer|asm|file|line|lineno|off_of|size_of|len_of|cast|true|false)\\b"
 				},
 				{
 					"name": "storage.type.minilang",
-					"match": "\\b(void|int8|int32|int16|int64)\\b"
+					"match": "\\b(void|int8|int32|int16|int64|bool)\\b"
 				},
 				{
 					"name": "constant.numeric.minilang",

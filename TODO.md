@@ -1,8 +1,15 @@
 # TODO
 
-Solved: 11/16
+Solved: 11/17
 
-- [ ] Include section in README regarding miscellaneous features (references, fixed-len pointers)
+- [ ] Structs.
+- [ ] Global arrays.
+- [ ] Fix type system.
+- [ ] Widen during parsing.
+- [ ] Static type analysis.
+- [ ] Function assignment (alias).
+- [ ] Check args in function call.
+- [ ] Include section in README regarding miscellaneous features (references, fixed-len pointers, namespaces)
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack alignment. (align by 16-bytes)
@@ -10,12 +17,6 @@ Solved: 11/16
 - [X] Implement right-assoc
 - [X] Implement lazy loading (gen).
 - [X] Add an output file parameter to the Gen module.
-- [ ] Global arrays.
 - [X] Improve Def.rev_type_of.
-- [ ] Check args in function call.
-- [ ] Widen during parsing.
-- [ ] Static type analysis.
-- [ ] Fix type system.
-- [ ] Function assignment (alias).
 - [X] Defer.
 - [X] Import.

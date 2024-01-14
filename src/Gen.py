@@ -21,6 +21,7 @@ from Def import free_reg
 from Def import free_all_regs
 from Def import modf_of
 from Def import type_of_cast
+from Def import node_is_cmp
 from Def import cmp_modf_of
 from Def import global_modf_of
 from Def import size_of
@@ -168,7 +169,7 @@ def gen_load(opd: Operand):
             gen_load_imm(opd)
 
     else:
-        if vtype.meta_kind() == VariableMetaKind.PRIM:
+        if vtype.meta_kind() in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
             gen_load_var(opd)
         elif vtype.ckind == arr_ckind:
             gen_load_addr(opd)
@@ -491,17 +492,6 @@ def gen(node: Node):
     gen_postamble()
 
 
-def node_is_cmp(kind: NodeKind) -> bool:
-    return kind in (
-        NodeKind.OP_EQ,
-        NodeKind.OP_NEQ,
-        NodeKind.OP_GT,
-        NodeKind.OP_LT,
-        NodeKind.OP_GTE,
-        NodeKind.OP_LTE
-    )
-
-
 def opposite_of(kind: NodeKind) -> NodeKind:
     kind_map = {
         NodeKind.OP_EQ: NodeKind.OP_NEQ,
@@ -615,6 +605,11 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     if node.kind == NodeKind.INT_LIT:
         opd = Operand(node.value, node.ntype, imm=True)
+        opd.reg = alloc_reg(opd=opd)
+        return opd
+
+    if node.kind in (NodeKind.TRUE_LIT, NodeKind.FALSE_LIT):
+        opd = Operand(Def.BOOL_VALUES.get(node.value), node.ntype, imm=True)
         opd.reg = alloc_reg(opd=opd)
         return opd
 

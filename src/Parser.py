@@ -23,6 +23,7 @@ from Def import VariableMetaKind
 from Def import Function
 from Def import Array
 from Def import Pointer
+from Def import bool_ckind
 from Def import ptr_ckind
 from Def import ref_ckind
 from Def import arr_ckind
@@ -43,6 +44,8 @@ from Def import needs_widen
 from Def import type_of_cast
 from Def import allowed_op
 from Def import size_of
+from Def import rev_type_of
+from Def import node_is_cmp
 
 PRECEDENCE_MAP = {
     TokenKind.DEREF: 26,
@@ -92,7 +95,9 @@ NODE_KIND_MAP = {
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
     TokenKind.STR_LIT: NodeKind.STR_LIT,
     TokenKind.KW_ASM: NodeKind.ASM,
-    TokenKind.KW_CAST: NodeKind.CAST
+    TokenKind.KW_CAST: NodeKind.CAST,
+    TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
+    TokenKind.FALSE_LIT: NodeKind.FALSE_LIT
 }
 
 
@@ -389,7 +394,7 @@ class Parser:
                             'to_tree', f'Incompatible type {node.ntype}', self)
 
                     node_stack.append(
-                        Node(kind, type_of_op(kind), token.value, node))
+                        Node(kind, type_of_op(kind, node.ntype), token.value, node))
 
                 elif token_is_bin_op(token.kind):
                     if len(node_stack) < 2:
@@ -521,10 +526,20 @@ class Parser:
 
         return body
 
+    def inject_cond(self, node: Node) -> Node:
+        if node_is_cmp(node.kind):
+            return node
+
+        return Node(NodeKind.OP_EQ, bool_type, '==', node, Node(NodeKind.TRUE_LIT, bool_type, 'true'))
+
     def while_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
+        if cond_node.ntype != bool_type:
+            print_error('while_statement',
+                        f'Expected a boolean expression, got type {rev_type_of(cond_node.ntype)}', self)
 
         self.next_line()
+        cond_node = self.inject_cond(cond_node)
         body = self.compound_statement()
 
         node = Node(NodeKind.GLUE, void_type, '', Node(
@@ -533,8 +548,12 @@ class Parser:
 
     def if_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
+        if cond_node.ntype != bool_type:
+            print_error('if_statement',
+                        f'Expected a boolean expression, got type {rev_type_of(cond_node.ntype)}', self)
 
         self.next_line()
+        cond_node = self.inject_cond(cond_node)
         true_node = self.compound_statement()
 
         false_node = None
@@ -792,6 +811,8 @@ class Parser:
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
 
+        elem_kind = VariableKind.INT64
+        elem_meta_kind = VariableMetaKind.PRIM
         var_type = VariableType(VariableCompKind(kind, meta_kind))
         if is_implicit:
             if self.curr_token().kind == TokenKind.LBRACE:
@@ -799,22 +820,30 @@ class Parser:
                     'declaration',
                     'Implicit array declaration is not permitted.', self)
 
-            var_type = self.token_list_to_tree().ntype
+            node = self.token_list_to_tree()
+            var_type = node.ntype
             if var_type.ckind == void_ckind:
                 print_error('declaration',
                             'Declaration of implicit void primitive is not allowed.', self)
 
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
+
+            # Decays array to pointer
+            if meta_kind == VariableMetaKind.ARR:
+                meta_kind = VariableMetaKind.PTR
+                elem_cnt = Def.arr_map.get(node.value).elem_cnt
+
             if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
-                kind = var_type.elem_ckind.kind
+                elem_kind = var_type.elem_ckind.kind
+                elem_meta_kind = var_type.elem_ckind.meta_kind
         else:
             if meta_kind == VariableMetaKind.ARR:
                 var_type = VariableType(arr_ckind, default_ckind)
+            if meta_kind == VariableMetaKind.BOOL:
+                var_type = VariableType(bool_ckind, default_ckind)
             if meta_kind == VariableMetaKind.PTR:
-                meta_kind = VariableMetaKind.PTR
                 var_type = VariableType(ptr_ckind, default_ckind)
             if meta_kind == VariableMetaKind.REF:
-                meta_kind = VariableMetaKind.REF
                 var_type = VariableType(ref_ckind, default_ckind)
 
         is_local = Def.fun_name != ''
@@ -822,7 +851,7 @@ class Parser:
         full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind
 
-        if var_type.meta_kind() == VariableMetaKind.PRIM:
+        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
             value = 0 if is_local else self.curr_token().value
 
             Def.var_off += size_of(var_type.ckind)
@@ -837,9 +866,13 @@ class Parser:
                 return None
 
             node = self.token_list_to_tree()
+            if var_type == bool_type and var_type != node.ntype:
+                print_error('declaration',
+                            f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}')
+
             return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-        if var_type.meta_kind() == VariableMetaKind.ARR:
+        if meta_kind == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
                 kind, VariableMetaKind.PRIM))
             Def.var_off += size_of(elem_type.ckind) * elem_cnt
@@ -853,9 +886,9 @@ class Parser:
 
             return self.array_declaration(full_name)
 
-        if var_type.meta_kind() in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
             elem_type = VariableType(
-                VariableCompKind(kind, VariableMetaKind.PRIM))
+                VariableCompKind(elem_kind, elem_meta_kind))
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)

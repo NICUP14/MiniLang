@@ -1,14 +1,13 @@
 # Ideas
 
-Solved: 4/10
+Solved: 8/9
 
+- [ ] Check for already-imported modules (import set).
 - [X] Type inference.
 - [X] Type definitions.
-- [ ] Namespaces.
+- [X] Namespaces.
 - [X] Ruby-like heredocs.
-- [ ] Integer literal prefix.
-- [ ] Non-integer boolean type.
+- [X] Non-integer boolean type.
 - [X] `file` & `line` builtins.
-- [ ] Check for already-imported modules (import set).
-- [ ] References.
-- [ ] Cast builtin.
+- [X] References.
+- [X] Cast builtin.
