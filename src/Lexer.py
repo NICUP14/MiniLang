@@ -42,7 +42,7 @@ def is_int(s: str):
 INT_PATTERN = r'-?\d+'
 CHAR_PATTERN = r'\'[^\']+\''
 STR_PATTERN = r'\"[^\"]*\"'
-SYM_PATTERN = r'\\?\w+'
+SYM_PATTERN = r'\\?[\w\d]+'
 OP_PATTERN = to_pattern(map(re.escape, OPERATORS))
 PATTERN = to_pattern([
     INT_PATTERN,
@@ -111,7 +111,8 @@ class TokenKind(enum.Enum):
     KW_CAST = enum.auto(),
     KW_BOOL = enum.auto(),
     TRUE_LIT = enum.auto(),
-    FALSE_LIT = enum.auto()
+    FALSE_LIT = enum.auto(),
+    KW_BLOCK = enum.auto()
 
 
 @dataclass
@@ -172,7 +173,8 @@ TOKEN_KIND_MAP = {
     'cast': TokenKind.KW_CAST,
     'bool': TokenKind.KW_BOOL,
     'true': TokenKind.TRUE_LIT,
-    'false': TokenKind.FALSE_LIT
+    'false': TokenKind.FALSE_LIT,
+    'block': TokenKind.KW_BLOCK
 }
 
 

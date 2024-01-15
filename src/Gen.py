@@ -527,6 +527,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         return
 
     if Def.comments_enabled == True and node.kind in (NodeKind.OP_ASSIGN,
+                                                      NodeKind.DECLARATION,
                                                       NodeKind.IF,
                                                       NodeKind.WHILE,
                                                       NodeKind.RET,
@@ -653,7 +654,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     # Reference
     if node.kind == NodeKind.REF:
         opd: Operand = copy_of(left_opd)
-        opd.ref = True
+        opd.ref = left_opd.var_type.ckind != ref_ckind
         opd.var_type = VariableType(
             ptr_ckind, left_opd.var_type.ckind)
         opd.value = node.left.value
@@ -661,7 +662,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     # Dereference
     if node.kind == NodeKind.DEREF:
-        if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
+        if node != parent.left or parent.kind not in (NodeKind.OP_ASSIGN, NodeKind.DECLARATION):
             if left_opd.var_type.ckind == ptr_ckind:
                 ptr = Def.ptr_map.get(left_opd.value)
                 elem_type = ptr.elem_type
@@ -696,7 +697,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         print_stdout(add_snippet.asm())
         # print_stdout(sub_snippet.asm())
 
-        if node != parent.left or parent.kind != NodeKind.OP_ASSIGN:
+        if node != parent.left or parent.kind not in (NodeKind.OP_ASSIGN, NodeKind.DECLARATION):
             # ?Duplicated code block
             if left_opd.var_type.ckind == arr_ckind:
                 arr = Def.arr_map.get(left_opd.value)
@@ -723,9 +724,13 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         free_reg(opd.reg)
         return left_opd
 
-    # Assignment
-    if node.kind == NodeKind.OP_ASSIGN:
+    # Assignment & Declaration
+    if node.kind in (NodeKind.OP_ASSIGN, NodeKind.DECLARATION):
         gen_load(right_opd)
+        if needs_widen(left_opd.var_type.ckind, right_opd.var_type.ckind) == 2:
+            gen_widen(right_opd)
+            right_opd.var_type = default_type
+
         opd = copy_of(left_opd)
         if opd.var_type.ckind in (arr_ckind, ptr_ckind, ref_ckind):
             if opd.reg == Register.id_max:
@@ -734,7 +739,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             if node.left.kind == NodeKind.IDENT:
                 gen_load_addr(opd)
 
-                if opd.var_type.ckind == ref_ckind and node.right.ntype.ckind not in (ptr_ckind, ref_ckind):
+                if node.kind != NodeKind.DECLARATION:
                     gen_load_ptr(opd)
 
             if node.left.kind == NodeKind.DEREF:

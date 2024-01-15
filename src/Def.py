@@ -143,16 +143,6 @@ class Array:
 
 
 @dataclass
-class String:
-    """
-    Contains the meta-data of an array type.
-    """
-
-    name: str
-    off: int
-
-
-@dataclass
 class Function:
     """
     Contains the meta-data of a function type.
@@ -183,6 +173,7 @@ class NodeKind(enum.Enum):
     OP_AND = enum.auto()
     OP_OR = enum.auto()
     OP_ASSIGN = enum.auto()
+    DECLARATION = enum.auto()
     OP_GT = enum.auto()
     OP_LT = enum.auto()
     OP_LTE = enum.auto()
@@ -206,6 +197,8 @@ class NodeKind(enum.Enum):
     DEFER = enum.auto()
     ASM = enum.auto()
     CAST = enum.auto()
+    BLOCK = enum.auto()
+    NAMESPACE = enum.auto()
     END = enum.auto()
 
 
@@ -568,7 +561,10 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
     if kind == NodeKind.REF:
-        return VariableType(ptr_ckind, prev_type.ckind)
+        if prev_type.ckind == ref_ckind:
+            return VariableType(ptr_ckind, prev_type.elem_ckind)
+        else:
+            return VariableType(ptr_ckind, prev_type.ckind)
 
     if kind == NodeKind.DEREF:
         # Boolean fix
@@ -676,11 +672,6 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.CAST,
             NodeKind.GLUE,
             NodeKind.ARR_ACC,
-            NodeKind.OP_ADD,
-            NodeKind.OP_SUB,
-            NodeKind.OP_MULT,
-            NodeKind.OP_DIV,
-            NodeKind.OP_MOD,
             NodeKind.OP_ASSIGN,
             NodeKind.OP_GT,
             NodeKind.OP_LT,
@@ -872,6 +863,10 @@ ckind_map = {
 }
 
 var_off = 0
+else_cnt = 0
+if_cnt = 0
+while_cnt = 0
+block_cnt = 0
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
 arr_map: Dict[str, Array] = dict()

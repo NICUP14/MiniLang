@@ -13,6 +13,8 @@ def has_indent(kind: NodeKind):
         NodeKind.IF,
         NodeKind.WHILE,
         NodeKind.FUN,
+        NodeKind.BLOCK,
+        NodeKind.NAMESPACE
     )
 
 
@@ -79,7 +81,7 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'({left} & {right})'
     if node.kind == NodeKind.OP_OR:
         return f'({left} | {right})'
-    if node.kind == NodeKind.OP_ASSIGN:
+    if node.kind in (NodeKind.OP_ASSIGN, NodeKind.DECLARATION):
         return f'({left} = {right})'
     if node.kind == NodeKind.OP_GT:
         return f'({left} > {right})'
@@ -126,6 +128,10 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'{color_str(Color.BLUE, "cast")}(\"{color_str(Color.GREEN, rev_type_of(node.ntype))}\", {left})'
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "ret")} {left}'
+    if node.kind == NodeKind.BLOCK:
+        return f'{color_str(Color.BLUE, "block")} {node.value}\n{left}'
+    if node.kind == NodeKind.NAMESPACE:
+        return f'{color_str(Color.BLUE, "namespace")} {node.value}\n{left}'
     if node.kind == NodeKind.REF:
         return f'&{left}'
     if node.kind == NodeKind.DEREF:

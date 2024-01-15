@@ -451,7 +451,7 @@ class Parser:
 
                         if kind not in allowed_op(left.ntype.ckind):
                             print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {left.ntype}, {right.ntype}', self)
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
 
                         node_stack.append(
                             Node(kind, type_of_op(kind), token.value, left, right))
@@ -494,6 +494,9 @@ class Parser:
         if token.kind == TokenKind.KW_DEFER:
             self.next_token()
             return self.defer_statement()
+        if token.kind == TokenKind.KW_BLOCK:
+            self.next_token()
+            return self.block_statement()
 
         node = self.token_list_to_tree()
         return node
@@ -534,10 +537,11 @@ class Parser:
         self.next_line()
 
         Def.module_name_list.append(namespace)
-        body = self.compound_statement()
+        namespace_node = Node(NodeKind.NAMESPACE, void_type,
+                              namespace, self.compound_statement())
         Def.module_name_list.pop()
 
-        return body
+        return Node(NodeKind.GLUE, void_type, '', namespace_node, Node(NodeKind.END, void_type, 'end'))
 
     def inject_cond(self, node: Node) -> Node:
         if node_is_cmp(node.kind):
@@ -553,7 +557,12 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
+
+        Def.while_cnt += 1
+        Def.fun_name_list.append(f'while{Def.while_cnt}')
         body = self.compound_statement()
+        Def.fun_name_list.pop()
+        # Def.while_cnt -= 1
 
         node = Node(NodeKind.GLUE, void_type, '', Node(
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
@@ -567,12 +576,21 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
+
+        Def.if_cnt += 1
+        Def.fun_name_list.append(f'if{Def.if_cnt}')
         true_node = self.compound_statement()
+        Def.fun_name_list.pop()
+        # Def.if_cnt -= 1
 
         false_node = None
         if self.curr_token().kind == TokenKind.KW_ELSE:
             self.next_line()
+
+            Def.else_cnt += 1
+            Def.fun_name_list.append(f'else{Def.else_cnt}')
             false_node = self.compound_statement()
+            Def.fun_name_list.pop()
 
         node = Node(NodeKind.GLUE, void_type, '', Node(NodeKind.IF, '', void_type,
                     true_node, false_node, cond_node), Node(NodeKind.END, void_type, 'end'))
@@ -677,6 +695,10 @@ class Parser:
         if is_extern:
             return None
 
+        Def.if_cnt = 0
+        Def.else_cnt = 0
+        Def.while_cnt = 0
+        Def.block_cnt = 0
         Def.fun_name = full_name
         Def.fun_name_list.append(full_name)
         Def.var_off = 8
@@ -737,6 +759,24 @@ class Parser:
             Def.deferred = Node(NodeKind.GLUE, void_type,
                                 '', Def.deferred, node)
 
+    def block_statement(self) -> Optional[Node]:
+        name = ''
+        unnamed_block = self.no_more_tokens()
+
+        if unnamed_block:
+            Def.block_cnt += 1
+            name = f'block{Def.block_cnt}'
+        else:
+            name = self.match_token(TokenKind.IDENT).value
+
+        self.next_line()
+        Def.fun_name_list.append(name)
+        block_node = Node(NodeKind.BLOCK, void_type,
+                          name, self.compound_statement())
+        Def.fun_name_list.pop()
+
+        return Node(NodeKind.GLUE, void_type, '', block_node, Node(NodeKind.END, void_type, 'end'))
+
     def to_node(self, token: Token) -> Node:
         node = None
         kind = self.node_kind_of(token.kind)
@@ -751,7 +791,7 @@ class Parser:
     def array_elem_declaration(self, array: Node, elem: Node, idx: int) -> Node:
         idx_node = self.to_node(Token(TokenKind.INT_LIT, str(idx)))
         acc_node = Node(NodeKind.ARR_ACC, elem.ntype, '', array, idx_node)
-        return Node(NodeKind.OP_ASSIGN, elem.ntype, '=', acc_node, elem)
+        return Node(NodeKind.DECLARATION, elem.ntype, '=', acc_node, elem)
 
     def array_declaration(self, name: str) -> Node:
         root = None
@@ -812,11 +852,13 @@ class Parser:
 
         is_implicit = self.curr_token().kind != TokenKind.COLON
         kind, meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
+        elem_kind, elem_meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
         if not is_implicit:
             self.match_token(TokenKind.COLON)
 
             var_type = type_of(self.curr_token().value)
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
+            elem_kind, elem_meta_kind = kind, meta_kind
             self.next_token()
 
         elem_cnt = 0
@@ -838,8 +880,6 @@ class Parser:
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
 
-        elem_kind = VariableKind.INT64
-        elem_meta_kind = VariableMetaKind.PRIM
         var_type = VariableType(VariableCompKind(kind, meta_kind))
         if is_implicit:
             if self.curr_token().kind == TokenKind.LBRACE:
@@ -897,7 +937,7 @@ class Parser:
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}')
 
-            return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+            return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         if meta_kind == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
@@ -927,7 +967,7 @@ class Parser:
             else:
                 node = self.token_list_to_tree()
 
-            return Node(NodeKind.OP_ASSIGN, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+            return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         print_error('declaration',
                     f'Unknown meta kind {meta_kind}', self)
