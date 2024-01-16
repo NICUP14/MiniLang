@@ -369,17 +369,29 @@ def global_modf_of(kind: VariableKind) -> str:
     return modf_map[kind]
 
 
-def full_name_of_fun(name: str, force_global: bool = False):
+def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bool = True):
     # Namespace match
     global_name = "_".join(module_name_list + [name])
     if force_global or global_name in fun_map:
         return global_name
 
+    if exhaustive_match:
+        list_cpy = list(module_name_list)
+        while len(list_cpy) > 0:
+            new_name = '_'.join(list_cpy + [name])
+            if new_name in ident_map and ident_map.get(new_name) in (VariableMetaKind.FUN, VariableMetaKind.MACRO):
+                return new_name
+
+            list_cpy.pop()
+
+        # print_error('full_name_of_fun',
+        #             f'Exhaustive match for {name} failed')
+
     # Direct match (guess)
     return name
 
 
-def full_name_of_var(name: str, force_global: bool = False):
+def full_name_of_var(name: str, force_global: bool = False, exhaustive_match: bool = True):
     # Namespace match
     global_name = "_".join(module_name_list + [name])
     if force_global or global_name in var_map:
@@ -388,6 +400,19 @@ def full_name_of_var(name: str, force_global: bool = False):
     # Direct match
     if name in var_map:
         return name
+
+    # Exhaustive match
+    if exhaustive_match:
+        list_cpy = list(fun_name_list)
+        while len(list_cpy) > 0:
+            new_name = '_'.join(list_cpy + [name])
+            if new_name in ident_map and ident_map.get(new_name) not in (VariableMetaKind.FUN, VariableMetaKind.MACRO):
+                return new_name
+
+            list_cpy.pop()
+
+        # print_error('full_name_of_var',
+        #             f'Exhaustive match for {name} failed')
 
     # Local match (guess)
     return "_".join(fun_name_list + [name])

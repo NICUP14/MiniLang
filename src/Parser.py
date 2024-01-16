@@ -7,6 +7,7 @@ from os.path import exists
 from Lexer import Token
 from Lexer import TokenKind
 from Lexer import tokenize
+from Lexer import token_is_lit
 from Lexer import token_is_param
 from Lexer import token_is_op
 from Lexer import token_is_paren
@@ -214,16 +215,27 @@ class Parser:
 
         for token in tokens:
             if token_is_param(token.kind):
-                # Detects if the token is a function/macro call (token correction)
-                fun_name = full_name_of_fun(token.value)
-                if Def.ident_map.get(fun_name) == VariableMetaKind.MACRO:
-                    op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
-
-                elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
-                    op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
-
-                else:
+                if token_is_lit(token.kind):
                     postfix_tokens.append(token)
+                else:
+                    # Detects if the token is a function/macro call (token correction)
+                    fun_name = full_name_of_fun(
+                        token.value, exhaustive_match=True)
+                    if Def.ident_map.get(fun_name) == VariableMetaKind.MACRO:
+                        op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
+
+                    elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
+                        op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
+
+                    else:
+                        name = full_name_of_var(
+                            token.value, exhaustive_match=True)
+                        if name not in Def.ident_map:
+                            print_error('to_postfix',
+                                        f'Invalid identifier {name}')
+
+                        postfix_tokens.append(
+                            Token(TokenKind.IDENT, name))
 
             elif token_is_paren(token.kind):
                 if token.kind == TokenKind.LPAREN:
@@ -288,7 +300,7 @@ class Parser:
 
         if str_node is None or str_node.kind != NodeKind.STR_LIT:
             print_error('cast_builtin',
-                        'The first argument passed to the cast builtin is not a string literal', self)
+                        f'The first argument passed to the cast builtin is not a string literal, got {str_node.kind}', self)
 
         type_str = str_node.value.lstrip('\"').rstrip('\"')
         return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
@@ -313,11 +325,13 @@ class Parser:
             print_error('expand_macro',
                         f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
         arg_names = list(
-            map(lambda name: full_name_of_var(name), macro.arg_names))
+            map(lambda name: full_name_of_var(name, exhaustive_match=False), macro.arg_names))
         for name in arg_names:
             Def.ident_map[name] = VariableMetaKind.MACRO_ARG
 
         def expand_arg(node: Node) -> Optional[Node]:
+            # if node is None:
+            #     return node
             if node is None or node.kind != NodeKind.IDENT:
                 return node
 
@@ -375,9 +389,9 @@ class Parser:
 
                 # Distinguishes between identifiers and literals
                 elif token.kind == TokenKind.IDENT:
-                    full_name = full_name_of_var(token.value)
+                    print('DBG:', token.value)
                     node_stack.append(
-                        Node(self.node_kind_of(token.kind), type_of_ident(full_name), full_name))
+                        Node(self.node_kind_of(token.kind), type_of_ident(token.value), token.value))
 
                 else:
                     kind = self.node_kind_of(token.kind)
@@ -454,7 +468,7 @@ class Parser:
                     if token.kind == TokenKind.KW_LEN:
                         if node.kind != NodeKind.STR_LIT:
                             print_error('to_tree',
-                                        'The len_of builtin only accepts string literals')
+                                        f'The len_of builtin only accepts string literals, got {node.kind}')
 
                         ident = full_name_of_var(
                             node.value.lstrip('\"').rstrip('\"'))
@@ -706,7 +720,7 @@ class Parser:
 
         # Needed for extern
         name = self.match_token(TokenKind.IDENT).value
-        full_name = name if is_extern else full_name_of_fun(name, True)
+        full_name = full_name_of_fun(name, force_global=True)
         self.match_token(TokenKind.LPAREN)
 
         # Needed for extern
@@ -787,7 +801,8 @@ class Parser:
         # ? Temporary
         for (arg_name, arg_type, elem_type, elem_cnt) in zip(arg_names, arg_types, elem_types, elem_cnts):
             meta_kind = arg_type.meta_kind()
-            Def.ident_map[full_name_of_var(arg_name)] = meta_kind
+            Def.ident_map[full_name_of_var(
+                arg_name, exhaustive_match=False)] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
             if meta_kind == VariableMetaKind.PRIM:
@@ -851,8 +866,6 @@ class Parser:
             name = self.match_token(TokenKind.IDENT).value
 
         self.next_line()
-
-        self.next_line()
         scopeless_block = name.startswith('_')
 
         if not scopeless_block:
@@ -869,13 +882,15 @@ class Parser:
             print_error('macro_declaration',
                         'Local macros are not allowed', self)
 
-        full_name = full_name_of_fun(self.match_token(TokenKind.IDENT).value)
+        full_name = full_name_of_fun(self.match_token(
+            TokenKind.IDENT).value, exhaustive_match=False)
         self.match_token(TokenKind.LPAREN)
 
         arg_names: list[str] = []
         while self.curr_token().kind != TokenKind.RPAREN:
             arg_name = self.match_token(TokenKind.IDENT).value
-            arg_names.append(full_name_of_var(arg_name))
+            arg_names.append(full_name_of_var(
+                arg_name, exhaustive_match=False))
 
             if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RPAREN:
                 self.match_token(TokenKind.COMMA)
@@ -1055,11 +1070,12 @@ class Parser:
         # Fix for macros
         if Def.macro_name != '':
             # Placeholder identifier
-            Def.ident_map[full_name_of_var(name)] = VariableMetaKind.MACRO_ARG
+            Def.ident_map[full_name_of_var(
+                name, exhaustive_match=False)] = VariableMetaKind.MACRO_ARG
             return
 
         is_local = Def.fun_name != ''
-        var_name = full_name_of_var(name)
+        var_name = full_name_of_var(name, exhaustive_match=False)
         full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind
 

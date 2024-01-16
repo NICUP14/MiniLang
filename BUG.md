@@ -2,6 +2,7 @@
 
 Solved: 7/10
 
+- [ ] tests/test/main.ml:cast_malloc not working.
 - [ ] Cannot call function as a function param.
 - [ ] No type checking for reference and dereference (`*bool = int64`).
 - [X] Faulty load before an assignment (div).

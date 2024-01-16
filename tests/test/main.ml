@@ -1,5 +1,23 @@
 import "../../cstdlib"
 
+namespace x
+    extern fun mac(s: int8*): void
+    fun printf(): int32
+    end
+end
+
+namespace x
+    fun fun1(): void
+    end
+    namespace y
+        fun fun2(): void
+            mac("")
+            printf("")
+            malloc(5)
+        end
+    end
+end
+
 macro print(num)
     let idx = 0
     while idx < num
@@ -15,7 +33,6 @@ end
 
 fun main(): int64
     log("Hi")
-    lineno
     ret 0
 end
 end

@@ -2,6 +2,7 @@
 
 Solved: 11/17
 
+- [ ] Add macro unliteral operator
 - [ ] Structs.
 - [ ] Global arrays.
 - [ ] Fix type system.

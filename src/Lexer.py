@@ -181,6 +181,20 @@ TOKEN_KIND_MAP = {
 }
 
 
+def token_is_lit(kind: TokenKind) -> bool:
+    return kind in (
+        TokenKind.KW_FUN,
+        TokenKind.KW_LINE,
+        TokenKind.KW_FILE,
+        TokenKind.KW_LINENO,
+        TokenKind.INT_LIT,
+        TokenKind.CHAR_LIT,
+        TokenKind.STR_LIT,
+        TokenKind.TRUE_LIT,
+        TokenKind.FALSE_LIT,
+    )
+
+
 def token_is_param(kind: TokenKind) -> bool:
     return kind in (
         TokenKind.KW_FUN,
