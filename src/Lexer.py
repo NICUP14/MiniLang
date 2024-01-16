@@ -112,7 +112,9 @@ class TokenKind(enum.Enum):
     KW_BOOL = enum.auto(),
     TRUE_LIT = enum.auto(),
     FALSE_LIT = enum.auto(),
-    KW_BLOCK = enum.auto()
+    KW_BLOCK = enum.auto(),
+    KW_MACRO = enum.auto(),
+    MACRO_CALL = enum.auto()
 
 
 @dataclass
@@ -174,7 +176,8 @@ TOKEN_KIND_MAP = {
     'bool': TokenKind.KW_BOOL,
     'true': TokenKind.TRUE_LIT,
     'false': TokenKind.FALSE_LIT,
-    'block': TokenKind.KW_BLOCK
+    'block': TokenKind.KW_BLOCK,
+    'macro': TokenKind.KW_MACRO,
 }
 
 
@@ -214,6 +217,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.AMP,
         TokenKind.DEREF,
         TokenKind.FUN_CALL,
+        TokenKind.MACRO_CALL,
         TokenKind.KW_ASM,
         TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
@@ -238,7 +242,9 @@ def token_kind_of(value: str) -> Optional[TokenKind]:
         return TokenKind.STR_LIT
     if str.isdigit(value):
         return TokenKind.INT_LIT
-    if str.isalnum(value.replace('_', '')):
+
+    sym = value.replace('_', '')
+    if sym == '' or str.isalnum(sym):
         return TokenKind.IDENT
 
     print_error('token_kind_of', f'Invalid token {value}')
@@ -285,7 +291,8 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,
         TokenKind.KW_CAST,
-        TokenKind.FUN_CALL
+        TokenKind.FUN_CALL,
+        TokenKind.MACRO_CALL
     ]
 
 

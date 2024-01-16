@@ -23,6 +23,7 @@ from Def import VariableMetaKind
 from Def import Function
 from Def import Array
 from Def import Pointer
+from Def import Macro
 from Def import bool_ckind
 from Def import ptr_ckind
 from Def import ref_ckind
@@ -52,6 +53,7 @@ PRECEDENCE_MAP = {
     TokenKind.AMP: 26,
     TokenKind.KW_ASM: 25,
     TokenKind.FUN_CALL: 25,
+    TokenKind.MACRO_CALL: 26,
     TokenKind.PLUS: 10,
     TokenKind.MINUS: 10,
     TokenKind.MULT: 20,
@@ -201,9 +203,12 @@ class Parser:
 
         for token in tokens:
             if token_is_param(token.kind):
-                # Detects if the token is a function call (token correction)
+                # Detects if the token is a function/macro call (token correction)
                 fun_name = full_name_of_fun(token.value)
-                if Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
+                if Def.ident_map.get(fun_name) == VariableMetaKind.MACRO:
+                    op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
+
+                elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
                     op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
 
                 else:
@@ -277,6 +282,60 @@ class Parser:
         type_str = str_node.value.lstrip('\"').rstrip('\"')
         return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
 
+    def args_to_list(self, node: Node) -> List[Node]:
+        glue_node = node
+        arg_list: list[Node] = []
+
+        if glue_node.kind != NodeKind.GLUE:
+            arg_list.append(glue_node)
+        else:
+            while glue_node is not None:
+                arg_list.append(glue_node.right)
+                glue_node = glue_node.left
+
+            arg_list.reverse()
+
+        return arg_list
+
+    def expand_macro(self, macro: Macro, arg_list: List[Node]) -> Optional[Node]:
+        def expand_arg(node: Node, arg_list: List[Node]) -> Optional[Node]:
+            if node is None or node.kind != NodeKind.IDENT:
+                return node
+
+            name = node.value
+            if name not in macro.arg_names:
+                new_name = full_name_of_var(name.replace(f'{macro.name}_', ''))
+                return Node(node.kind, node.ntype, new_name, node.left, node.right, node.middle)
+
+            return arg_list[macro.arg_names.index(name)]
+
+        def helper(node: Node, arg_list: List[Node]) -> Optional[Node]:
+            if node is None:
+                return None
+
+            middle, left, right = list(
+                map(lambda n: helper(expand_arg(n, arg_list), arg_list), (node.middle, node.left, node.right)))
+
+            return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle), arg_list)
+
+        # Scope reassignment
+        def change_name(item):
+            if not item[0].startswith(f'{macro.name}_'):
+                return item
+
+            new_name = full_name_of_var(item[0].replace(f'{macro.name}_', ''))
+            return (new_name, item[1])
+
+        for name in macro.arg_names:
+            del Def.ident_map[name]
+
+        Def.ident_map = dict(map(change_name, Def.ident_map.items()))
+        Def.var_map = dict(map(change_name, Def.var_map.items()))
+        Def.ptr_map = dict(map(change_name, Def.ptr_map.items()))
+        Def.arr_map = dict(map(change_name, Def.arr_map.items()))
+
+        return helper(macro.body, arg_list)
+
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
 
@@ -333,6 +392,24 @@ class Parser:
 
                             node_stack.append(
                                 Node(kind, fun.ret_type, token.value, node))
+                        continue
+
+                    if token.kind == TokenKind.MACRO_CALL:
+                        macro = Def.macro_map.get(token.value)
+
+                        if macro.arg_cnt == 0:
+                            return macro.body
+                        else:
+                            if len(node_stack) == 0:
+                                print_error('to_tree',
+                                            'Missing macro operand', self)
+
+                            node = node_stack.pop()
+                            body = self.expand_macro(
+                                macro, self.args_to_list(node))
+
+                            node_stack.append(body)
+
                         continue
 
                     if len(node_stack) == 0:
@@ -449,6 +526,10 @@ class Parser:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
+                        if left.kind != NodeKind.GLUE and right.ntype == void_type:
+                            print_error('to_tree',
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
+
                         if kind not in allowed_op(left.ntype.ckind):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
@@ -497,6 +578,9 @@ class Parser:
         if token.kind == TokenKind.KW_BLOCK:
             self.next_token()
             return self.block_statement()
+        if token.kind == TokenKind.KW_MACRO:
+            self.next_token()
+            return self.macro_statement()
 
         node = self.token_list_to_tree()
         return node
@@ -557,12 +641,7 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
-
-        Def.while_cnt += 1
-        Def.fun_name_list.append(f'while{Def.while_cnt}')
         body = self.compound_statement()
-        Def.fun_name_list.pop()
-        # Def.while_cnt -= 1
 
         node = Node(NodeKind.GLUE, void_type, '', Node(
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
@@ -576,28 +655,19 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
-
-        Def.if_cnt += 1
-        Def.fun_name_list.append(f'if{Def.if_cnt}')
         true_node = self.compound_statement()
-        Def.fun_name_list.pop()
-        # Def.if_cnt -= 1
 
         false_node = None
         if self.curr_token().kind == TokenKind.KW_ELSE:
             self.next_line()
-
-            Def.else_cnt += 1
-            Def.fun_name_list.append(f'else{Def.else_cnt}')
             false_node = self.compound_statement()
-            Def.fun_name_list.pop()
 
         node = Node(NodeKind.GLUE, void_type, '', Node(NodeKind.IF, '', void_type,
                     true_node, false_node, cond_node), Node(NodeKind.END, void_type, 'end'))
         return node
 
     def ret_statement(self) -> Optional[Node]:
-        if Def.fun_name == '':
+        if Def.fun_name == '' and Def.macro_name == '':
             print_error('ret_statement',
                         'Cannot return from outside a function', self)
 
@@ -620,6 +690,10 @@ class Parser:
             return node
 
     def fun_declaration(self, is_extern: bool = False) -> Optional[Node]:
+        if Def.fun_name != '':
+            print_error('fun_declaration',
+                        'Local functions are not allowed', self)
+
         # Needed for extern
         name = self.match_token(TokenKind.IDENT).value
         full_name = name if is_extern else full_name_of_fun(name, True)
@@ -695,9 +769,6 @@ class Parser:
         if is_extern:
             return None
 
-        Def.if_cnt = 0
-        Def.else_cnt = 0
-        Def.while_cnt = 0
         Def.block_cnt = 0
         Def.fun_name = full_name
         Def.fun_name_list.append(full_name)
@@ -733,7 +804,7 @@ class Parser:
                     Node(NodeKind.FUN, default_ckind, full_name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
-    def type_definition(self):
+    def type_definition(self) -> None:
         alias = self.match_token(TokenKind.IDENT).value
         self.match_token(TokenKind.ASSIGN)
         type_str = self.curr_token().value
@@ -770,12 +841,66 @@ class Parser:
             name = self.match_token(TokenKind.IDENT).value
 
         self.next_line()
-        Def.fun_name_list.append(name)
+
+        self.next_line()
+        scopeless_block = name.startswith('_')
+
+        if not scopeless_block:
+            Def.fun_name_list.append(name)
         block_node = Node(NodeKind.BLOCK, void_type,
                           name, self.compound_statement())
-        Def.fun_name_list.pop()
+        if not scopeless_block:
+            Def.fun_name_list.pop()
 
         return Node(NodeKind.GLUE, void_type, '', block_node, Node(NodeKind.END, void_type, 'end'))
+
+    def macro_statement(self) -> None:
+        if Def.fun_name != '':
+            print_error('macro_declaration',
+                        'Local macros are not allowed', self)
+
+        full_name = full_name_of_fun(self.match_token(TokenKind.IDENT).value)
+        self.match_token(TokenKind.LPAREN)
+
+        arg_names: list[str] = []
+        while self.curr_token().kind != TokenKind.RPAREN:
+            arg_name = self.match_token(TokenKind.IDENT).value
+            arg_names.append(full_name_of_var(arg_name))
+
+            if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RPAREN:
+                self.match_token(TokenKind.COMMA)
+
+        self.match_token(TokenKind.RPAREN)
+        if not self.no_more_tokens():
+            print_error('fun_declaration',
+                        'Junk after macro declaration', self)
+
+        Def.ident_map[full_name] = VariableMetaKind.MACRO
+        Def.macro_map[full_name] = Macro(
+            full_name, len(arg_names), arg_names, None)
+
+        for name in arg_names:
+            Def.ident_map[name] = VariableMetaKind.MACRO_ARG
+
+        Def.macro_name = full_name
+        Def.fun_name_list.append(full_name)
+        lines_idx_cpy = self.lines_idx
+        self.next_line()
+
+        # Hack for recursive macros (first-pass)
+        body = self.compound_statement()
+        Def.macro_map[full_name].body = body
+
+        # Rewind and re-read macro
+        self.lines_idx = lines_idx_cpy
+        self.next_line()
+
+        # Hack for self-calling macros (second-pass)
+        body = self.compound_statement()
+        Def.macro_map[full_name].body = body
+
+        Def.fun_name_list.pop()
+        Def.macro_name = ''
 
     def to_node(self, token: Token) -> Node:
         node = None
@@ -913,7 +1038,7 @@ class Parser:
             if meta_kind == VariableMetaKind.REF:
                 var_type = VariableType(ref_ckind, default_ckind)
 
-        is_local = Def.fun_name != ''
+        is_local = Def.fun_name != '' or Def.macro_name != ''
         var_name = full_name_of_var(name)
         full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind
@@ -925,10 +1050,6 @@ class Parser:
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
 
-            if var_type.ckind == void_ckind:
-                print_error('declaration',
-                            'Declaration of void primitive is not allowed.', self)
-
             if not is_local:
                 return None
 
@@ -936,6 +1057,10 @@ class Parser:
             if var_type == bool_type and var_type != node.ntype:
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}')
+
+            if node.ntype == void_ckind:
+                print_error('declaration',
+                            'Declaration of void primitive is not allowed.', self)
 
             return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
@@ -966,6 +1091,10 @@ class Parser:
                 node = self.heredoc_declaration()
             else:
                 node = self.token_list_to_tree()
+
+            if node.ntype == void_type:
+                print_error('declaration',
+                            'Declaration of pointer with a void rvalue is not allowed.', self)
 
             return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 

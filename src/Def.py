@@ -57,6 +57,8 @@ class VariableMetaKind(enum.Enum):
     ARR = enum.auto()
     FUN = enum.auto()
     STRUCT = enum.auto()
+    MACRO = enum.auto()
+    MACRO_ARG = enum.auto()
 
 
 class VariableKind(enum.Enum):
@@ -156,6 +158,14 @@ class Function:
     off: int
     is_variadic: bool
     is_extern: bool
+
+
+@dataclass
+class Macro:
+    name: str
+    arg_cnt: int
+    arg_names: list[str]
+    body: Node
 
 
 class NodeKind(enum.Enum):
@@ -397,7 +407,8 @@ def off_of(ident: str) -> int:
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         return ptr_map.get(ident).off
 
-    print_error('off_of', f'No such meta kind {meta_kind}')
+    print_error(
+        'off_of', f'No such meta kind {meta_kind} for identifier {ident}')
 
 
 # Parses the type of the identifier
@@ -439,6 +450,9 @@ def rev_type_of_ident(name: str) -> str:
         print_error('rev_type_of_ident', f'No such identifier {name}')
 
     meta_kind = ident_map.get(name)
+    if meta_kind == VariableMetaKind.MACRO_ARG:
+        return rev_type_of(default_type)
+
     if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
         if name not in var_map:
             print_error('rev_type_of_ident', f'No such variable {name}')
@@ -521,6 +535,9 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
+    if meta_kind == VariableMetaKind.MACRO_ARG:
+        return default_type
+
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         if ident not in ptr_map:
             print_error('type_of_ident', f'No such variable {ident}')
@@ -556,7 +573,9 @@ def type_of_lit(kind: NodeKind) -> VariableType:
     if kind not in type_map:
         print_error('type_of_lit', f'Invalid node kind {kind}')
 
-    return VariableType(type_map.get(kind), default_ckind)
+    char_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)
+    elem_ckind = char_ckind if kind == NodeKind.STR_LIT else default_ckind
+    return VariableType(type_map.get(kind), elem_ckind)
 
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
@@ -863,15 +882,12 @@ ckind_map = {
 }
 
 var_off = 0
-else_cnt = 0
-if_cnt = 0
-while_cnt = 0
 block_cnt = 0
+macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
 arr_map: Dict[str, Array] = dict()
 ptr_map: Dict[str, Pointer] = dict()
-str_map: Dict[str, String] = dict()
 ident_map: Dict[str, VariableMetaKind] = dict()
 str_lit_map: Dict[str, str] = dict()
 opd_map = {reg: None for reg in REGS}
@@ -891,4 +907,5 @@ default_type = VariableType(default_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
+macro_name = ''
 deferred: Optional[Node] = None
