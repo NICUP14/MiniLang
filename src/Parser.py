@@ -338,6 +338,7 @@ class Parser:
 
         macro.parser.lineno = self.lineno
         body = macro.parser.parse()
+        self.lineno += (macro.parser.lineno - self.lineno - 1)
 
         # Removes macro placeholders
         Def.ident_map = dict(filter(lambda t: not t[0].startswith(
@@ -535,7 +536,7 @@ class Parser:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
-                        if left.kind != NodeKind.GLUE and right.ntype == void_type:
+                        if kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
 

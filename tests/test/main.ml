@@ -10,11 +10,12 @@ end
 
 macro log(msg)
     printf("%s:%lld: %s", fun, lineno, msg)
+    printf("")
 end
 
 fun main(): int64
     log("Hi")
-
+    lineno
     ret 0
 end
 end
