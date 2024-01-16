@@ -1,3 +1,4 @@
+from __future__ import annotations
 import Def
 from typing import Optional
 from typing import List
@@ -47,6 +48,7 @@ from Def import allowed_op
 from Def import size_of
 from Def import rev_type_of
 from Def import node_is_cmp
+from Snippet import copy_of
 
 PRECEDENCE_MAP = {
     TokenKind.DEREF: 26,
@@ -104,18 +106,26 @@ NODE_KIND_MAP = {
 
 
 class Parser:
-    def __init__(self) -> None:
-        self.source = ''
-        self.lines = []
-        self.lines_idx = 0
-        self.tokens = []
-        self.tokens_idx = 0
+    def __init__(self, parser: Parser = None) -> None:
+        if parser is not None:
+            self.source = parser.source
+            self.lineno = parser.lineno
+            self.tokens = list(parser.tokens)
+            self.tokens_idx = parser.tokens_idx
+            self.lines = list(parser.lines)
+            self.lines_idx = parser.lines_idx
+        else:
+            self.source = ''
+            self.lineno = 0
+            self.tokens = []
+            self.tokens_idx = 0
+            self.lines = []
+            self.lines_idx = 0
 
-    def parse(self, source: str) -> Node:
-        self.source = source
-        # self.lines = list(filter(
-        #     lambda l: l.lstrip('\t ') != '\n' and not l.lstrip('\t ').startswith('#'), open(source, 'r').readlines()))
-        self.lines = open(source, 'r').readlines()
+    def parse(self, source: str = '') -> Node:
+        if source != '':
+            self.source = source
+            self.lines = open(source, 'r').readlines()
         self.skip_blank_lines()
 
         self.tokens = tokenize(self.curr_line())
@@ -132,6 +142,7 @@ class Parser:
             self.next_line()
 
     def next_line(self) -> str:
+        self.lineno += 1
         self.lines_idx += 1
 
         if self.no_more_lines():
@@ -298,43 +309,41 @@ class Parser:
         return arg_list
 
     def expand_macro(self, macro: Macro, arg_list: List[Node]) -> Optional[Node]:
-        def expand_arg(node: Node, arg_list: List[Node]) -> Optional[Node]:
+        if len(arg_list) != len(macro.arg_names):
+            print_error('expand_macro',
+                        f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
+        arg_names = list(
+            map(lambda name: full_name_of_var(name), macro.arg_names))
+        for name in arg_names:
+            Def.ident_map[name] = VariableMetaKind.MACRO_ARG
+
+        def expand_arg(node: Node) -> Optional[Node]:
             if node is None or node.kind != NodeKind.IDENT:
                 return node
 
             name = node.value
-            if name not in macro.arg_names:
-                new_name = full_name_of_var(name.replace(f'{macro.name}_', ''))
-                return Node(node.kind, node.ntype, new_name, node.left, node.right, node.middle)
+            if name not in arg_names:
+                return node
 
-            return arg_list[macro.arg_names.index(name)]
+            return arg_list[arg_names.index(name)]
 
-        def helper(node: Node, arg_list: List[Node]) -> Optional[Node]:
+        def helper(node: Node) -> Optional[Node]:
             if node is None:
                 return None
 
             middle, left, right = list(
-                map(lambda n: helper(expand_arg(n, arg_list), arg_list), (node.middle, node.left, node.right)))
+                map(lambda n: helper(expand_arg(n)), (node.middle, node.left, node.right)))
 
-            return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle), arg_list)
+            return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
 
-        # Scope reassignment
-        def change_name(item):
-            if not item[0].startswith(f'{macro.name}_'):
-                return item
+        macro.parser.lineno = self.lineno
+        body = macro.parser.parse()
 
-            new_name = full_name_of_var(item[0].replace(f'{macro.name}_', ''))
-            return (new_name, item[1])
+        # Removes macro placeholders
+        Def.ident_map = dict(filter(lambda t: not t[0].startswith(
+            f'{macro.name}_'), Def.ident_map.items()))
 
-        for name in macro.arg_names:
-            del Def.ident_map[name]
-
-        Def.ident_map = dict(map(change_name, Def.ident_map.items()))
-        Def.var_map = dict(map(change_name, Def.var_map.items()))
-        Def.ptr_map = dict(map(change_name, Def.ptr_map.items()))
-        Def.arr_map = dict(map(change_name, Def.arr_map.items()))
-
-        return helper(macro.body, arg_list)
+        return helper(body)
 
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
@@ -344,7 +353,7 @@ class Parser:
                 # Lineno builtin
                 if token.kind == TokenKind.KW_LINENO:
                     node_stack.append(
-                        Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(self.lines_idx + 1)))
+                        Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(self.lineno + 1)))
 
                 # Line builtin
                 elif token.kind == TokenKind.KW_LINE:
@@ -398,7 +407,7 @@ class Parser:
                         macro = Def.macro_map.get(token.value)
 
                         if macro.arg_cnt == 0:
-                            return macro.body
+                            node_stack.append(self.expand_macro(macro, []))
                         else:
                             if len(node_stack) == 0:
                                 print_error('to_tree',
@@ -667,7 +676,7 @@ class Parser:
         return node
 
     def ret_statement(self) -> Optional[Node]:
-        if Def.fun_name == '' and Def.macro_name == '':
+        if Def.fun_name == '':
             print_error('ret_statement',
                         'Cannot return from outside a function', self)
 
@@ -874,33 +883,37 @@ class Parser:
         if not self.no_more_tokens():
             print_error('fun_declaration',
                         'Junk after macro declaration', self)
-
+        self.next_line()
         Def.ident_map[full_name] = VariableMetaKind.MACRO
         Def.macro_map[full_name] = Macro(
-            full_name, len(arg_names), arg_names, None)
+            full_name, len(arg_names), arg_names, Parser(self))
 
         for name in arg_names:
             Def.ident_map[name] = VariableMetaKind.MACRO_ARG
 
         Def.macro_name = full_name
-        Def.fun_name_list.append(full_name)
-        lines_idx_cpy = self.lines_idx
-        self.next_line()
-
-        # Hack for recursive macros (first-pass)
-        body = self.compound_statement()
-        Def.macro_map[full_name].body = body
-
-        # Rewind and re-read macro
-        self.lines_idx = lines_idx_cpy
-        self.next_line()
-
-        # Hack for self-calling macros (second-pass)
-        body = self.compound_statement()
-        Def.macro_map[full_name].body = body
-
-        Def.fun_name_list.pop()
+        _ = self.compound_statement()
         Def.macro_name = ''
+
+        # Def.macro_name = full_name
+        # Def.fun_name_list.append(full_name)
+        # lines_idx_cpy = self.lines_idx
+        # self.next_line()
+
+        # # Hack for recursive macros (first-pass)
+        # body = self.compound_statement()
+        # Def.macro_map[full_name].body = body
+
+        # # Rewind and re-read macro
+        # self.lines_idx = lines_idx_cpy
+        # self.next_line()
+
+        # # Hack for self-calling macros (second-pass)
+        # body = self.compound_statement()
+        # Def.macro_map[full_name].body = body
+
+        # Def.fun_name_list.pop()
+        # Def.macro_name = ''
 
     def to_node(self, token: Token) -> Node:
         node = None
@@ -1038,7 +1051,13 @@ class Parser:
             if meta_kind == VariableMetaKind.REF:
                 var_type = VariableType(ref_ckind, default_ckind)
 
-        is_local = Def.fun_name != '' or Def.macro_name != ''
+        # Fix for macros
+        if Def.macro_name != '':
+            # Placeholder identifier
+            Def.ident_map[full_name_of_var(name)] = VariableMetaKind.MACRO_ARG
+            return
+
+        is_local = Def.fun_name != ''
         var_name = full_name_of_var(name)
         full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind

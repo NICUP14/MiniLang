@@ -1,6 +1,7 @@
 from __future__ import annotations
 import sys
 import enum
+from typing import Any
 from typing import List
 from typing import Dict
 from typing import Optional
@@ -165,7 +166,7 @@ class Macro:
     name: str
     arg_cnt: int
     arg_names: list[str]
-    body: Node
+    parser: Any
 
 
 class NodeKind(enum.Enum):
