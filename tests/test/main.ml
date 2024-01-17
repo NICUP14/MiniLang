@@ -1,5 +1,5 @@
 import "../../cstdlib"
-# import "../../stdlib"
+import "../../stdlib"
 
 macro alloc_dsign(name, size)
     name = 15
@@ -22,8 +22,8 @@ macro with_alloc(ptr, size, expr)
     free(ptr)
 end
 
-fun main(): int64
-    let c: int64* = 0
+fun main: int64
+    let c: int8* = nullptr
     with_alloc(c, 100, ((c = scanf("%s", c)), printf("%s", c)))
     ret 0
 end

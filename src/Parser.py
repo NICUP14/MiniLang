@@ -739,51 +739,55 @@ class Parser:
         # Needed for extern
         name = self.match_token(TokenKind.IDENT).value
         full_name = full_name_of_fun(name, force_global=True)
-        self.match_token(TokenKind.LPAREN)
 
         # Needed for extern
+        is_variadic = False
+        has_args = self.curr_token().kind == TokenKind.LPAREN
         arg_names: list[str] = []
         arg_types: list[VariableType] = []
         elem_types: list[VariableType] = []
         elem_cnts: list[int] = []
-        while self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
-            arg_name = self.match_token(TokenKind.IDENT).value
-            self.match_token(TokenKind.COLON)
+        if has_args:
+            self.match_token(TokenKind.LPAREN)
+            while self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
+                arg_name = self.match_token(TokenKind.IDENT).value
+                self.match_token(TokenKind.COLON)
 
-            type_str = self.curr_token().value
-            arg_type = type_of(type_str)
-            elem_type = arg_type
-            elem_cnt = 0
-            self.next_token()
-
-            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                type_str = self.curr_token().value
+                arg_type = type_of(type_str)
+                elem_type = arg_type
+                elem_cnt = 0
                 self.next_token()
-                arg_type = VariableType(ref_ckind, arg_type.ckind)
 
-            elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
-                self.next_token()
-                arg_type = VariableType(ptr_ckind, arg_type.ckind)
+                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                    self.next_token()
+                    arg_type = VariableType(ref_ckind, arg_type.ckind)
 
-            elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
-                self.next_token()
-                arg_type = VariableType(ptr_ckind, arg_type.ckind)
-                elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
-                self.match_token(TokenKind.RBRACE)
-                self.match_token(TokenKind.MULT)
+                elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+                    self.next_token()
+                    arg_type = VariableType(ptr_ckind, arg_type.ckind)
 
-            if not self.no_more_tokens() and self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
-                self.match_token(TokenKind.COMMA)
+                elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
+                    self.next_token()
+                    arg_type = VariableType(ptr_ckind, arg_type.ckind)
+                    elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
+                    self.match_token(TokenKind.RBRACE)
+                    self.match_token(TokenKind.MULT)
 
-            arg_names.append(arg_name)
-            arg_types.append(arg_type)
-            elem_types.append(elem_type)
-            elem_cnts.append(elem_cnt)
+                if not self.no_more_tokens() and self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
+                    self.match_token(TokenKind.COMMA)
 
-        token = self.match_token_from((TokenKind.RPAREN, TokenKind.PER_FUN))
-        is_variadic = token.kind == TokenKind.PER_FUN
+                arg_names.append(arg_name)
+                arg_types.append(arg_type)
+                elem_types.append(elem_type)
+                elem_cnts.append(elem_cnt)
 
-        if is_variadic:
-            self.match_token(TokenKind.RPAREN)
+            token = self.match_token_from(
+                (TokenKind.RPAREN, TokenKind.PER_FUN))
+            is_variadic = token.kind == TokenKind.PER_FUN
+
+            if is_variadic:
+                self.match_token(TokenKind.RPAREN)
         self.match_token(TokenKind.COLON)
 
         # Needed for extern
@@ -909,21 +913,25 @@ class Parser:
 
         full_name = full_name_of_fun(self.match_token(
             TokenKind.IDENT).value, exhaustive_match=False)
-        self.match_token(TokenKind.LPAREN)
 
+        has_args = not self.no_more_tokens()
         arg_names: list[str] = []
-        while self.curr_token().kind != TokenKind.RPAREN:
-            arg_name = self.match_token(TokenKind.IDENT).value
-            arg_names.append(full_name_of_var(
-                arg_name, exhaustive_match=False))
+        if has_args:
+            self.match_token(TokenKind.LPAREN)
 
-            if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RPAREN:
-                self.match_token(TokenKind.COMMA)
+            while self.curr_token().kind != TokenKind.RPAREN:
+                arg_name = self.match_token(TokenKind.IDENT).value
+                arg_names.append(full_name_of_var(
+                    arg_name, exhaustive_match=False))
 
-        self.match_token(TokenKind.RPAREN)
-        if not self.no_more_tokens():
-            print_error('fun_declaration',
-                        'Junk after macro declaration', self)
+                if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RPAREN:
+                    self.match_token(TokenKind.COMMA)
+
+            self.match_token(TokenKind.RPAREN)
+            if not self.no_more_tokens():
+                print_error('fun_declaration',
+                            'Junk after macro declaration', self)
+
         self.next_line()
         Def.ident_map[full_name] = VariableMetaKind.MACRO
         Def.macro_map[full_name] = Macro(
