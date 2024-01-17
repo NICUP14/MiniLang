@@ -1,10 +1,10 @@
 # Bugs
 
-Solved: 7/10
+Solved: 7/11
 
-- [ ] tests/test/main.ml:cast_malloc not working.
+- [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`)
 - [ ] Cannot call function as a function param.
-- [ ] No type checking for reference and dereference (`*bool = int64`).
+- [X] No type checking for reference and dereference (`*bool = int64`).
 - [X] Faulty load before an assignment (div).
 - [X] Assignment of array rvalue to ptr type
 - [X] `nr % 10 + '0'` fails due to widen.

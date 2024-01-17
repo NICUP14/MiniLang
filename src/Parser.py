@@ -32,6 +32,7 @@ from Def import ref_ckind
 from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
+from Def import arg_type
 from Def import void_type
 from Def import bool_type
 from Def import default_type
@@ -41,6 +42,7 @@ from Def import type_of
 from Def import type_of_op
 from Def import type_of_ident
 from Def import type_of_lit
+from Def import type_compatible
 from Def import full_name_of_var
 from Def import full_name_of_fun
 from Def import needs_widen
@@ -170,6 +172,9 @@ class Parser:
         self.tokens_idx += 1
 
     def match_token(self, kind: TokenKind) -> Token:
+        if self.no_more_tokens():
+            print_error('self.match_token',
+                        f'Expected token kind {kind}, got nothing', self)
         token = self.curr_token()
 
         if token.kind != kind:
@@ -357,12 +362,26 @@ class Parser:
 
             return arg_list[arg_names.index(name)]
 
-        def helper(node: Node) -> Optional[Node]:
+        def type_helper(node: Node):
             if node is None:
                 return None
 
             middle, left, right = list(
-                map(lambda n: helper(expand_arg(n)), (node.middle, node.left, node.right)))
+                map(lambda n: type_helper(n), (node.middle, node.left, node.right)))
+
+            if node.kind != NodeKind.GLUE and left and right and (
+                    not type_compatible(node.kind, left.ntype.ckind, right.ntype.ckind)):
+                print_error('expand_macro',
+                            f'Incompatible types {node.kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #3)', self)
+
+            return (Node(node.kind, node.ntype, node.value, left, right, middle))
+
+        def expand_helper(node: Node) -> Optional[Node]:
+            if node is None:
+                return None
+
+            middle, left, right = list(
+                map(lambda n: expand_helper(expand_arg(n)), (node.middle, node.left, node.right)))
 
             return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
 
@@ -371,13 +390,16 @@ class Parser:
         self.lineno += (macro.parser.lineno - self.lineno - 1)
 
         # Defer fix
-        Def.deferred = helper(Def.deferred)
+        Def.deferred = expand_helper(Def.deferred)
+        type_helper(Def.deferred)
 
         # Removes macro placeholders
         # Def.ident_map = dict(
         #     filter(lambda t: t[1] != VariableMetaKind.MACRO_ARG, Def.ident_map.items()))
+        node = expand_helper(body)
+        type_helper(node)
 
-        return helper(body)
+        return node
 
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
@@ -535,8 +557,8 @@ class Parser:
                     right = node_stack.pop()
                     left = node_stack.pop()
 
-                    # Validates fixed-index array acesses
-                    if token.kind == TokenKind.KW_AT and right.kind == NodeKind.INT_LIT:
+                    # Validates array/pointer acesses
+                    if token.kind == TokenKind.KW_AT and left.ntype != arg_type:
                         elem_cnt = 0
                         if Def.ident_map.get(left.value) == VariableMetaKind.PTR:
                             elem_cnt = Def.ptr_map.get(left.value).elem_cnt
@@ -544,12 +566,14 @@ class Parser:
                             elem_cnt = Def.arr_map.get(left.value).elem_cnt
                         else:
                             print_error('to_tree',
-                                        f'Invalid identifier {left.value}')
+                                        f'Expected a pointer/array identifier, got {left.value}', self)
 
-                        idx = int(right.value)
-                        if elem_cnt > 0 and idx >= elem_cnt:
-                            print_error('to_tree',
-                                        f'Cannot access element at {idx} from {left.value}', self)
+                        # Validates fixed-index array acesses
+                        if right.kind == NodeKind.INT_LIT:
+                            idx = int(right.value)
+                            if elem_cnt > 0 and idx >= elem_cnt:
+                                print_error('to_tree',
+                                            f'Cannot access element at {idx} from {left.value}', self)
 
                     # Creates the initial parameter tree of a function call
                     if token.kind == TokenKind.COMMA and (
@@ -559,7 +583,7 @@ class Parser:
 
                     else:
                         kind = self.node_kind_of(token.kind)
-                        if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type):
+                        if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type or not type_compatible(kind, left.ntype.ckind, right.ntype.ckind)):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #1)', self)
 
@@ -742,11 +766,11 @@ class Parser:
 
         # Needed for extern
         is_variadic = False
-        has_args = self.curr_token().kind == TokenKind.LPAREN
         arg_names: list[str] = []
         arg_types: list[VariableType] = []
         elem_types: list[VariableType] = []
         elem_cnts: list[int] = []
+        has_args = self.no_more_tokens() or self.curr_token().kind == TokenKind.LPAREN
         if has_args:
             self.match_token(TokenKind.LPAREN)
             while self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):
@@ -881,7 +905,7 @@ class Parser:
                                 '', Def.deferred, node)
 
     def block_statement(self) -> Optional[Node]:
-        if Def.fun_name == '':
+        if Def.fun_name == '' and Def.macro_name == '':
             print_error('block_statement',
                         'Global block declarations are not allowed', self)
 
@@ -943,6 +967,7 @@ class Parser:
         Def.macro_name = full_name
         _ = self.compound_statement()
         Def.macro_name = ''
+        Def.block_cnt = 0
 
         # Def.macro_name = full_name
         # Def.fun_name_list.append(full_name)
@@ -1035,6 +1060,10 @@ class Parser:
         return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), value)
 
     def declaration(self) -> Optional[Node]:
+        if Def.macro_name != '':
+            print_error('declaration',
+                        'Variable declarations within macro are not allowed', self)
+
         name = self.match_token(TokenKind.IDENT).value
 
         is_implicit = self.curr_token().kind != TokenKind.COLON

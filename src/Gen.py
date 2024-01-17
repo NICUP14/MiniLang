@@ -333,7 +333,7 @@ def gen_fun_call(node: Node):
             opd = gen_tree(glue_node, node, -1)
             opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
-            if not type_compatible(opd.var_type.ckind, fun.arg_types[0].ckind):
+            if not type_compatible(NodeKind.FUN_CALL, opd.var_type.ckind, fun.arg_types[0].ckind):
                 print_error('gen_fun_call',
                             f'Incompatible type in {name}\'s function call (name={fun.arg_names[0]}, type1={rev_type_of(opd.var_type)}, type2={rev_type_of(fun.arg_types[0])}, param_idx=0)')
 
@@ -357,7 +357,7 @@ def gen_fun_call(node: Node):
                 opd = gen_tree(glue_node.right, glue_node, -1)
                 opd_dst = Operand('', opd.var_type, CALL_REGS[reg_cnt])
 
-                if reg_cnt < fun.arg_cnt and not type_compatible(opd.var_type.ckind, fun.arg_types[reg_cnt].ckind):
+                if reg_cnt < fun.arg_cnt and not type_compatible(NodeKind.FUN_CALL, opd.var_type.ckind, fun.arg_types[reg_cnt].ckind):
                     print_error('gen_fun_call',
                                 f'Incompatible type in {name}\'s function call (name={fun.arg_names[reg_cnt]}, type1={rev_type_of(opd.var_type)}, type2={rev_type_of(fun.arg_types[reg_cnt])}, param_idx={reg_cnt})')
 

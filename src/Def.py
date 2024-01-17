@@ -477,7 +477,7 @@ def rev_type_of_ident(name: str) -> str:
 
     meta_kind = ident_map.get(name)
     if meta_kind == VariableMetaKind.MACRO_ARG:
-        return rev_type_of(default_type)
+        return rev_type_of(arg_ckind)
 
     if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
         if name not in var_map:
@@ -520,6 +520,8 @@ def rev_type_of(vtype: VariableType) -> str:
     }
 
     def rev_of(ckind: VariableCompKind):
+        if ckind == arg_ckind:
+            return 'macro_arg'
         if ckind == bool_ckind:
             return 'bool'
 
@@ -528,7 +530,7 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
-    if vtype == bool_type:
+    if vtype in (arg_type, bool_type):
         return rev_of(vtype.ckind)
 
     if vtype.ckind == ref_ckind:
@@ -562,7 +564,7 @@ def type_of_ident(ident: str) -> VariableType:
     meta_kind = ident_map.get(ident)
 
     if meta_kind == VariableMetaKind.MACRO_ARG:
-        return default_type
+        return arg_type
 
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         if ident not in ptr_map:
@@ -593,7 +595,7 @@ def type_of_lit(kind: NodeKind) -> VariableType:
     type_map = {
         NodeKind.STR_LIT: ptr_ckind,
         NodeKind.INT_LIT: default_ckind,
-        NodeKind.CHAR_LIT: bool_ckind,
+        NodeKind.CHAR_LIT: VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM),
     }
 
     if kind not in type_map:
@@ -649,8 +651,14 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
     return VariableType(ckind_map.get(kind), default_ckind)
 
 
-def type_compatible(ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
-    if ckind == ckind2:
+def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
+    if kind == NodeKind.ARR_ACC:
+        return True
+
+    if ckind.meta_kind == ckind2.meta_kind:
+        return True
+
+    if ckind == arg_ckind or ckind2 == arg_ckind:
         return True
 
     if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
@@ -660,6 +668,45 @@ def type_compatible(ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
 
 
 def allowed_op(ckind: VariableCompKind):
+    # Fix for macros
+    if ckind == arg_ckind:
+        return [
+            NodeKind.IDENT,
+            NodeKind.INT_LIT,
+            NodeKind.OP_ADD,
+            NodeKind.OP_SUB,
+            NodeKind.OP_MULT,
+            NodeKind.OP_DIV,
+            NodeKind.OP_MOD,
+            NodeKind.OP_AND,
+            NodeKind.OP_OR,
+            NodeKind.OP_ASSIGN,
+            NodeKind.DECLARATION,
+            NodeKind.OP_GT,
+            NodeKind.OP_LT,
+            NodeKind.OP_LTE,
+            NodeKind.OP_GTE,
+            NodeKind.OP_EQ,
+            NodeKind.OP_NEQ,
+            NodeKind.IF,
+            NodeKind.WHILE,
+            NodeKind.GLUE,
+            NodeKind.FUN,
+            NodeKind.FUN_CALL,
+            NodeKind.CHAR_LIT,
+            NodeKind.TRUE_LIT,
+            NodeKind.FALSE_LIT,
+            NodeKind.OP_WIDEN,
+            NodeKind.RET,
+            NodeKind.ARR_ACC,
+            NodeKind.REF,
+            NodeKind.DEREF,
+            NodeKind.STR_LIT,
+            NodeKind.DEFER,
+            NodeKind.ASM,
+            NodeKind.CAST
+        ]
+
     if ckind.meta_kind == VariableMetaKind.PRIM:
         return [
             NodeKind.INT_LIT,
@@ -756,6 +803,9 @@ def allowed_op(ckind: VariableCompKind):
 
 def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
+        return 0
+
+    if ckind == arg_ckind or ckind2 == arg_ckind:
         return 0
 
     if ckind == ref_ckind or ckind2 == ref_ckind:
@@ -931,9 +981,11 @@ void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL)
 default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
+arg_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.MACRO_ARG)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
+arg_type = VariableType(arg_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
