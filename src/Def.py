@@ -662,6 +662,8 @@ def type_compatible(ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
 def allowed_op(ckind: VariableCompKind):
     if ckind.meta_kind == VariableMetaKind.PRIM:
         return [
+            NodeKind.INT_LIT,
+            NodeKind.CHAR_LIT,
             NodeKind.CAST,
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
@@ -683,6 +685,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == bool_ckind:
         return [
+            NodeKind.TRUE_LIT,
+            NodeKind.FALSE_LIT,
             NodeKind.CAST,
             NodeKind.OP_ASSIGN,
             NodeKind.OP_GT,

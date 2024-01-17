@@ -1,38 +1,30 @@
 import "../../cstdlib"
+# import "../../stdlib"
 
-namespace x
-    extern fun mac(s: int8*): void
-    fun printf(): int32
-    end
+macro alloc_dsign(name, size)
+    name = 15
+    defer free(name)
 end
 
-namespace x
-    fun fun1(): void
-    end
-    namespace y
-        fun fun2(): void
-            mac("")
-            printf("")
-            malloc(5)
-        end
-    end
+macro with(name, val, expr)
+    name = val
+    expr
 end
 
-macro print(num)
-    let idx = 0
-    while idx < num
-        printf("%lld", idx)
-        idx = idx + 1
-    end
+macro with_alloc2(ptr, size, expr)
+    ptr = malloc(size)
+    expr
+    free(ptr)
 end
 
-macro log(msg)
-    printf("%s:%lld: %s", fun, lineno, msg)
-    printf("")
+macro with_alloc(ptr, size, expr)
+    with(ptr, malloc(size), expr)
+    free(ptr)
 end
 
 fun main(): int64
-    log("Hi")
+    let c: int64* = 0
+    with_alloc(c, 100, ((c = scanf("%s", c)), printf("%s", c)))
     ret 0
 end
 end

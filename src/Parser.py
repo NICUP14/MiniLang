@@ -305,13 +305,30 @@ class Parser:
         type_str = str_node.value.lstrip('\"').rstrip('\"')
         return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
 
-    def args_to_list(self, node: Node) -> List[Node]:
+    def args_to_list(self, node: Node, arg_cnt: int) -> List[Node]:
         glue_node = node
         arg_list: list[Node] = []
 
         if glue_node.kind != NodeKind.GLUE:
             arg_list.append(glue_node)
         else:
+            cnt = 0
+            while glue_node is not None:
+                cnt += 1
+                glue_node = glue_node.left
+
+            glue_node = node
+            if cnt > arg_cnt:
+                block_node: Node = copy_of(node)
+                arg_list.append(block_node)
+
+                for _ in range(cnt - arg_cnt):
+                    block_node = block_node.left
+                block_node.left = None
+
+                for _ in range(cnt - arg_cnt + 1):
+                    glue_node = glue_node.left
+
             while glue_node is not None:
                 arg_list.append(glue_node.right)
                 glue_node = glue_node.left
@@ -324,14 +341,13 @@ class Parser:
         if len(arg_list) != len(macro.arg_names):
             print_error('expand_macro',
                         f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
+
         arg_names = list(
             map(lambda name: full_name_of_var(name, exhaustive_match=False), macro.arg_names))
         for name in arg_names:
             Def.ident_map[name] = VariableMetaKind.MACRO_ARG
 
         def expand_arg(node: Node) -> Optional[Node]:
-            # if node is None:
-            #     return node
             if node is None or node.kind != NodeKind.IDENT:
                 return node
 
@@ -351,12 +367,15 @@ class Parser:
             return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
 
         macro.parser.lineno = self.lineno
-        body = macro.parser.parse()
+        body = Parser(macro.parser).parse()
         self.lineno += (macro.parser.lineno - self.lineno - 1)
 
+        # Defer fix
+        Def.deferred = helper(Def.deferred)
+
         # Removes macro placeholders
-        Def.ident_map = dict(filter(lambda t: not t[0].startswith(
-            f'{macro.name}_'), Def.ident_map.items()))
+        # Def.ident_map = dict(
+        #     filter(lambda t: t[1] != VariableMetaKind.MACRO_ARG, Def.ident_map.items()))
 
         return helper(body)
 
@@ -389,7 +408,6 @@ class Parser:
 
                 # Distinguishes between identifiers and literals
                 elif token.kind == TokenKind.IDENT:
-                    print('DBG:', token.value)
                     node_stack.append(
                         Node(self.node_kind_of(token.kind), type_of_ident(token.value), token.value))
 
@@ -430,7 +448,7 @@ class Parser:
 
                             node = node_stack.pop()
                             body = self.expand_macro(
-                                macro, self.args_to_list(node))
+                                macro, self.args_to_list(node, macro.arg_cnt))
 
                             node_stack.append(body)
 
@@ -540,23 +558,23 @@ class Parser:
                             NodeKind.GLUE, void_type, '', None, left), right))
 
                     else:
+                        kind = self.node_kind_of(token.kind)
+                        if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type):
+                            print_error('to_tree',
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #1)', self)
+
+                        if kind not in allowed_op(left.ntype.ckind):
+                            print_error('to_tree',
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #2)', self)
+
                         # Widens the operands if necessary
                         code = needs_widen(left.ntype.ckind, right.ntype.ckind)
-                        kind = self.node_kind_of(token.kind)
                         if code == 1 and kind not in (NodeKind.GLUE, NodeKind.OP_ASSIGN):
                             left = Node(NodeKind.OP_WIDEN,
                                         right.ntype, left.value, left)
                         if code == 2 and kind != NodeKind.GLUE:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
-
-                        if kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type):
-                            print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
-
-                        if kind not in allowed_op(left.ntype.ckind):
-                            print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', self)
 
                         node_stack.append(
                             Node(kind, type_of_op(kind), token.value, left, right))
@@ -848,6 +866,9 @@ class Parser:
             Def.ckind_map[alias] = ref_ckind
 
     def defer_statement(self) -> None:
+        if Def.macro_name != '':
+            return None
+
         node = self.token_list_to_tree()
         if Def.deferred is None:
             Def.deferred = node
@@ -856,6 +877,10 @@ class Parser:
                                 '', Def.deferred, node)
 
     def block_statement(self) -> Optional[Node]:
+        if Def.fun_name == '':
+            print_error('block_statement',
+                        'Global block declarations are not allowed', self)
+
         name = ''
         unnamed_block = self.no_more_tokens()
 

@@ -106,6 +106,8 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.GLUE:
         empty_str = ''
         add_indent = parent is not None and parent.kind != NodeKind.GLUE
+        if left is None:
+            return f'{indent if add_indent else empty_str}{right}'
         if right is None:
             return f'{indent if add_indent else empty_str}{left}'
         else:

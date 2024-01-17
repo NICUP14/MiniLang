@@ -106,14 +106,14 @@ class TokenKind(enum.Enum):
     KW_LINE = enum.auto()
     KW_LINENO = enum.auto()
     KW_OFF = enum.auto()
-    KW_SIZE = enum.auto(),
-    KW_LEN = enum.auto(),
-    KW_CAST = enum.auto(),
-    KW_BOOL = enum.auto(),
-    TRUE_LIT = enum.auto(),
-    FALSE_LIT = enum.auto(),
-    KW_BLOCK = enum.auto(),
-    KW_MACRO = enum.auto(),
+    KW_SIZE = enum.auto()
+    KW_LEN = enum.auto()
+    KW_CAST = enum.auto()
+    KW_BOOL = enum.auto()
+    TRUE_LIT = enum.auto()
+    FALSE_LIT = enum.auto()
+    KW_BLOCK = enum.auto()
+    KW_MACRO = enum.auto()
     MACRO_CALL = enum.auto()
 
 
@@ -236,7 +236,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,
-        TokenKind.KW_CAST
+        TokenKind.KW_CAST,
     )
 
 
@@ -306,7 +306,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_LEN,
         TokenKind.KW_CAST,
         TokenKind.FUN_CALL,
-        TokenKind.MACRO_CALL
+        TokenKind.MACRO_CALL,
     ]
 
 
