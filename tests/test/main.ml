@@ -6,9 +6,9 @@ macro with(name, val, expr)
     expr
 end
 
-macro with_alloc(ptr, size, expr)
-    with(ptr, malloc(size), expr)
-    free(ptr)
+macro with_alloc(cptr, size, expr)
+    with(cptr, malloc(size), expr)
+    free(cptr)
 end
 
 macro test(name, val)
@@ -17,10 +17,11 @@ macro test(name, val)
 end
 
 fun main: int64
-    let d = 0
+    # let d = 0
+    # let dptr: int8* = nullptr
+    # assert(false)
+    # test(c, nullptr)
     let c: int8* = nullptr
-    assert(false)
-    test(c, nullptr)
     with_alloc(c, 100, (scanf("%s", c), printf("%s", c)))
     ret 0
 end

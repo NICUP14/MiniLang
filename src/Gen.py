@@ -732,14 +732,15 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
             right_opd.var_type = default_type
 
         opd = copy_of(left_opd)
-        if opd.var_type.ckind in (arr_ckind, ptr_ckind, ref_ckind):
+        vtype = opd.var_type.ckind
+        if vtype in (arr_ckind, ptr_ckind, ref_ckind):
             if opd.reg == Register.id_max:
                 opd.reg = alloc_reg(opd=opd)
 
             if node.left.kind == NodeKind.IDENT:
                 gen_load_addr(opd)
 
-                if node.kind != NodeKind.DECLARATION:
+                if vtype == ref_ckind and node.kind != NodeKind.DECLARATION:
                     gen_load_ptr(opd)
 
             if node.left.kind == NodeKind.DEREF:

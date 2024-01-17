@@ -477,7 +477,7 @@ def rev_type_of_ident(name: str) -> str:
 
     meta_kind = ident_map.get(name)
     if meta_kind == VariableMetaKind.MACRO_ARG:
-        return rev_type_of(arg_ckind)
+        return rev_type_of(arg_type)
 
     if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
         if name not in var_map:
