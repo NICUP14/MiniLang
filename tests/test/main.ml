@@ -1,5 +1,6 @@
 import "../../cstdlib"
 import "../../stdlib"
+import "../../va_utils"
 
 macro with(name, val, expr)
     name = val
@@ -34,6 +35,7 @@ fun main: int64
     # let dptr: int8* = nullptr
     # assert(false)
     # test(c, nullptr)
+    let list: va_list = nullptr
     let x: int64* = nullptr
     to_printf(1, 2, 3, 4, 5, 6, 7, 8, 9)
     # assign(x, )

@@ -392,10 +392,14 @@ def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bo
     return name
 
 
-def full_name_of_var(name: str, force_global: bool = False, exhaustive_match: bool = True):
+def full_name_of_var(name: str, force_local: bool = False, exhaustive_match: bool = True):
+    # Local match (forced)
+    if force_local:
+        return "_".join(fun_name_list + [name])
+
     # Namespace match
     global_name = "_".join(module_name_list + [name])
-    if force_global or global_name in var_map:
+    if global_name in var_map:
         return global_name
 
     # Direct match
@@ -653,16 +657,11 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
 
 
 def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
-    if kind == NodeKind.ARR_ACC:
+    if kind in (NodeKind.ARR_ACC, NodeKind.WHILE, NodeKind.IF):
         return True
 
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
-
-    # Debug
-    # if node.kind == NodeKind.OP_ASSIGN:
-    #     print('DBG:', self.curr_line(), rev_type_of(left.ntype),
-    #             rev_type_of(right.ntype))
 
     if ckind.meta_kind == ckind2.meta_kind:
         return True
@@ -952,8 +951,8 @@ CALL_REGS = (
 )
 
 BOOL_VALUES = {
-    "true": "0",
-    "false": "1"
+    "true": "1",
+    "false": "0"
 }
 
 # Configuration flag

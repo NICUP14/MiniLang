@@ -586,7 +586,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node.kind == NodeKind.CAST:
         opd = gen_tree(node.left, node, -1)
 
-        if needs_widen(node.left.ntype.ckind, node.ntype.ckind) == 1:
+        if needs_widen(opd.var_type.ckind, node.ntype.ckind) == 1:
             gen_load(opd)
             gen_widen(opd, node.ntype)
         return opd
@@ -710,7 +710,8 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
                 left_opd.var_type = elem_type
                 left_opd.load()
-                gen_widen(left_opd)
+                if needs_widen(left_opd.var_type.ckind, default_ckind) == 1:
+                    gen_widen(left_opd)
 
             elif left_opd.var_type.ckind == ptr_ckind:
                 ptr = Def.ptr_map.get(left_opd.value)
@@ -719,7 +720,8 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
                 left_opd.var_type = elem_type
                 left_opd.load()
-                gen_widen(left_opd)
+                if needs_widen(left_opd.var_type.ckind, default_ckind) == 1:
+                    gen_widen(left_opd)
 
             else:
                 gen_load_ptr(left_opd)

@@ -1,8 +1,9 @@
 # Bugs
 
-Solved: 7/11
+Solved: 8/12
 
-- [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`)
+- [X] Passing arguments from variadic macro to fun doesn't work.
+- [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
 - [ ] Cannot call function as a function param.
 - [X] No type checking for reference and dereference (`*bool = int64`).
 - [X] Faulty load before an assignment (div).

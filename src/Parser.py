@@ -54,6 +54,7 @@ from Def import node_is_cmp
 from Snippet import copy_of
 
 PRECEDENCE_MAP = {
+    TokenKind.KW_CAST: 26,
     TokenKind.DEREF: 26,
     TokenKind.AMP: 26,
     TokenKind.KW_ASM: 25,
@@ -74,7 +75,7 @@ PRECEDENCE_MAP = {
     TokenKind.LT: 6,
     TokenKind.LTE: 6,
     TokenKind.GTE: 6,
-    TokenKind.COMMA: 3
+    TokenKind.COMMA: 3,
 }
 
 NODE_KIND_MAP = {
@@ -342,6 +343,35 @@ class Parser:
 
         return arg_list
 
+    def merge_fun_call(self, node: Node) -> Optional[Node]:
+        def append_arg(arg_node: Node, left: Node) -> Node:
+            new_node: Node = copy_of(arg_node)
+            glue_node = new_node
+            prev_node = new_node
+            while glue_node is not None:
+                prev_node = glue_node
+                glue_node = glue_node.left
+
+            if left is not None:
+                prev_node.left = left
+
+            return new_node
+
+        if node is None:
+            return None
+
+        if node.kind != NodeKind.GLUE:
+            return node
+
+        left, right = list(
+            map(lambda n: self.merge_fun_call(n), (node.left, node.right)))
+
+        if right.kind == NodeKind.GLUE:
+            arg_node = append_arg(right, left)
+            return (Node(node.kind, node.ntype, node.value, arg_node.left, arg_node.right))
+        else:
+            return Node(node.kind, node.ntype, node.value, left, right)
+
     def expand_macro(self, macro: Macro, arg_list: List[Node]) -> Optional[Node]:
         if len(arg_list) != len(macro.arg_names):
             print_error('expand_macro',
@@ -390,6 +420,18 @@ class Parser:
 
             return (Node(node.kind, node.ntype, node.value, left, right, middle))
 
+        def merge_helper(node: Node):
+            if node is None:
+                return None
+
+            if node.kind == NodeKind.FUN_CALL:
+                return Node(NodeKind.FUN_CALL, node.ntype, node.value, self.merge_fun_call(node.left))
+
+            middle, left, right = list(
+                map(lambda n: merge_helper(n), (node.middle, node.left, node.right)))
+
+            return Node(node.kind, node.ntype, node.value, left, right, middle)
+
         def expand_helper(node: Node) -> Optional[Node]:
             if node is None:
                 return None
@@ -404,16 +446,14 @@ class Parser:
         self.lineno += (macro.parser.lineno - self.lineno - 1)
 
         # Defer fix
-        Def.deferred = expand_helper(Def.deferred)
+        Def.deferred = merge_helper(expand_helper(Def.deferred))
         type_helper(Def.deferred)
 
         # Removes macro placeholders
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
                 del Def.ident_map[name]
-        # Def.ident_map = dict(
-        #     filter(lambda t: t[1] != VariableMetaKind.MACRO_ARG, Def.ident_map.items()))
-        node = expand_helper(body)
+        node = merge_helper(expand_helper(body))
         type_helper(node)
 
         return node
@@ -878,7 +918,7 @@ class Parser:
                 arg_name, exhaustive_match=False)] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
-            if meta_kind == VariableMetaKind.PRIM:
+            if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
                 Def.var_map[full_name_of_var(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
             if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
@@ -1172,7 +1212,8 @@ class Parser:
             return
 
         is_local = Def.fun_name != ''
-        var_name = full_name_of_var(name, exhaustive_match=False)
+        var_name = full_name_of_var(
+            name, force_local=True, exhaustive_match=False)
         full_name = var_name if is_local else full_name_of_var(name, True)
         Def.ident_map[full_name] = meta_kind
 
