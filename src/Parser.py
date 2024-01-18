@@ -347,13 +347,27 @@ class Parser:
             print_error('expand_macro',
                         f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
 
+        # For argument count builtin
+        arg_cnt = 0
+        if len(arg_list) > 0:
+            glue_node = arg_list[0]
+            while glue_node is not None:
+                arg_cnt += 1
+                glue_node = glue_node.left
+
         arg_names = list(
             map(lambda name: full_name_of_var(name, exhaustive_match=False), macro.arg_names))
         for name in arg_names:
             Def.ident_map[name] = VariableMetaKind.MACRO_ARG
 
         def expand_arg(node: Node) -> Optional[Node]:
-            if node is None or node.kind != NodeKind.IDENT:
+            if node is None:
+                return None
+
+            if node.kind == NodeKind.ARG_CNT:
+                return Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arg_cnt))
+
+            if node.kind != NodeKind.IDENT:
                 return node
 
             name = node.value
@@ -394,6 +408,9 @@ class Parser:
         type_helper(Def.deferred)
 
         # Removes macro placeholders
+        for name in arg_names:
+            if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
+                del Def.ident_map[name]
         # Def.ident_map = dict(
         #     filter(lambda t: t[1] != VariableMetaKind.MACRO_ARG, Def.ident_map.items()))
         node = expand_helper(body)
@@ -411,6 +428,11 @@ class Parser:
                     node_stack.append(
                         Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(self.lineno + 1)))
 
+                # Argument count builtin
+                elif token.kind == TokenKind.KW_ARG_CNT:
+                    node_stack.append(
+                        Node(NodeKind.ARG_CNT, type_of_lit(NodeKind.INT_LIT), 'arg_cnt'))
+
                 # Line builtin
                 elif token.kind == TokenKind.KW_LINE:
                     chars = '\t '
@@ -418,10 +440,15 @@ class Parser:
                     node_stack.append(
                         Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{self.curr_line().lstrip(chars).rstrip(newline)}"'))
 
-                # Func builtin
+                # Fun builtin
                 elif token.kind == TokenKind.KW_FUN:
                     node_stack.append(
                         Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{Def.fun_name}"'))
+
+                # Macro builtin
+                elif token.kind == TokenKind.KW_MACRO:
+                    node_stack.append(
+                        Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{Def.macro_name}"'))
 
                 # File builtin
                 elif token.kind == TokenKind.KW_FILE:
@@ -931,6 +958,10 @@ class Parser:
         return Node(NodeKind.GLUE, void_type, '', block_node, Node(NodeKind.END, void_type, 'end'))
 
     def macro_statement(self) -> None:
+        if Def.macro_name != '':
+            print_error('macro_declaration',
+                        'Nested macros are not allowed', self)
+
         if Def.fun_name != '':
             print_error('macro_declaration',
                         'Local macros are not allowed', self)
@@ -968,6 +999,10 @@ class Parser:
         _ = self.compound_statement()
         Def.macro_name = ''
         Def.block_cnt = 0
+
+        for name in arg_names:
+            if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
+                del Def.ident_map[name]
 
         # Def.macro_name = full_name
         # Def.fun_name_list.append(full_name)
@@ -1152,9 +1187,9 @@ class Parser:
                 return None
 
             node = self.token_list_to_tree()
-            if var_type == bool_type and var_type != node.ntype:
+            if not type_compatible(NodeKind.DECLARATION, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
-                            f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}')
+                            f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
 
             if node.ntype == void_ckind:
                 print_error('declaration',
@@ -1190,9 +1225,9 @@ class Parser:
             else:
                 node = self.token_list_to_tree()
 
-            if node.ntype == void_type:
+            if not type_compatible(NodeKind.DECLARATION, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
-                            'Declaration of pointer with a void rvalue is not allowed.', self)
+                            f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
 
             return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 

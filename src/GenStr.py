@@ -48,6 +48,10 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node is None:
         return ''
 
+    if node.kind == NodeKind.ARG_CNT:
+        print_error('tree_str',
+                    f'Use of node of kind {node.kind} (ma_arg) is not allowed outside macros')
+
     if node.kind != NodeKind.FUN_CALL and node.left:
         left = tree_str(node.left, node, cnt +
                         has_indent(node.kind) - (node.kind == NodeKind.END))

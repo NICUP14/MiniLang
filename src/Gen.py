@@ -526,6 +526,10 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node is None:
         return
 
+    if node.kind == NodeKind.ARG_CNT:
+        print_error('gen_tree',
+                    f'Use of node of kind {node.kind} (ma_arg) is not allowed outside macros')
+
     if Def.comments_enabled == True and node.kind in (NodeKind.OP_ASSIGN,
                                                       NodeKind.DECLARATION,
                                                       NodeKind.IF,

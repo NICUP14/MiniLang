@@ -210,6 +210,7 @@ class NodeKind(enum.Enum):
     CAST = enum.auto()
     BLOCK = enum.auto()
     NAMESPACE = enum.auto()
+    ARG_CNT = enum.auto()
     END = enum.auto()
 
 
@@ -654,6 +655,14 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
 def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
     if kind == NodeKind.ARR_ACC:
         return True
+
+    if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
+        return False
+
+    # Debug
+    # if node.kind == NodeKind.OP_ASSIGN:
+    #     print('DBG:', self.curr_line(), rev_type_of(left.ntype),
+    #             rev_type_of(right.ntype))
 
     if ckind.meta_kind == ckind2.meta_kind:
         return True

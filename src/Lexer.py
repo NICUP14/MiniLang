@@ -115,6 +115,7 @@ class TokenKind(enum.Enum):
     KW_BLOCK = enum.auto()
     KW_MACRO = enum.auto()
     MACRO_CALL = enum.auto()
+    KW_ARG_CNT = enum.auto()
 
 
 @dataclass
@@ -178,6 +179,7 @@ TOKEN_KIND_MAP = {
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
+    'ma_cnt': TokenKind.KW_ARG_CNT
 }
 
 
@@ -187,6 +189,7 @@ def token_is_lit(kind: TokenKind) -> bool:
         TokenKind.KW_LINE,
         TokenKind.KW_FILE,
         TokenKind.KW_LINENO,
+        TokenKind.KW_ARG_CNT,
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
@@ -201,6 +204,7 @@ def token_is_param(kind: TokenKind) -> bool:
         TokenKind.KW_LINE,
         TokenKind.KW_FILE,
         TokenKind.KW_LINENO,
+        TokenKind.KW_ARG_CNT,
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
