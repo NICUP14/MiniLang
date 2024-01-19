@@ -1,7 +1,9 @@
 # Bugs
 
-Solved: 8/12
+Solved: 8/14
 
+- [ ] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
+- [ ] Cast in macro allowes this: `cast("int64", (1, 2, 3))`.
 - [X] Passing arguments from variadic macro to fun doesn't work.
 - [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
 - [ ] Cannot call function as a function param.

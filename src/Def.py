@@ -663,6 +663,9 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
 
+    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN) and ckind == ptr_ckind and ckind2 == arr_ckind:
+        return True
+
     if ckind.meta_kind == ckind2.meta_kind:
         return True
 

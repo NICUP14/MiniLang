@@ -27,23 +27,10 @@ fun _max(cnt: int64, ...): int64
 
     let ccnt = cnt
     
-    # let arg = va_arg(&list)
-    # let arg2 = va_arg(&list)
-    # let arg3 = va_arg(&list)
-    # printf("%lld %lld %lld\n", arg, arg2, arg3)
-
     let idx = 0
     let arg = 0
     let max = 0
     for(idx, 0, ccnt, (arg = va_arg(&list)), (max = cond(arg > max, arg, max)))
-    # while idx < cnt
-    #     idx = idx + 1
-    #     arg = va_arg(&list)
-    #     printf("Arg: %lld\n", arg)
-    #     if arg > max
-    #         max = arg
-    #     end
-    # end
 
     ret max
 end

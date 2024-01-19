@@ -44,16 +44,10 @@ asm "	pop %r8"
 asm "	pop %r9"
 asm ".endm"
 
-asm ".macro printf_rsp fmt"
-asm "   lea \fmt, %rdi"
-asm "   mov %rsp, %rsi"
-asm "   xor %rax, %rax"
-asm "   call printf"
-asm ".endm"
-
+# va_list type definition (int64[3]*)
 typedef va_list = int64*
 
-fun va_start(list: va_list): va_list
+fun _va_start(list: va_list): va_list
     let callee = cast("int64", &list) + 8
     let callee_rbp = cast("int64*", callee)
     let caller_rbp = cast("int64*", *callee_rbp)
@@ -62,17 +56,26 @@ fun va_start(list: va_list): va_list
     let reg_ptr: int64* = cast("int64*", cast("int64", callee_rbp) + 24)
     let stack_ptr: int64* = cast("int64*", cast("int64", caller_rbp) +  24)
 
-    # let addr: int64* = malloc(48)
-    # memcpy(addr, reg_ptr, 48)
+    let addr: int64* = malloc(48)
+    memcpy(addr, reg_ptr, 48)
 
     # list[0] (list->idx) - Current list index
     # list[1] (list->reg_ptr) - A pointer to the stack-saved registers (caller's stack address)
     # list[2] (list->stack_ptr) - A pointer to the stack-saved values (caller's caller stack address)
     list[0] = 0
-    list[1] = cast("int64", reg_ptr)
+    list[1] = cast("int64", addr)
     list[2] = cast("int64", stack_ptr)
 
     ret list
+end
+
+fun _va_end(list: va_list): void
+    free(list[1])
+end
+
+macro va_start(list)
+    _va_start(list)
+    defer _va_end(list)
 end
 
 fun va_arg(list: va_list): int64
@@ -90,8 +93,4 @@ fun va_arg(list: va_list): int64
     let addr = cast("int64*", base + idx * 8)
     ret *addr
 end
-
-# fun va_end(list: int64*): void
-#     free(list[1])
-# end
 end

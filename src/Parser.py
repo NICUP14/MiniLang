@@ -238,7 +238,7 @@ class Parser:
                             token.value, exhaustive_match=True)
                         if name not in Def.ident_map:
                             print_error('to_postfix',
-                                        f'Invalid identifier {name}')
+                                        f'Invalid identifier {name}', self)
 
                         postfix_tokens.append(
                             Token(TokenKind.IDENT, name))
@@ -441,9 +441,11 @@ class Parser:
 
             return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
 
-        macro.parser.lineno = self.lineno
-        body = Parser(macro.parser).parse()
-        self.lineno += (macro.parser.lineno - self.lineno - 1)
+        parser = Parser(macro.parser)
+        parser.source = self.source
+        parser.lineno = self.lineno - 1
+        body = parser.parse()
+        self.lineno += (parser.lineno - self.lineno)
 
         # Defer fix
         Def.deferred = merge_helper(expand_helper(Def.deferred))
@@ -1137,7 +1139,7 @@ class Parser:
     def declaration(self) -> Optional[Node]:
         if Def.macro_name != '':
             print_error('declaration',
-                        'Variable declarations within macro are not allowed', self)
+                        f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
 
         name = self.match_token(TokenKind.IDENT).value
 

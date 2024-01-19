@@ -8,6 +8,7 @@ extern fun free(ptr: void*): void
 extern fun memset(ptr: void*, value: int32, num: int64): void*
 extern fun memcpy(dest: void*, src: void*, num: int64): void*
 extern fun strlen(str: int8*): int64
+extern fun strdup(str: int8*): int8*
 extern fun strcpy(dest: int8*, src: int8*): int8*
 extern fun strncpy(dest: int8*, src: int8*, num: int64): int8*
 extern fun strcmp(str1: int8*, str2: int8*): int32
@@ -24,4 +25,13 @@ extern fun abs(number: int32): int32
 extern fun labs(number: int64): int64
 extern fun rand(): int32
 extern fun srand(seed: int32): void
+extern fun fopen(filename: int8*, mode: int8*): void*
+extern fun fclose(stream: void*): int32
+extern fun fread(ptr: void*, size: int64, count: int64, stream: void*): int64
+extern fun fwrite(ptr: void*, size: int64, count: int64, stream: void*): int64
+extern fun fseek(stream: void*, offset: int64, origin: int32): int32
+extern fun ftell(stream: void*): int64
+extern fun rewind(stream: void*): void
+extern fun remove(filename: int8*): int32
+extern fun rename(oldname: int8*, newname: int8*): int32
 end
