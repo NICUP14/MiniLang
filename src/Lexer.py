@@ -105,6 +105,7 @@ class TokenKind(enum.Enum):
     KW_FILE = enum.auto()
     KW_LINE = enum.auto()
     KW_LINENO = enum.auto()
+    KW_TYPE = enum.auto()
     KW_OFF = enum.auto()
     KW_SIZE = enum.auto()
     KW_LEN = enum.auto()
@@ -170,6 +171,7 @@ TOKEN_KIND_MAP = {
     'file': TokenKind.KW_FILE,
     'line': TokenKind.KW_LINE,
     'lineno': TokenKind.KW_LINENO,
+    'type_of': TokenKind.KW_TYPE,
     'off_of': TokenKind.KW_OFF,
     'size_of': TokenKind.KW_SIZE,
     'len_of': TokenKind.KW_LEN,
@@ -237,6 +239,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.FUN_CALL,
         TokenKind.MACRO_CALL,
         TokenKind.KW_ASM,
+        TokenKind.KW_TYPE,
         TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,
@@ -305,6 +308,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.DEREF,
         TokenKind.AMP,
         TokenKind.KW_ASM,
+        TokenKind.KW_TYPE,
         TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,

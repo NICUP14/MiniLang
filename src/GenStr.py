@@ -132,6 +132,8 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'widen({left})'
     if node.kind == NodeKind.CAST:
         return f'{color_str(Color.BLUE, "cast")}(\"{color_str(Color.GREEN, rev_type_of(node.ntype))}\", {left})'
+    if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.SIZE):
+        return f'{color_str(Color.BLUE, node.value)}({left})'
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "ret")} {left}'
     if node.kind == NodeKind.BLOCK:

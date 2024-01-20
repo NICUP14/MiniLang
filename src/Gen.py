@@ -333,7 +333,7 @@ def gen_fun_call(node: Node):
             opd = gen_tree(glue_node, node, -1)
             opd_dst = Operand('', opd.var_type, CALL_REGS[0])
 
-            if not type_compatible(NodeKind.FUN_CALL, opd.var_type.ckind, fun.arg_types[0].ckind):
+            if not type_compatible(NodeKind.FUN_CALL, fun.arg_types[0].ckind, opd.var_type.ckind):
                 print_error('gen_fun_call',
                             f'Incompatible type in {name}\'s function call (name={fun.arg_names[0]}, type1={rev_type_of(opd.var_type)}, type2={rev_type_of(fun.arg_types[0])}, param_idx=0)')
 
@@ -582,6 +582,53 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
 
     if node.kind == NodeKind.FUN_CALL:
         return gen_fun_call(node)
+
+    if node.kind == NodeKind.TYPE:
+        opd = gen_tree(node.left, node, -1)
+        free_reg(opd.reg)
+        return gen_tree(Node(NodeKind.STR_LIT, node.ntype, rev_type_of(opd.var_type)), node, -1)
+
+    if node.kind == NodeKind.OFF:
+        if node.left.kind != NodeKind.IDENT:
+            return gen_tree(Node(NodeKind.INT_LIT, node.ntype, '0'), node, -1)
+            # print_error('gen_tree',
+            #             f'The off_of builtin accepts only identifiers, got {node.left.kind}')
+
+        return gen_tree(Node(NodeKind.INT_LIT, node.ntype, str(off_of(node.left.value))), node, -1)
+
+    if node.kind == NodeKind.LEN:
+        if node.left.kind != NodeKind.IDENT:
+            return gen_tree(Node(NodeKind.INT_LIT, node.ntype, '0'), node, -1)
+            # print_error('gen_tree',
+            #             f'The len_of builtin accepts only identifiers, got {node.left.kind}')
+
+        ident = node.left.value
+        meta_kind = Def.ident_map.get(ident)
+        if ident not in Def.ident_map:
+            print_error('to_tree',
+                        f'The len_of builtin only accepts pre-declared identifiers, got {ident}')
+        # if meta_kind not in (VariableMetaKind.ARR, VariableMetaKind.PTR):
+        #     print_error('to_tree',
+        #                 f'The len_of builtin only accepts array/pointer identifiers, got {meta_kind}')
+
+        elem_cnt = 0
+        if meta_kind == VariableMetaKind.ARR:
+            arr = Def.arr_map.get(ident)
+            elem_cnt = arr.elem_cnt
+        if meta_kind == VariableMetaKind.PTR:
+            ptr = Def.ptr_map.get(ident)
+            elem_cnt = ptr.elem_cnt
+
+        return gen_tree(Node(NodeKind.INT_LIT, node.ntype, str(elem_cnt)), node, -1)
+
+    if node.kind == NodeKind.SIZE:
+        if node.left.kind != NodeKind.IDENT:
+            return gen_tree(Node(NodeKind.INT_LIT, node.ntype, '0'), node, -1)
+            # print_error('gen_tree',
+            #             f'The size_of builtin accepts only identifiers, got {node.left.kind}')
+
+        size = Def.size_of_ident(node.left.value)
+        return gen_tree(Node(NodeKind.INT_LIT, node.ntype, str(size)), node, -1)
 
     if node.kind == NodeKind.CAST:
         opd = gen_tree(node.left, node, -1)

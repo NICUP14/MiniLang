@@ -97,9 +97,10 @@ file               | String literal       | Source file
 line               | String literal       | Source line
 lineno             | Integer literal      | Source line number
 ma_cnt             | Integer literal      | Macro argument expression count*
-size_of(ident)     | Integer literal      | Variable size
-size_of(ident)     | Integer literal      | Variable stack offset
+off_of(ident)      | Integer literal      | Variable stack offset
 len_of(ident)      | Integer literal      | Element count of the array
+size_of(ident)     | Integer literal      | Variable size
+type_of(expr)      | String literal       | Expression type
 cast("type", expr) | Any                  | The expression cast to type
 asm("statement")   | Void                 | -
 
@@ -108,8 +109,8 @@ asm("statement")   | Void                 | -
 # From tests/builtins/main.ml:
 fun main(): int64
     let a: int8* = 0
-    printf("off_of(a): %lld", off_of("a"))
-    printf("size_of(a): %lld", size_of("a"))
+    printf("off_of(a): %lld", off_of(a))
+    printf("size_of(a): %lld", size_of(a))
     printf("%s:%s: Test", file, fun)
     assert_extra(a != 0, line, file, lineno)
     ret 0

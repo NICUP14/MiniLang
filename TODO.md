@@ -1,16 +1,14 @@
 # TODO
 
-Solved: 11/17
+Solved: 15/17
 
-- [ ] Add macro unliteral operator
 - [ ] Structs.
 - [ ] Global arrays.
-- [ ] Fix type system.
-- [ ] Widen during parsing.
-- [ ] Static type analysis.
-- [ ] Function assignment (alias).
-- [ ] Check args in function call.
-- [ ] Include section in README regarding miscellaneous features (references, fixed-len pointers, namespaces)
+- [X] Fix type system.
+- [X] Widen during parsing.
+- [X] Static type analysis.
+- [X] Check args in function call.
+- [X] Include section in README regarding miscellaneous features (references, fixed-len pointers, namespaces)
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack alignment. (align by 16-bytes)

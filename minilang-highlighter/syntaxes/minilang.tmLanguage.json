@@ -15,7 +15,7 @@
 				},
 				{
 					"name": "keyword.control.minilang",
-					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef|import|namespace|defer|asm|file|line|lineno|off_of|size_of|len_of|cast|true|false|block|macro|ma_cnt)\\b"
+					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|at|typedef|import|namespace|defer|asm|file|line|lineno|type_of|off_of|size_of|len_of|cast|true|false|block|macro|ma_cnt)\\b"
 				},
 				{
 					"name": "storage.type.minilang",

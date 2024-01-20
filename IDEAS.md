@@ -1,9 +1,9 @@
 # Ideas
 
-Solved: 8/9
+Solved: 9/11
 
 - [ ] exists builtin -> boolean
-- [ ] type_of builtin -> str literal
+- [X] type_of builtin -> str literal
 - [ ] Check for already-imported modules (import set).
 - [X] Type inference.
 - [X] Type definitions.

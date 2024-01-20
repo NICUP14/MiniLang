@@ -208,6 +208,10 @@ class NodeKind(enum.Enum):
     DEFER = enum.auto()
     ASM = enum.auto()
     CAST = enum.auto()
+    TYPE = enum.auto()
+    OFF = enum.auto()
+    LEN = enum.auto()
+    SIZE = enum.auto()
     BLOCK = enum.auto()
     NAMESPACE = enum.auto()
     ARG_CNT = enum.auto()
@@ -663,9 +667,6 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
 
-    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN) and ckind == ptr_ckind and ckind2 == arr_ckind:
-        return True
-
     if ckind.meta_kind == ckind2.meta_kind:
         return True
 
@@ -673,6 +674,9 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
         return True
 
     if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
+        return True
+
+    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN, NodeKind.FUN_CALL) and ckind == ptr_ckind and ckind2 == arr_ckind:
         return True
 
     return False

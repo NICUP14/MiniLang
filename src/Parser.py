@@ -55,6 +55,10 @@ from Snippet import copy_of
 
 PRECEDENCE_MAP = {
     TokenKind.KW_CAST: 26,
+    TokenKind.KW_TYPE: 26,
+    TokenKind.KW_OFF: 26,
+    TokenKind.KW_LEN: 26,
+    TokenKind.KW_SIZE: 26,
     TokenKind.DEREF: 26,
     TokenKind.AMP: 26,
     TokenKind.KW_ASM: 25,
@@ -104,6 +108,10 @@ NODE_KIND_MAP = {
     TokenKind.STR_LIT: NodeKind.STR_LIT,
     TokenKind.KW_ASM: NodeKind.ASM,
     TokenKind.KW_CAST: NodeKind.CAST,
+    TokenKind.KW_TYPE: NodeKind.TYPE,
+    TokenKind.KW_OFF: NodeKind.OFF,
+    TokenKind.KW_LEN: NodeKind.LEN,
+    TokenKind.KW_SIZE: NodeKind.SIZE,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
     TokenKind.FALSE_LIT: NodeKind.FALSE_LIT
 }
@@ -253,8 +261,8 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
-                # Assembly, offset, size, len, cast builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
+                # Assembly, type, offset, size, len, cast builtin pass-trough
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
                     op_stack.append(token)
                     continue
 
@@ -549,56 +557,14 @@ class Parser:
                         print_error('to_tree', 'Missing operand', self)
                     node = node_stack.pop()
 
-                    # Offset builtin
-                    if token.kind == TokenKind.KW_OFF:
-                        if node.kind != NodeKind.STR_LIT:
-                            print_error('to_tree',
-                                        'The off_of builtin only accepts string literals')
-
-                        off = Def.off_of(full_name_of_var(
-                            node.value.lstrip('\"').rstrip('\"')))
+                    if token.kind == TokenKind.KW_TYPE:
                         node_stack.append(
-                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(off)))
+                            Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.STR_LIT), token.value, node))
                         continue
 
-                    # Size builtin
-                    if token.kind == TokenKind.KW_SIZE:
-                        if node.kind != NodeKind.STR_LIT:
-                            print_error('to_tree',
-                                        'The size_of builtin only accepts string literals')
-
-                        size = Def.size_of_ident(full_name_of_var(
-                            node.value.lstrip('\"').rstrip('\"')))
+                    if token.kind in (TokenKind.KW_OFF, TokenKind.KW_LEN, TokenKind.KW_SIZE):
                         node_stack.append(
-                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(size)))
-                        continue
-
-                    # Length builtin
-                    if token.kind == TokenKind.KW_LEN:
-                        if node.kind != NodeKind.STR_LIT:
-                            print_error('to_tree',
-                                        f'The len_of builtin only accepts string literals, got {node.kind}')
-
-                        ident = full_name_of_var(
-                            node.value.lstrip('\"').rstrip('\"'))
-                        meta_kind = Def.ident_map.get(ident)
-                        if ident not in Def.ident_map:
-                            print_error('to_tree',
-                                        'The len_of builtin only accepts pre-declared identifiers')
-                        if meta_kind not in (VariableMetaKind.ARR, VariableMetaKind.PTR):
-                            print_error('to_tree',
-                                        'The len_of builtin only accepts array/pointer identifiers')
-
-                        elem_cnt = 0
-                        if meta_kind == VariableMetaKind.ARR:
-                            arr = Def.arr_map.get(ident)
-                            elem_cnt = arr.elem_cnt
-                        if meta_kind == VariableMetaKind.PTR:
-                            ptr = Def.ptr_map.get(ident)
-                            elem_cnt = ptr.elem_cnt
-
-                        node_stack.append(
-                            Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(elem_cnt)))
+                            Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.INT_LIT), token.value, node))
                         continue
 
                     # Cast builtin
@@ -609,7 +575,7 @@ class Parser:
                     kind = self.node_kind_of(token.kind)
                     if kind not in (NodeKind.ASM, NodeKind.FUN_CALL) and kind not in allowed_op(node.ntype.ckind):
                         print_error(
-                            'to_tree', f'Incompatible type {node.ntype}', self)
+                            'to_tree', f'Incompatible type {rev_type_of(node.ntype)}', self)
 
                     op_type = type_of_op(kind, node.ntype)
                     if kind == NodeKind.DEREF and op_type == void_type:
