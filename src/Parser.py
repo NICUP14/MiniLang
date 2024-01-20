@@ -49,6 +49,7 @@ from Def import needs_widen
 from Def import type_of_cast
 from Def import allowed_op
 from Def import size_of
+from Def import is_local_ident
 from Def import rev_type_of
 from Def import node_is_cmp
 from Snippet import copy_of
@@ -891,7 +892,7 @@ class Parser:
                     arg_type, Def.var_off, True)
             if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
-                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
+                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, False)
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
@@ -1186,7 +1187,8 @@ class Parser:
         Def.ident_map[full_name] = meta_kind
 
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
-            value = 0 if is_local else self.curr_token().value
+            value = 0 if is_local else self.match_token(
+                TokenKind.INT_LIT).value
 
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
@@ -1211,7 +1213,7 @@ class Parser:
                 kind, VariableMetaKind.PRIM))
             Def.var_off += size_of(elem_type.ckind) * elem_cnt
             Def.arr_map[full_name] = Array(
-                full_name, elem_cnt, elem_type, Def.var_off)
+                full_name, elem_cnt, elem_type, Def.var_off, is_local)
 
             if self.no_more_tokens():
                 return None
@@ -1221,11 +1223,29 @@ class Parser:
             return self.array_declaration(full_name)
 
         if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            value = 0
             elem_type = VariableType(
                 VariableCompKind(elem_kind, elem_meta_kind))
+            if self.curr_token().kind == TokenKind.AND:
+                self.next_token()
+                value = self.match_token(TokenKind.IDENT).value
+                if is_local_ident(value):
+                    print_error('declaration',
+                                'Global pointers can only point to global variables.', self)
+
+            elif self.curr_token().kind == TokenKind.INT_LIT:
+                self.next_token()
+                value = self.match_token(TokenKind.INT_LIT).value
+
+            else:
+                print_error('declaration',
+                            'Can only assign integer literals and global addresses to pointer', self)
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
-                full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF)
+                full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
+
+            if not is_local:
+                return None
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

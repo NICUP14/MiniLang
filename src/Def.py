@@ -120,17 +120,19 @@ class Variable:
         self.value = value
 
 
-@dataclass
 class Pointer:
     """
     Contains the meta-data of a pointer type.
     """
 
-    name: str
-    elem_cnt: int
-    elem_type: VariableType
-    off: int
-    ref: bool
+    def __init__(self, name: str, elem_cnt: int, elem_type: VariableType, off: int, ref: bool, is_local: bool = False, value: int = 0):
+        self.name = name
+        self.elem_cnt = elem_cnt
+        self.elem_type = elem_type
+        self.off = off
+        self.ref = ref
+        self.is_local = is_local
+        self.value = value
 
 
 @dataclass
@@ -143,6 +145,7 @@ class Array:
     elem_cnt: int
     elem_type: VariableType
     off: int
+    is_local: bool
 
 
 @dataclass
@@ -403,11 +406,11 @@ def full_name_of_var(name: str, force_local: bool = False, exhaustive_match: boo
 
     # Namespace match
     global_name = "_".join(module_name_list + [name])
-    if global_name in var_map:
+    if global_name in ident_map:
         return global_name
 
     # Direct match
-    if name in var_map:
+    if name in ident_map:
         return name
 
     # Exhaustive match
@@ -867,20 +870,37 @@ def size_of(ckind: VariableCompKind) -> int:
     print_error('size_of', f'Invalid variable type {ckind}')
 
 
+def is_local_ident(ident: str) -> bool:
+    if ident not in ident_map:
+        print_error('is_local_ident', f'No such identifier {ident}')
+
+    meta_kind = ident_map.get(ident)
+    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+        return var_map.get(ident).is_local
+
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        return ptr_map.get(ident).is_local
+
+    if meta_kind == VariableMetaKind.ARR:
+        return arr_map.get(ident).is_local
+
+    print_error('is_local_ident', f'No such meta kind {meta_kind}')
+
+
 def size_of_ident(ident: str) -> int:
     if ident not in ident_map:
         print_error('size_of_ident', f'No such identifier {ident}')
 
     meta_kind = ident_map.get(ident)
 
-    if meta_kind == VariableMetaKind.PRIM:
+    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
         return size_of(var_map.get(ident).vtype.ckind)
 
     if meta_kind == VariableMetaKind.ARR:
         arr = arr_map.get(ident)
         return size_of(arr.elem_type.ckind) * arr.elem_cnt
 
-    if meta_kind == VariableMetaKind.PTR:
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         ptr = ptr_map.get(ident)
         return size_of(ptr_ckind) if ptr.elem_cnt == 0 else size_of(ptr.elem_type.ckind) * ptr.elem_cnt
 

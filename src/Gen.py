@@ -31,6 +31,7 @@ from Def import print_stdout
 from Def import needs_widen
 from Def import type_compatible
 from Def import rev_type_of
+from Def import is_local_ident
 from Snippet import Snippet
 from Snippet import SnippetCollection
 from Snippet import copy_of
@@ -147,12 +148,20 @@ def gen_load_ptr(opd: Operand, vtype: VariableType = default_type):
 def gen_load_addr(opd: Operand):
     name = opd.value
     off = off_of(name)
+    is_local = is_local_ident(name)
 
-    snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
-    snippet.add_arg(modf_of(opd.var_type.kind()))
-    snippet.add_arg(f'-{off}')
-    snippet.add_arg(opd.reg_str())
-    print_stdout(snippet.asm())
+    if is_local:
+        snippet = copy_of(SnippetCollection.LOAD_STACK_ADDR)
+        snippet.add_arg(modf_of(opd.var_type.kind()))
+        snippet.add_arg(f'-{off}')
+        snippet.add_arg(opd.reg_str())
+        print_stdout(snippet.asm())
+    else:
+        snippet = copy_of(SnippetCollection.LOAD_DATA_ADDR)
+        snippet.add_arg(modf_of(opd.var_type.kind()))
+        snippet.add_arg(name)
+        snippet.add_arg(opd.reg_str())
+        print_stdout(snippet.asm())
 
 
 def gen_load(opd: Operand):
@@ -470,10 +479,27 @@ def gen_postamble():
     for (string, label) in Def.str_lit_map.items():
         print_stdout(f'{label}: .asciz \"{string}\"')
 
-    for (name, var) in Def.var_map.items():
-        if not var.is_local:
-            print_stdout(
-                f'{name}: {global_modf_of(var.vtype.kind())} {var.value}')
+    for (ident, _) in Def.ident_map.items():
+        meta_kind = Def.ident_map.get(ident)
+        if meta_kind in (VariableMetaKind.FUN, VariableMetaKind.MACRO) or (
+                is_local_ident(ident)):
+            continue
+
+        value = 0
+        vtype = default_type
+        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+            var = Def.var_map.get(ident)
+            value = var.value
+            vtype = var.vtype
+
+        if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            value = Def.ptr_map.get(ident).value
+
+        if meta_kind == VariableMetaKind.ARR:
+            value = Def.arr_map.get(ident).value
+
+        print_stdout(
+            f'{ident}: {global_modf_of(vtype.kind())} {value}')
 
 
 def gen_fun_preamble(name: str):
