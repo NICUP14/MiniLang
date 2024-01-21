@@ -453,7 +453,11 @@ class Parser:
         parser = Parser(macro.parser)
         parser.source = self.source
         parser.lineno = self.lineno - 1
-        body = parser.parse()
+        try:
+            body = parser.parse()
+        except RecursionError:
+            print_error('expand_macro',
+                        f'Cannot expand macro {macro.name}', self)
         self.lineno += (parser.lineno - self.lineno)
 
         # Defer fix
@@ -1226,20 +1230,21 @@ class Parser:
             value = 0
             elem_type = VariableType(
                 VariableCompKind(elem_kind, elem_meta_kind))
-            if self.curr_token().kind == TokenKind.AND:
-                self.next_token()
-                value = self.match_token(TokenKind.IDENT).value
-                if is_local_ident(value):
+            if not is_local:
+                if self.curr_token().kind == TokenKind.AND:
+                    self.next_token()
+                    value = self.match_token(TokenKind.IDENT).value
+                    if is_local_ident(value):
+                        print_error('declaration',
+                                    'Global pointers can only point to global variables.', self)
+
+                elif self.curr_token().kind == TokenKind.INT_LIT:
+                    self.next_token()
+                    value = self.match_token(TokenKind.INT_LIT).value
+
+                else:
                     print_error('declaration',
-                                'Global pointers can only point to global variables.', self)
-
-            elif self.curr_token().kind == TokenKind.INT_LIT:
-                self.next_token()
-                value = self.match_token(TokenKind.INT_LIT).value
-
-            else:
-                print_error('declaration',
-                            'Can only assign integer literals and global addresses to pointer', self)
+                                'Can only assign integer literals and global addresses to pointer', self)
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)

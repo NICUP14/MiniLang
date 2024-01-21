@@ -1,14 +1,16 @@
-# import "everything"
-import "../../stdlib/stddef"
 import "../../stdlib/cstdlib"
-import "../../stdlib/misc"
+import "../../stdlib/stddef"
+import "../../stdlib/debug"
+import "../../stdlib/alloc"
 
-let gint = 0
-let gptr: ptr = &gint
+macro _alloc_assert
+    printf("Oopsies")
+end
 
 fun main: int64
-    printf("%lld", gint)
-    printf("%p", gptr)
+    let c: int8* = null
+    alloc_str_pass(c, "Hi")
+    alloc_assert
     ret 0
 end
 end

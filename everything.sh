@@ -10,11 +10,10 @@ output_file="$2/everything.ml"
 order=(
     "$folder_name/cstdlib.ml"
     "$folder_name/stddef.ml"
-    "$folder_name/va_utils.ml"
-    "$folder_name/alloc.ml"
     "$folder_name/debug.ml"
+    "$folder_name/alloc.ml"
+    "$folder_name/va_utils.ml"
     "$folder_name/misc.ml"
-    "$folder_name/algorithm.ml"
 )
 
 if [ ! -d "$folder_name" ]; then

@@ -1,6 +1,6 @@
 # Standard library miscelaneous functions
 fun cond(maybe: bool, tval: int64, fval: int64): int64
-    let val = 0 - 1
+    let val = 0
     if maybe == true
         val = tval
     else

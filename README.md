@@ -96,6 +96,7 @@ Options:
 ## Samples
 
 * [HelloWorld](https://github.com/NICUP14/MiniLang/tree/main/samples/helloworld)
+* [Max](https://github.com/NICUP14/MiniLang/tree/main/samples/max)
 * [Fib](https://github.com/NICUP14/MiniLang/tree/main/samples/fib)
 * [FizzBuzz](https://github.com/NICUP14/MiniLang/tree/main/samples/fizzbuzz)
 * [Printf](https://github.com/NICUP14/MiniLang/tree/main/samples/printf)

@@ -679,7 +679,10 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
         return True
 
-    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN, NodeKind.FUN_CALL) and ckind == ptr_ckind and ckind2 == arr_ckind:
+    if kind == NodeKind.FUN_CALL and ckind == arr_ckind and ckind2 == ptr_ckind:
+        return True
+
+    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN) and ckind == ptr_ckind and ckind2 == arr_ckind:
         return True
 
     return False

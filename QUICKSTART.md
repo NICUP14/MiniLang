@@ -322,7 +322,7 @@ let myint = int(50)
 > Macros are variadic by default, Thus, the last argument of a macro accepts a variable number of expressions and stores the expression count in `ma_cnt`. This feature is particularly useful for passing the parameter count to a variadic function.
 
 ```txt
-# From stdlib/algorithm.ml:
+# From samples/max/main.ml
 fun _max(cnt: int64, ...): int64
     let vlist: int64[3]
     asm "stack_snapshot"
