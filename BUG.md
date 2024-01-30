@@ -1,12 +1,13 @@
 # Bugs
 
-Solved: 11/14
+Solved: 12/14
 
+- [ ] Div/Mod bug (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
 - [ ] Cast in macro allowes this: `cast("int64", (1, 2, 3))`.
 - [X] Passing arguments from variadic macro to fun doesn't work.
 - [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
-- [ ] Cannot call function as a function param.
+- [X] Cannot call function as a function param.
 - [X] No type checking for reference and dereference (`*bool = int64`).
 - [X] Faulty load before an assignment (div).
 - [X] Assignment of array rvalue to ptr type

@@ -1,5 +1,5 @@
 import "printf"
-import "../../cstdlib"
+import "../../stdlib/cstdlib"
 
 fun main(): int64
     let repr: int8 = 1
@@ -9,7 +9,8 @@ fun main(): int64
     let buff: int8[50]
 
 
-    custom_printf("Message: %s %+d", "Hello world", 16)
+    let fmt = "Message: %s %d"
+    custom_printf(fmt, "Hello world", 16)
 
     ret 0
 end

@@ -382,6 +382,9 @@ class Parser:
             return Node(node.kind, node.ntype, node.value, left, right)
 
     def expand_macro(self, macro: Macro, arg_list: List[Node]) -> Optional[Node]:
+        if Def.macro_name != '':
+            return Node(NodeKind.IDENT, arg_type, Def.macro_name)
+
         if len(arg_list) != len(macro.arg_names):
             print_error('expand_macro',
                         f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
@@ -399,6 +402,10 @@ class Parser:
         for name in arg_names:
             Def.ident_map[name] = VariableMetaKind.MACRO_ARG
 
+        # Add to Def.macro_arg_map
+        for name, node in zip(arg_names, arg_list):
+            Def.macro_arg_map[name] = node
+
         def expand_arg(node: Node) -> Optional[Node]:
             if node is None:
                 return None
@@ -413,6 +420,9 @@ class Parser:
             if name not in arg_names:
                 return node
 
+            idx = arg_names.index(name)
+            if idx >= len(arg_list):
+                return node
             return arg_list[arg_names.index(name)]
 
         def type_helper(node: Node):
@@ -434,7 +444,7 @@ class Parser:
                 return None
 
             if node.kind == NodeKind.FUN_CALL:
-                return Node(NodeKind.FUN_CALL, node.ntype, node.value, self.merge_fun_call(node.left))
+                return Node(node.kind, node.ntype, node.value, self.merge_fun_call(node.left))
 
             middle, left, right = list(
                 map(lambda n: merge_helper(n), (node.middle, node.left, node.right)))
@@ -454,10 +464,10 @@ class Parser:
         parser.source = self.source
         parser.lineno = self.lineno - 1
         try:
-            body = parser.parse()
+            body = parser.compound_statement()
         except RecursionError:
             print_error('expand_macro',
-                        f'Cannot expand macro {macro.name}', self)
+                        f'Cannot expand macro {macro.name} (circular macro)', self)
         self.lineno += (parser.lineno - self.lineno)
 
         # Defer fix
@@ -468,6 +478,7 @@ class Parser:
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
                 del Def.ident_map[name]
+                del Def.macro_arg_map[name]
         node = merge_helper(expand_helper(body))
         type_helper(node)
 
@@ -512,8 +523,12 @@ class Parser:
 
                 # Distinguishes between identifiers and literals
                 elif token.kind == TokenKind.IDENT:
-                    node_stack.append(
-                        Node(self.node_kind_of(token.kind), type_of_ident(token.value), token.value))
+                    vtype = type_of_ident(token.value)
+                    if Def.macro_name == '' and vtype == arg_type:
+                        node_stack.append(Def.macro_arg_map[token.value])
+                    else:
+                        node_stack.append(
+                            Node(self.node_kind_of(token.kind), type_of_ident(token.value), token.value))
 
                 else:
                     kind = self.node_kind_of(token.kind)
@@ -537,7 +552,7 @@ class Parser:
                             node = node_stack.pop()
 
                             node_stack.append(
-                                Node(kind, fun.ret_type, token.value, node))
+                                Node(kind, fun.ret_type, token.value, self.merge_fun_call(node)))
                         continue
 
                     if token.kind == TokenKind.MACRO_CALL:
@@ -585,7 +600,11 @@ class Parser:
                     op_type = type_of_op(kind, node.ntype)
                     if kind == NodeKind.DEREF and op_type == void_type:
                         print_error('to_tree',
-                                    f'Cannot dereference the {node.value} pointer-to-void')
+                                    f'Cannot dereference the {node.value} pointer-to-void', self)
+
+                    if kind == NodeKind.REF and node.kind != NodeKind.IDENT:
+                        print_error('to_tree',
+                                    f'Can only reference identifiers, got {node.kind}', self)
 
                     node_stack.append(
                         Node(kind, type_of_op(kind, node.ntype), token.value, node))
@@ -714,8 +733,11 @@ class Parser:
         if not exists(module_source):
             print_error('import_statement',
                         f'Module \'{module_source}\' does not exist.', self)
-
-        module_root = Parser().parse(module_source)
+        try:
+            module_root = Parser().parse(module_source)
+        except RecursionError:
+            print_error('import_statement',
+                        f'Cannot import module "{module_source}" (circular import)', self)
         return module_root
 
     def namespace_statement(self) -> Optional[Node]:
@@ -896,7 +918,7 @@ class Parser:
                     arg_type, Def.var_off, True)
             if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
-                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, False)
+                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
@@ -916,6 +938,10 @@ class Parser:
         return node
 
     def type_definition(self) -> None:
+        if Def.macro_name != '':
+            print_error('declaration',
+                        f'Type definitions within macro ({Def.macro_name}) are not allowed', self)
+
         alias = self.match_token(TokenKind.IDENT).value
         self.match_token(TokenKind.ASSIGN)
         type_str = self.curr_token().value
@@ -923,15 +949,24 @@ class Parser:
         self.next_token()
         meta_kind = VariableMetaKind.PRIM
         if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+            self.next_token()
             meta_kind = VariableMetaKind.PTR
 
-        vtype = type_of(type_str, False)
+        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+            self.next_token()
+            meta_kind = VariableMetaKind.REF
+
+        if not self.no_more_tokens():
+            print_error('type_definition',
+                        'Junk after type definition', self)
+
+        vtype = type_of(type_str)
         if meta_kind == VariableMetaKind.PRIM:
-            Def.ckind_map[alias] = vtype.ckind
+            Def.type_map[alias] = vtype
         if meta_kind == VariableMetaKind.PTR:
-            Def.ckind_map[alias] = ptr_ckind
+            Def.type_map[alias] = VariableType(ptr_ckind, vtype.ckind)
         if meta_kind == VariableMetaKind.REF:
-            Def.ckind_map[alias] = ref_ckind
+            Def.type_map[alias] = VariableType(ref_ckind, vtype.ckind)
 
     def defer_statement(self) -> None:
         if Def.macro_name != '':
@@ -1016,26 +1051,6 @@ class Parser:
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
                 del Def.ident_map[name]
-
-        # Def.macro_name = full_name
-        # Def.fun_name_list.append(full_name)
-        # lines_idx_cpy = self.lines_idx
-        # self.next_line()
-
-        # # Hack for recursive macros (first-pass)
-        # body = self.compound_statement()
-        # Def.macro_map[full_name].body = body
-
-        # # Rewind and re-read macro
-        # self.lines_idx = lines_idx_cpy
-        # self.next_line()
-
-        # # Hack for self-calling macros (second-pass)
-        # body = self.compound_statement()
-        # Def.macro_map[full_name].body = body
-
-        # Def.fun_name_list.pop()
-        # Def.macro_name = ''
 
     def to_node(self, token: Token) -> Node:
         node = None
@@ -1164,25 +1179,23 @@ class Parser:
                 meta_kind = VariableMetaKind.PTR
                 elem_cnt = Def.arr_map.get(node.value).elem_cnt
 
-            if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            # Reference correction
+            if meta_kind == VariableMetaKind.REF:
+                meta_kind = var_type.elem_ckind.meta_kind
+                var_type = VariableType(var_type.elem_ckind)
+
+            if meta_kind == VariableMetaKind.PTR:
                 elem_kind = var_type.elem_ckind.kind
                 elem_meta_kind = var_type.elem_ckind.meta_kind
         else:
             if meta_kind == VariableMetaKind.ARR:
-                var_type = VariableType(arr_ckind, default_ckind)
+                var_type = VariableType(arr_ckind)
             if meta_kind == VariableMetaKind.BOOL:
-                var_type = VariableType(bool_ckind, default_ckind)
+                var_type = VariableType(bool_ckind)
             if meta_kind == VariableMetaKind.PTR:
-                var_type = VariableType(ptr_ckind, default_ckind)
+                var_type = VariableType(ptr_ckind)
             if meta_kind == VariableMetaKind.REF:
-                var_type = VariableType(ref_ckind, default_ckind)
-
-        # Fix for macros
-        if Def.macro_name != '':
-            # Placeholder identifier
-            Def.ident_map[full_name_of_var(
-                name, exhaustive_match=False)] = VariableMetaKind.MACRO_ARG
-            return
+                var_type = VariableType(ref_ckind)
 
         is_local = Def.fun_name != ''
         var_name = full_name_of_var(
@@ -1193,7 +1206,6 @@ class Parser:
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
             value = 0 if is_local else self.match_token(
                 TokenKind.INT_LIT).value
-
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)

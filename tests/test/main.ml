@@ -1,16 +1,17 @@
 import "../../stdlib/cstdlib"
 import "../../stdlib/stddef"
-import "../../stdlib/debug"
-import "../../stdlib/alloc"
+# import "../../stdlib/debug"
+# import "../../stdlib/alloc"
 
-macro _alloc_assert
-    printf("Oopsies")
+macro to_int32(_expr)
+    cast("int32", _expr)
 end
 
 fun main: int64
-    let c: int8* = null
-    alloc_str_pass(c, "Hi")
-    alloc_assert
+    let v = 15
+    let r: int64& = &v
+    let d = r
+    let a: int32[5] = [1, 2, 3]
     ret 0
 end
 end

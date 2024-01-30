@@ -27,20 +27,20 @@ class Register(enum.Enum):
     `Register.id_max` holds the total register count.
     """
 
-    rax = 0
-    rbx = 1
-    rcx = 2
-    rdx = 3
-    rsi = 4
-    rdi = 5
-    r8 = 6
-    r9 = 7
-    r10 = 8
-    r11 = 9
-    r12 = 10
-    r13 = 11
-    r14 = 12
-    r15 = 13
+    rbx = 0
+    rcx = 1
+    rsi = 2
+    rdi = 3
+    r8 = 4
+    r9 = 5
+    r10 = 6
+    r11 = 7
+    r12 = 8
+    r13 = 9
+    r14 = 10
+    r15 = 11
+    rax = 12
+    rdx = 13
     id_max = 14
 
 
@@ -153,6 +153,10 @@ class Function:
     """
     Contains the meta-data of a function type.
     """
+    # Possible generic function
+    # Template type -> arg_type
+    # gen_types: List[int] (generic-id's)
+    # FUN_CALL -> signatures: List[List[VariableType]] -> fun_X()
 
     name: str
     arg_cnt: int
@@ -290,7 +294,7 @@ def color_str(color: Color, msg: str):
 
 
 #! Warning: Relies on parser state-related variables.
-def print_error(loc: str, msg: str, parser=None):
+def print_error(loc: str, msg: str, parser=None, node=None):
     line = ('' if parser is None or parser.no_more_lines() else '\"' +
             parser.curr_line().lstrip('\t ').rstrip('\n') + '\"')
     desc = color_str(Color.FAIL, f'{loc}: {msg}')
@@ -301,6 +305,8 @@ def print_error(loc: str, msg: str, parser=None):
         print(f'location: {color_str(Color.FAIL, line)}')
         print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}')
     else:
+        from GenStr import tree_str
+        print(f'location: {color_str(Color.FAIL, tree_str(node))}')
         print(f'ERROR: {desc}')
     exit(1)
 
@@ -450,13 +456,11 @@ def off_of(ident: str) -> int:
 
 
 # Parses the type of the identifier
-def type_of(sym: str, use_mkind: bool = True) -> VariableType:
-    if sym not in ckind_map:
+def type_of(sym: str) -> VariableType:
+    if sym not in type_map:
         print_error('type_of', f'Invalid type identifier {sym}')
 
-    ckind = ckind_map.get(sym)
-    meta_kind = VariableMetaKind.PRIM if not use_mkind else ckind.meta_kind
-    return VariableType(VariableCompKind(ckind.kind, meta_kind))
+    return type_map.get(sym)
 
 
 def type_of_cast(sym: str) -> VariableType:
@@ -604,18 +608,18 @@ def type_of_lit(kind: NodeKind) -> VariableType:
     if kind in (NodeKind.TRUE_LIT, NodeKind.FALSE_LIT):
         return bool_type
 
-    type_map = {
+    lit_type_map = {
         NodeKind.STR_LIT: ptr_ckind,
         NodeKind.INT_LIT: default_ckind,
         NodeKind.CHAR_LIT: VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM),
     }
 
-    if kind not in type_map:
+    if kind not in lit_type_map:
         print_error('type_of_lit', f'Invalid node kind {kind}')
 
     char_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)
     elem_ckind = char_ckind if kind == NodeKind.STR_LIT else default_ckind
-    return VariableType(type_map.get(kind), elem_ckind)
+    return VariableType(lit_type_map.get(kind), elem_ckind)
 
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
@@ -664,7 +668,10 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
 
 
 def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
-    if kind in (NodeKind.ARR_ACC, NodeKind.WHILE, NodeKind.IF):
+    if ckind == arg_ckind or ckind2 == arg_ckind:
+        return True
+
+    if kind in (NodeKind.DECLARATION, NodeKind.ARR_ACC, NodeKind.WHILE, NodeKind.IF):
         return True
 
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
@@ -682,7 +689,7 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if kind == NodeKind.FUN_CALL and ckind == arr_ckind and ckind2 == ptr_ckind:
         return True
 
-    if kind in (NodeKind.DECLARATION, NodeKind.OP_ASSIGN) and ckind == ptr_ckind and ckind2 == arr_ckind:
+    if kind == NodeKind.OP_ASSIGN and ckind == ptr_ckind and ckind2 == arr_ckind:
         return True
 
     return False
@@ -937,10 +944,8 @@ def cmp_modf_of(kind: NodeKind) -> str:
 
 
 REG_TABLE = (
-    ('%rax', '%eax', '%ax', '%al'),
     ('%rbx', '%ebx', '%bx', '%bl'),
     ('%rcx', '%ecx', '%cx', '%cl'),
-    ('%rdx', '%edx', '%dx', '%dl'),
     ('%rsi', '%esi', '%si', '%sil'),
     ('%rdi', '%edi', '%di', '%dil'),
     ('%r8', '%r8d', '%r8w', '%r8b'),
@@ -951,6 +956,8 @@ REG_TABLE = (
     ('%r13', '%r13d', '%r13w', '%r13b'),
     ('%r14', '%r14d', '%r14w', '%r14b'),
     ('%r15', '%r15d', '%r15w', '%r15b'),
+    ('%rax', '%eax', '%ax', '%al'),
+    ('%rdx', '%edx', '%dx', '%dl'),
 )
 
 REGS = (
@@ -990,14 +997,6 @@ color_enabled = True
 comments_enabled = True
 stdout = sys.stdout
 
-ckind_map = {
-    'bool': VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL),
-    'int64': VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM),
-    'int32': VariableCompKind(VariableKind.INT32, VariableMetaKind.PRIM),
-    'int16': VariableCompKind(VariableKind.INT16, VariableMetaKind.PRIM),
-    'int8': VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM),
-    'void': VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
-}
 
 var_off = 0
 block_cnt = 0
@@ -1028,4 +1027,14 @@ str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
 macro_name = ''
+macro_arg_map: Dict[str, Node] = dict()
 deferred: Optional[Node] = None
+
+type_map = {
+    'bool': bool_type,
+    'int64': default_type,
+    'int32': VariableType(VariableCompKind(VariableKind.INT32, VariableMetaKind.PRIM)),
+    'int16': VariableType(VariableCompKind(VariableKind.INT16, VariableMetaKind.PRIM)),
+    'int8': VariableType(VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)),
+    'void': VariableType(VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)),
+}

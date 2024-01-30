@@ -1,9 +1,12 @@
 # TODO
 
-Solved: 15/17
+Solved: 15/20
 
-- [ ] Structs.
 - [ ] Global arrays.
+- [ ] Generator class (unify Gen*.py `GeneratorKind` `gen(gkind) -> Generator`, `Generator.gen(out)`)
+- [ ] C generator backend (GenC.py)
+- [ ] ML generator backend (GenStr.py -> GenMl.py)
+- [ ] ASM generator backend (Gen.py -> GenASM.py)
 - [X] Fix type system.
 - [X] Widen during parsing.
 - [X] Static type analysis.

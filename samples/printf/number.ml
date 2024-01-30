@@ -1,4 +1,13 @@
-import "../../cstdlib"
+import "../../stdlib/cstdlib"
+import "../../stdlib/stddef"
+
+macro add(_aptr, _aoff)
+    ptr(int(_aptr) + _aoff)
+end
+
+macro sub(_sptr, _soff)
+    ptr(int(_sptr) - _soff)
+end
 
 let mzf_mask: int8 = 12
 let minus_flag: int8 = 8
@@ -7,7 +16,7 @@ let plus_flag: int8 = 2
 let space_flag: int8 = 1
 
 fun U64ToStrLen(nr: int64): int64
-    let cnt: int64 = 0
+    let cnt = 0
     while nr > 0
         nr = nr / 10
         cnt = cnt + 1
@@ -17,12 +26,12 @@ fun U64ToStrLen(nr: int64): int64
 end
 
 fun U64ToStr(nr: int64, buff: int8*): int64
-    let len: int64 = U64ToStrLen(nr)
-    let addr: int8* = buff + len - 1
+    let len = U64ToStrLen(nr)
+    let idx = len - 1
 
     while nr != 0
-        *addr = (nr % 10) + 48
-        addr = addr - 1
+        buff[idx] = (nr % 10) + 48
+        idx = idx - 1
         nr = nr / 10
     end
 
@@ -30,11 +39,11 @@ fun U64ToStr(nr: int64, buff: int8*): int64
 end
 
 fun strnToU64(str: int8*, len: int64): int64
-    let nr: int64 = 0
-    let strEnd: int8* = str + len
-    while str < strEnd
-        nr = nr * 10 + (*str - '0')
-        str = str + 1
+    let nr = 0
+    let idx = len
+    while idx < len
+        nr = nr * 10 + (str[idx] - '0')
+        idx = idx + 1
     end
 
     ret nr
@@ -45,10 +54,10 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
  	let mf_set: int8  = (flag & 4)
  	let pf_set: int8  = (flag & 2)
  	let sf_set: int8  = (flag & 1)
-    let buff_tmp: int8* = buff
-    let sign: int8 = 0
+    let sign = false
     let sign_ch = '_'
-    let width_ch: int32 = '_'
+    let width_ch = '_'
+    let idx = 0
 
   	if zf_set > 0
   	    width_ch = '0'
@@ -57,12 +66,12 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
     end
    
     if num < 0
-        sign = 1
+        sign = true
         num = 0 - num
     end
    
     if repr > 0
-        if sign == 1
+        if sign
             sign_ch = '-'
         else
             if sf_set > 0
@@ -74,40 +83,45 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
             end
         end
     end
-   
+
+    puts("number before width")
+
     let len = U64ToStrLen(num)
     width = width - U64ToStrLen(num)
     if width < 0
         width = 0
     end
 
+    puts("number after width")
+
     if mf_set == 0
-        memset(buff_tmp, width_ch, width)
-        buff_tmp = buff_tmp + width
+        memset(add(buff, idx), width_ch, width)
+        idx = idx + width
     end
 
     if repr > 0
         if sf_set > 0
-            *buff_tmp = sign_ch
-            buff_tmp = buff_tmp + 1
+            buff[idx] = sign_ch
+            idx = idx + 1
         else
             if pf_set > 0
-                *buff_tmp = sign_ch
-                buff_tmp = buff_tmp + 1
+                buff[idx] = sign_ch
+                idx = idx + 1
             else
-                if sign == 1
-                    *buff_tmp = sign_ch
-                    buff_tmp = buff_tmp + 1
+                if sign
+                    buff[idx] = sign_ch
+                    idx = idx + 1
                 end
             end
         end
     end
 
-    buff_tmp = buff_tmp + U64ToStr(num, buff_tmp)
+    let nbytes = U64ToStr(num, add(buff, idx))
+    idx = idx + nbytes
 
     if mf_set > 0
-        memset(buff_tmp, width_ch, width)
-        buff_tmp = buff_tmp + width
+        memset(add(buff, idx), width_ch, width)
+        idx = idx + width
     end
 end
 end

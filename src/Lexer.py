@@ -196,7 +196,7 @@ def token_is_lit(kind: TokenKind) -> bool:
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
         TokenKind.TRUE_LIT,
-        TokenKind.FALSE_LIT,
+        TokenKind.FALSE_LIT
     )
 
 

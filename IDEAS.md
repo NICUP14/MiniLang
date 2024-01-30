@@ -1,10 +1,13 @@
 # Ideas
 
-Solved: 9/11
+Implemented: 10/13
 
-- [ ] exists builtin -> boolean
-- [X] type_of builtin -> str literal
-- [ ] Check for already-imported modules (import set).
+- [ ] Structs
+- [ ] Generics
+- [ ] Access operator (`.`)
+- [ ] `specf_of` builtin
+- [X] type_of builtin -> str literal.
+- [X] Check for circular imports.
 - [X] Type inference.
 - [X] Type definitions.
 - [X] Namespaces.
