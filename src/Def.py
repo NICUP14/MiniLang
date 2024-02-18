@@ -51,6 +51,7 @@ class VariableMetaKind(enum.Enum):
     between primitives, advanced or composite types.
     """
 
+    ANY = enum.auto()
     BOOL = enum.auto()
     PRIM = enum.auto()
     PTR = enum.auto()
@@ -59,7 +60,6 @@ class VariableMetaKind(enum.Enum):
     FUN = enum.auto()
     STRUCT = enum.auto()
     MACRO = enum.auto()
-    MACRO_ARG = enum.auto()
 
 
 class VariableKind(enum.Enum):
@@ -169,11 +169,17 @@ class Function:
 
 
 @dataclass
+class MacroSignature:
+    arg_cnt: int
+    arg_names: List[str]
+    parser: Any
+
+
+@dataclass
 class Macro:
     name: str
     arg_cnt: int
-    arg_names: list[str]
-    parser: Any
+    signatures: List[MacroSignature]
 
 
 class NodeKind(enum.Enum):
@@ -287,6 +293,12 @@ class Operand:
         return f"{self.__class__.__name__}({', '.join(attrs)})"
 
 
+class GenBase:
+    def gen(self, node: Node):
+        raise NotImplementedError(''.join(['GenBase acts as an abstract class',
+                                           'Inherit it and provide a custom gen implementation']))
+
+
 def color_str(color: Color, msg: str):
     if not color_enabled:
         return msg
@@ -313,6 +325,16 @@ def print_error(loc: str, msg: str, parser=None, node=None):
 
 def print_stdout(msg: str = ''):
     print(msg, file=stdout)
+
+
+def check_ident(name: str, meta_kind: VariableMetaKind = None, use_mkind: bool = False):
+    if name not in ident_map:
+        return
+
+    meta_kind2 = ident_map.get(name)
+    if use_mkind and meta_kind != meta_kind2:
+        print_error('check_ident',
+                    f'Redefinition of identifier {name}, (meta_kind = {meta_kind}, meta_kind2 = {meta_kind2})')
 
 
 def alloc_reg(reg: Register = Register.id_max, opd: Operand = None) -> Register:
@@ -492,8 +514,8 @@ def rev_type_of_ident(name: str) -> str:
         print_error('rev_type_of_ident', f'No such identifier {name}')
 
     meta_kind = ident_map.get(name)
-    if meta_kind == VariableMetaKind.MACRO_ARG:
-        return rev_type_of(arg_type)
+    if meta_kind == VariableMetaKind.ANY:
+        return rev_type_of(any_type)
 
     if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
         if name not in var_map:
@@ -514,14 +536,14 @@ def rev_type_of_ident(name: str) -> str:
             print_error('rev_type_of_ident', f'No such pointer {name}')
 
         ptr = ptr_map.get(name)
-        specf = ''
+        specifier = ''
         if ptr.ref:
-            specf = '&'
+            specifier = '&'
         elif ptr.elem_cnt == 0:
-            specf = '*'
+            specifier = '*'
         else:
-            specf = f'[{ptr.elem_cnt}]*'
-        return f'{rev_of(ptr.elem_type.ckind)}{specf}'
+            specifier = f'[{ptr.elem_cnt}]*'
+        return f'{rev_of(ptr.elem_type.ckind)}{specifier}'
 
     print_error('rev_type_of_ident', f'No such meta kind {meta_kind}')
 
@@ -536,8 +558,8 @@ def rev_type_of(vtype: VariableType) -> str:
     }
 
     def rev_of(ckind: VariableCompKind):
-        if ckind == arg_ckind:
-            return 'macro_arg'
+        if ckind == any_ckind:
+            return 'any'
         if ckind == bool_ckind:
             return 'bool'
 
@@ -546,7 +568,7 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
-    if vtype in (arg_type, bool_type):
+    if vtype in (any_type, bool_type):
         return rev_of(vtype.ckind)
 
     if vtype.ckind == ref_ckind:
@@ -579,8 +601,8 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
-    if meta_kind == VariableMetaKind.MACRO_ARG:
-        return arg_type
+    if meta_kind == VariableMetaKind.ANY:
+        return any_type
 
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         if ident not in ptr_map:
@@ -668,7 +690,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
 
 
 def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
-    if ckind == arg_ckind or ckind2 == arg_ckind:
+    if ckind == any_ckind or ckind2 == any_ckind:
         return True
 
     if kind in (NodeKind.DECLARATION, NodeKind.ARR_ACC, NodeKind.WHILE, NodeKind.IF):
@@ -680,7 +702,7 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if ckind.meta_kind == ckind2.meta_kind:
         return True
 
-    if ckind == arg_ckind or ckind2 == arg_ckind:
+    if ckind == any_ckind or ckind2 == any_ckind:
         return True
 
     if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
@@ -697,7 +719,7 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
 
 def allowed_op(ckind: VariableCompKind):
     # Fix for macros
-    if ckind == arg_ckind:
+    if ckind == any_ckind:
         return [
             NodeKind.IDENT,
             NodeKind.INT_LIT,
@@ -833,7 +855,7 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
         return 0
 
-    if ckind == arg_ckind or ckind2 == arg_ckind:
+    if ckind == any_ckind or ckind2 == any_ckind:
         return 0
 
     if ckind == ref_ckind or ckind2 == ref_ckind:
@@ -1018,15 +1040,17 @@ void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL)
 default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
-arg_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.MACRO_ARG)
+any_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ANY)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
-arg_type = VariableType(arg_ckind)
+any_type = VariableType(any_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
 macro_name = ''
+include_list: list[str] = []
+macro_arg_cnt = 0
 macro_arg_map: Dict[str, Node] = dict()
 deferred: Optional[Node] = None
 

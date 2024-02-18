@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import Def
 from typing import Optional
 from typing import List
@@ -26,18 +27,20 @@ from Def import Function
 from Def import Array
 from Def import Pointer
 from Def import Macro
+from Def import MacroSignature
 from Def import bool_ckind
 from Def import ptr_ckind
 from Def import ref_ckind
 from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
-from Def import arg_type
+from Def import any_type
 from Def import void_type
 from Def import bool_type
 from Def import default_type
 from Def import str_type
 from Def import print_error
+from Def import check_ident
 from Def import type_of
 from Def import type_of_op
 from Def import type_of_ident
@@ -320,10 +323,19 @@ class Parser:
         type_str = str_node.value.lstrip('\"').rstrip('\"')
         return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
 
+    def fun_arg_cnt(self, node: Node) -> int:
+        arg_cnt = 0
+        while node is not None:
+            arg_cnt += 1
+            node = node.left
+        return arg_cnt
+
     def args_to_list(self, node: Node, arg_cnt: int) -> List[Node]:
+        if node is None:
+            return []
+
         glue_node = node
         arg_list: list[Node] = []
-
         if glue_node.kind != NodeKind.GLUE:
             arg_list.append(glue_node)
         else:
@@ -381,26 +393,28 @@ class Parser:
         else:
             return Node(node.kind, node.ntype, node.value, left, right)
 
-    def expand_macro(self, macro: Macro, arg_list: List[Node]) -> Optional[Node]:
+    def expand_macro(self, macro: Macro, node: Optional[Node]) -> Optional[Node]:
         if Def.macro_name != '':
-            return Node(NodeKind.IDENT, arg_type, Def.macro_name)
+            return Node(NodeKind.IDENT, any_type, Def.macro_name)
 
-        if len(arg_list) != len(macro.arg_names):
+        arg_cnt = self.fun_arg_cnt(node)
+        signature = macro.signatures[0]
+        for sig in macro.signatures:
+            if sig.arg_cnt <= arg_cnt and sig.arg_cnt > signature.arg_cnt:
+                signature = sig
+
+        arg_list = self.args_to_list(node, signature.arg_cnt)
+        arg_names = signature.arg_names
+
+        if len(arg_list) != len(arg_names):
             print_error('expand_macro',
-                        f'Macro {macro.name} accepts {len(macro.arg_names)} arguments, but {len(arg_list)} were provided', self)
-
-        # For argument count builtin
-        arg_cnt = 0
-        if len(arg_list) > 0:
-            glue_node = arg_list[0]
-            while glue_node is not None:
-                arg_cnt += 1
-                glue_node = glue_node.left
+                        f'Macro {macro.name} accepts {len(arg_names)} arguments, but {len(arg_list)} were provided', self)
 
         arg_names = list(
-            map(lambda name: full_name_of_var(name, exhaustive_match=False), macro.arg_names))
+            map(lambda name: full_name_of_var(name, exhaustive_match=False), arg_names))
         for name in arg_names:
-            Def.ident_map[name] = VariableMetaKind.MACRO_ARG
+            check_ident(name)
+            Def.ident_map[name] = VariableMetaKind.ANY
 
         # Add to Def.macro_arg_map
         for name, node in zip(arg_names, arg_list):
@@ -410,46 +424,10 @@ class Parser:
             if node is None:
                 return None
 
-            if node.kind == NodeKind.ARG_CNT:
-                return Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arg_cnt))
-
-            if node.kind != NodeKind.IDENT:
+            if node.kind != NodeKind.ARG_CNT:
                 return node
 
-            name = node.value
-            if name not in arg_names:
-                return node
-
-            idx = arg_names.index(name)
-            if idx >= len(arg_list):
-                return node
-            return arg_list[arg_names.index(name)]
-
-        def type_helper(node: Node):
-            if node is None:
-                return None
-
-            middle, left, right = list(
-                map(lambda n: type_helper(n), (node.middle, node.left, node.right)))
-
-            if node.kind != NodeKind.GLUE and left and right and (
-                    not type_compatible(node.kind, left.ntype.ckind, right.ntype.ckind)):
-                print_error('expand_macro',
-                            f'Incompatible types {node.kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #3)', self)
-
-            return (Node(node.kind, node.ntype, node.value, left, right, middle))
-
-        def merge_helper(node: Node):
-            if node is None:
-                return None
-
-            if node.kind == NodeKind.FUN_CALL:
-                return Node(node.kind, node.ntype, node.value, self.merge_fun_call(node.left))
-
-            middle, left, right = list(
-                map(lambda n: merge_helper(n), (node.middle, node.left, node.right)))
-
-            return Node(node.kind, node.ntype, node.value, left, right, middle)
+            return Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arg_cnt))
 
         def expand_helper(node: Node) -> Optional[Node]:
             if node is None:
@@ -460,7 +438,7 @@ class Parser:
 
             return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
 
-        parser = Parser(macro.parser)
+        parser = Parser(signature.parser)
         parser.source = self.source
         parser.lineno = self.lineno - 1
         try:
@@ -471,18 +449,14 @@ class Parser:
         self.lineno += (parser.lineno - self.lineno)
 
         # Defer fix
-        Def.deferred = merge_helper(expand_helper(Def.deferred))
-        type_helper(Def.deferred)
+        Def.deferred = expand_helper(Def.deferred)
 
         # Removes macro placeholders
         for name in arg_names:
-            if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
+            if Def.ident_map.get(name) == VariableMetaKind.ANY:
                 del Def.ident_map[name]
                 del Def.macro_arg_map[name]
-        node = merge_helper(expand_helper(body))
-        type_helper(node)
-
-        return node
+        return expand_helper(body)
 
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
@@ -523,12 +497,22 @@ class Parser:
 
                 # Distinguishes between identifiers and literals
                 elif token.kind == TokenKind.IDENT:
-                    vtype = type_of_ident(token.value)
-                    if Def.macro_name == '' and vtype == arg_type:
-                        node_stack.append(Def.macro_arg_map[token.value])
+                    name = token.value
+                    if Def.macro_name == '' and Def.ident_map.get(name) == VariableMetaKind.ANY:
+                        if name not in Def.macro_arg_map:
+                            print_error('to_tree',
+                                        f'No such macro argument {name}', self)
+
+                        node_stack.append(Def.macro_arg_map.get(token.value))
+
                     else:
+                        name = token.value
+                        ntype = type_of_ident(name)
+                        if Def.ident_map.get(name) == VariableMetaKind.REF:
+                            ntype = Def.ptr_map.get(name).elem_type
+
                         node_stack.append(
-                            Node(self.node_kind_of(token.kind), type_of_ident(token.value), token.value))
+                            Node(self.node_kind_of(token.kind), ntype, name))
 
                 else:
                     kind = self.node_kind_of(token.kind)
@@ -559,7 +543,7 @@ class Parser:
                         macro = Def.macro_map.get(token.value)
 
                         if macro.arg_cnt == 0:
-                            node_stack.append(self.expand_macro(macro, []))
+                            node_stack.append(self.expand_macro(macro, None))
                         else:
                             if len(node_stack) == 0:
                                 print_error('to_tree',
@@ -567,7 +551,7 @@ class Parser:
 
                             node = node_stack.pop()
                             body = self.expand_macro(
-                                macro, self.args_to_list(node, macro.arg_cnt))
+                                macro, node)
 
                             node_stack.append(body)
 
@@ -617,7 +601,7 @@ class Parser:
                     left = node_stack.pop()
 
                     # Validates array/pointer acesses
-                    if token.kind == TokenKind.KW_AT and left.ntype != arg_type:
+                    if token.kind == TokenKind.KW_AT and left.ntype != any_type:
                         elem_cnt = 0
                         if Def.ident_map.get(left.value) == VariableMetaKind.PTR:
                             elem_cnt = Def.ptr_map.get(left.value).elem_cnt
@@ -730,9 +714,17 @@ class Parser:
         module = self.match_token(
             TokenKind.STR_LIT).value.lstrip('\"').rstrip('\"')
         module_source = f'{module}.ml'
+
+        if not exists(module_source):
+            for module_dir in Def.include_list:
+                other_source = os.path.join(module_dir, module_source)
+                if exists(other_source):
+                    module_source = other_source
+
         if not exists(module_source):
             print_error('import_statement',
                         f'Module \'{module_source}\' does not exist.', self)
+
         try:
             module_root = Parser().parse(module_source)
         except RecursionError:
@@ -895,6 +887,7 @@ class Parser:
         fun = Function(full_name, len(arg_types), arg_names,
                        arg_types, ret_type, 0, is_variadic, is_extern)
 
+        check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
         Def.ident_map[full_name] = VariableMetaKind.FUN
         Def.fun_map[full_name] = fun
 
@@ -1036,12 +1029,26 @@ class Parser:
                             'Junk after macro declaration', self)
 
         self.next_line()
-        Def.ident_map[full_name] = VariableMetaKind.MACRO
-        Def.macro_map[full_name] = Macro(
-            full_name, len(arg_names), arg_names, Parser(self))
+
+        signature = MacroSignature(len(arg_names), arg_names, Parser(self))
+        if Def.ident_map.get(full_name) == VariableMetaKind.MACRO:
+            macro = Def.macro_map.get(full_name)
+            for idx, macro_signature in enumerate(macro.signatures):
+                if signature.arg_cnt == macro_signature.arg_cnt:
+                    Def.macro_map[full_name].signatures[idx] = signature
+                    break
+            else:
+                Def.macro_map[full_name].signatures.append(signature)
+
+        else:
+            check_ident(full_name, VariableMetaKind.MACRO, use_mkind=True)
+            Def.ident_map[full_name] = VariableMetaKind.MACRO
+            Def.macro_map[full_name] = Macro(
+                full_name, len(arg_names), [signature])
 
         for name in arg_names:
-            Def.ident_map[name] = VariableMetaKind.MACRO_ARG
+            check_ident(full_name)
+            Def.ident_map[name] = VariableMetaKind.ANY
 
         Def.macro_name = full_name
         _ = self.compound_statement()
@@ -1049,7 +1056,7 @@ class Parser:
         Def.block_cnt = 0
 
         for name in arg_names:
-            if Def.ident_map.get(name) == VariableMetaKind.MACRO_ARG:
+            if Def.ident_map.get(name) == VariableMetaKind.ANY:
                 del Def.ident_map[name]
 
     def to_node(self, token: Token) -> Node:
@@ -1201,6 +1208,8 @@ class Parser:
         var_name = full_name_of_var(
             name, force_local=True, exhaustive_match=False)
         full_name = var_name if is_local else full_name_of_var(name, True)
+
+        check_ident(full_name)
         Def.ident_map[full_name] = meta_kind
 
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
@@ -1251,7 +1260,6 @@ class Parser:
                                     'Global pointers can only point to global variables.', self)
 
                 elif self.curr_token().kind == TokenKind.INT_LIT:
-                    self.next_token()
                     value = self.match_token(TokenKind.INT_LIT).value
 
                 else:

@@ -1,7 +1,8 @@
 # Bugs
 
-Solved: 12/14
+Solved: 12/15
 
+- [ ] `ma_cnt` builtin is no longer working.
 - [ ] Div/Mod bug (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
 - [ ] Cast in macro allowes this: `cast("int64", (1, 2, 3))`.

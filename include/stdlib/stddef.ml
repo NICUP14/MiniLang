@@ -17,7 +17,7 @@ end
 macro stdout
     cast("ptr", 1)
 end
-macro stdin
+macro stderr
     cast("ptr", 2)
 end
 macro int(_expr)

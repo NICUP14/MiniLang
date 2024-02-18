@@ -24,9 +24,13 @@ macro panic(_msg)
     panic_exit
 end
 macro assert_exit
-    printf("Assertion failed: %s, file %s, line %lld.", line, fun, lineno)
+    printf("Assertion failed, file %s, line %lld.", fun, lineno)
     exit(1)
 end
+# macro assert_exit
+#     printf("Assertion failed: %s, file %s, line %lld.", line, fun, lineno)
+#     exit(1)
+# end
 macro assert(_cond)
     if _cond == false
         assert_exit

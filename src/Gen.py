@@ -434,7 +434,7 @@ def gen_fun_call(node: Node):
         free_reg(reg)
 
     alloc_reg(Register.rax)
-    return Operand('', default_type, Register.rax, True)
+    return Operand('', fun.ret_type, Register.rax, True)
 
 
 # TODO: Replace the print with a snippet.
@@ -530,6 +530,10 @@ def gen_postamble():
 
         print_stdout(
             f'{ident}: {global_modf_of(vtype.kind())} {value}')
+
+    if Def.ident_map.get('main') != VariableMetaKind.FUN:
+        print_error('gen_postamble',
+                    'The program has no entry point; Reference to main does not exist')
 
 
 def gen_fun_preamble(name: str):
@@ -926,8 +930,18 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         # print(f'DBG: {in_opd.value} {out_opd.value}')
         # print(f'DBG: {in_opd.value} / {div_opd.value} = {out_opd.value}')
 
+        if div_opd.reg == Register.rdx:
+            new_opd = copy_of(div_opd)
+            new_opd.reg = alloc_reg(opd=new_opd)
+            gen_reg_swap(div_opd, new_opd)
+            free_reg(new_opd.reg)
+
         if in_opd.reg != in_reg:
-            gen_reg_swap(in_opd, right_opd)
+            opd = Def.opd_map.get(Register.rax)
+            gen_reg_swap(in_opd, opd)
+
+        # if in_opd.reg != in_reg:
+        #     gen_reg_swap(in_opd, right_opd)
 
         snippet = copy_of(SnippetCollection.XOR_RDX)
         print_stdout(snippet.asm())

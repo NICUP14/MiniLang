@@ -17,8 +17,8 @@ if __name__ == '__main__':
                       'Source: https://github.com/NICUP14/MiniLang.git'])
 
     parser = optparse.OptionParser(description=desc)
-    parser.add_option('-i', '--input', default=default_in_file,
-                      help='Read contents from INPUT.')
+    # parser.add_option('-i', '--input', default=default_in_file,
+    #                   help='Read contents from INPUT.')
     parser.add_option('-o', '--output', default='stdout',
                       help='Write contents to OUTPUT; When set, no-color is enabled by default.')
     parser.add_option('-d', '--debug', action='store_true',
@@ -27,17 +27,17 @@ if __name__ == '__main__':
                       help='Do not use ANSI color sequences in the output.')
     parser.add_option('-C', '--no-comment', action='store_true',
                       help='Do not include human-readable comments in the generated assembly.')
-    values, _ = parser.parse_args()
+    parser.add_option('-I', '--include', action='append',
+                      help='Add the directory to the include path.')
+    values, in_files = parser.parse_args()
     values_dict = vars(values)
 
-    in_file = values_dict.get('input')
+    if len(in_files) == 0:
+        in_files = [default_in_file]
     out_file = values_dict.get('output')
 
-    if not exists(in_file):
-        print(
-            f'{sys.argv[0]}: {color_str(Color.FAIL, f"{in_file} does not exist.")}')
-        exit(1)
-
+    include_list = values_dict.get('include')
+    Def.include_list = include_list if include_list else []
     Def.color_enabled = not values_dict.get('no_color')
     Def.comments_enabled = not values_dict.get('no_comment')
 
@@ -45,10 +45,17 @@ if __name__ == '__main__':
         Def.color_enabled = False
         Def.stdout = open(values_dict.get('output'), 'w')
 
-    parser = Parser.Parser()
-    root = parser.parse(in_file)
+    for in_file in in_files:
+        if not exists(in_file):
+            print(
+                f'{sys.argv[0]}: {color_str(Color.FAIL, f"{in_file} does not exist.")}')
+            exit(1)
 
-    if values_dict.get('debug'):
-        Def.print_stdout(GenStr.tree_str(root))
-    else:
-        Gen.gen(root)
+    for in_file in in_files:
+        parser = Parser.Parser()
+        root = parser.parse(in_file)
+
+        if values_dict.get('debug'):
+            Def.print_stdout(GenStr.tree_str(root))
+        else:
+            Gen.gen(root)
