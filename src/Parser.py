@@ -177,7 +177,8 @@ class Parser:
 
     def curr_token(self) -> Token:
         if self.no_more_tokens():
-            print_error('curr_token', 'No more tokens in list.', self)
+            self.next_line()
+            # print_error('curr_token', 'No more tokens in list.', self)
 
         return self.tokens[self.tokens_idx]
 
@@ -185,9 +186,9 @@ class Parser:
         self.tokens_idx += 1
 
     def match_token(self, kind: TokenKind) -> Token:
-        if self.no_more_tokens():
-            print_error('self.match_token',
-                        f'Expected token kind {kind}, got nothing', self)
+        # if self.no_more_tokens():
+        #     print_error('self.match_token',
+        #                 f'Expected token kind {kind}, got nothing', self)
         token = self.curr_token()
 
         if token.kind != kind:
@@ -208,7 +209,16 @@ class Parser:
         return token
 
     def token_list_to_tree(self) -> Node:
-        return self.to_tree(self.to_postfix(post_process(self.tokens[self.tokens_idx:])))
+        def curr_expr():
+            return self.tokens[self.tokens_idx:]
+
+        token_list = curr_expr()
+        while token_list.count(Token(TokenKind.LPAREN, '(')) > token_list.count(Token(TokenKind.RPAREN, ')')) or (
+                token_list.count(Token(TokenKind.LBRACE, '[')) > token_list.count(Token(TokenKind.RBRACE, ']'))):
+            self.next_line()
+            token_list += curr_expr()
+
+        return self.to_tree(self.to_postfix(post_process(token_list)))
 
     def node_kind_of(self, kind: TokenKind) -> NodeKind:
         if kind not in NODE_KIND_MAP:
@@ -237,8 +247,7 @@ class Parser:
                     postfix_tokens.append(token)
                 else:
                     # Detects if the token is a function/macro call (token correction)
-                    fun_name = full_name_of_fun(
-                        token.value, exhaustive_match=True)
+                    fun_name = full_name_of_fun(token.value)
                     if Def.ident_map.get(fun_name) == VariableMetaKind.MACRO:
                         op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
 
@@ -649,6 +658,13 @@ class Parser:
                     print_error('to_tree',
                                 f'Operator kind {token.kind} is neither binary or unary', self)
 
+        if len(node_stack) > 1:
+            def val_of(node: Node) -> str:
+                return node.value
+
+            print_error('to_tree',
+                        f'Unused operands [{", ".join(map(val_of, node_stack[1:]))}]', self)
+
         return node_stack.pop()
 
     def statement(self) -> Optional[Node]:
@@ -755,7 +771,7 @@ class Parser:
 
     def while_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
-        if cond_node.ntype != bool_type:
+        if cond_node.ntype not in (any_type, bool_type):
             print_error('while_statement',
                         f'Expected a boolean expression, got type {rev_type_of(cond_node.ntype)}', self)
 
@@ -769,7 +785,7 @@ class Parser:
 
     def if_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
-        if cond_node.ntype != bool_type:
+        if cond_node.ntype not in (any_type, bool_type):
             print_error('if_statement',
                         f'Expected a boolean expression, got type {rev_type_of(cond_node.ntype)}', self)
 
@@ -824,7 +840,7 @@ class Parser:
         arg_types: list[VariableType] = []
         elem_types: list[VariableType] = []
         elem_cnts: list[int] = []
-        has_args = self.no_more_tokens() or self.curr_token().kind == TokenKind.LPAREN
+        has_args = not self.no_more_tokens() and self.curr_token().kind == TokenKind.LPAREN
         if has_args:
             self.match_token(TokenKind.LPAREN)
             while self.curr_token().kind not in (TokenKind.RPAREN, TokenKind.PER_FUN):

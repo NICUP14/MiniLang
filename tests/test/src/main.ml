@@ -16,8 +16,12 @@ macro macro_printf(t)
     printf("%s ", t)
 end
 
-macro for_body(_ident)
-    printf("%lld ", _ident at _for_idx)
+macro for_body(_ident, _idx)
+    printf("%lld ", _ident at _idx)
+end
+
+macro for_body(_ident, _idx)
+    printf("%lld ", _ident at _idx)
 end
 
 macro macro_printf(t1, t2)
@@ -25,17 +29,40 @@ macro macro_printf(t1, t2)
     macro_printf(t2)
 end
 
+macro _reverse(_t1, _t2)
+    _t2, _t1
+end
+
+macro reverse(_t)
+    _t
+end
+
+macro reverse(_t1, _t2)
+    _reverse(_t1, reverse(_t2))
+end
+
 fun main: int64
+    let i = 0
+    let arr: int64[3] = [1, 2, 3]
+    # let a = x
     # let a = 15
     # let b = 30
     # let c = 0
     # let d = size_of_sum(a, b, c)
     # swap(a, b)
     # printf("a=%lld, b=%lld\n", a, b)
-    let a = 5
-    let a: int64[3] = [1, 2, 3]
-    for(1, 5, for_body(a))
-    macro_printf("Hi", "From", "Here", "Jon")
+
+    let b: int64[3] = [1, 2, 3]
+    for(1, 5,
+        printf("%lld", arr at _for_idx)
+    )
+
+    macro_printf(
+        "Hi", 
+        "From", 
+        "Here", 
+        "Jon"
+    )
     # macro_printf("Test")
     # macro_printf("Test2", "Test2")
     ret 0
