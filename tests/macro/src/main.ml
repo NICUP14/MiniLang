@@ -1,7 +1,7 @@
 # import "everything"
-import "../../stdlib/stddef"
-import "../../stdlib/cstdlib"
-import "../../stdlib/misc"
+import "stdlib/stddef"
+import "stdlib/cstdlib"
+import "stdlib/misc"
 
 # fun myfun: void
 #     panic("Help")

@@ -1,6 +1,6 @@
-import "number"
-import "../../stdlib/va_utils"
-import "../../stdlib/cstdlib"
+import "src/number"
+import "stdlib/va_utils"
+import "stdlib/cstdlib"
 
 fun custom_printf(format: int8*, ...): void
     let va_list: int64[3]
@@ -24,11 +24,17 @@ fun custom_printf(format: int8*, ...): void
     let format_idx = 0
 
     while format[format_idx] != 0 
-        while format[format_idx] != '%' 
-            # printf("char: '%c'\n", format[format_idx])
+        while format[format_idx] != '%'
+            printf("char: '%c'\n", format[format_idx])
             str[str_idx] = format[format_idx]
-            format_idx = format_idx + 1
+
+            if format[format_idx] == 0
+                puts(arr)
+                ret
+            end
+
             str_idx = str_idx + 1
+            format_idx = format_idx + 1
         end
 
         flag = 0 
@@ -36,7 +42,7 @@ fun custom_printf(format: int8*, ...): void
         while repeat == 1
             format_idx = format_idx + 1
             if format[format_idx] == '-' 
-                flag = flag | minus_flag 
+                flag = (flag | minus_flag)
                 # puts("minus-flag")
             else
                 if format[format_idx] == '0' 
@@ -79,8 +85,9 @@ fun custom_printf(format: int8*, ...): void
             # puts("percent")
         else
             if format[format_idx] == 's'
+                printf("%p", va_list[1])
                 let buf = cstr(va_arg(va_list))
-                #  printf("string: %s\n", buf)
+                # printf("string: %s\n", buf)
                 strcpy(add(str, str_idx), buf) 
                 str_idx = str_idx + strlen(buf)
             else
@@ -101,6 +108,7 @@ fun custom_printf(format: int8*, ...): void
         end
 
         format_idx = format_idx + 1
+        printf("end: %hhd\n", format[format_idx])
     end
 
     puts(arr)

@@ -1,5 +1,5 @@
-import "../../stdlib/cstdlib"
-import "../../stdlib/stddef"
+import "stdlib/cstdlib"
+import "stdlib/stddef"
 
 macro add(_aptr, _aoff)
     ptr(int(_aptr) + _aoff)

@@ -5,8 +5,8 @@ SOURCE_DIR ?= src
 
 # Project parameters
 PROJECT = main
-SOURCES = $(wildcard $(SOURCE_DIR)/main.ml)
-OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.c, $(SOURCES))
+SOURCES = $(wildcard $(SOURCE_DIR)/*.ml)
+OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.o, $(SOURCES))
 ASM_OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.S, $(SOURCES))
 
 # C compiler parameters
@@ -18,32 +18,20 @@ CLAGS += -g
 ML = python ../../src/Main.py
 MLLIB ?= "../../include"
 MLFLAGS ?=
-MLFLAGS += -C -c
+MLFLAGS += -C
 
 # Recipes
-default: clean def
-c: clean c
+default: clean assemble
 debug: clean _debug
-cdebug: clean _cdebug
 assemble: $(ASM_OBJECTS)
 compile: $(PROJECT)
 
 # Shortcuts
-def: c
+def: default
 dbg: debug
-cdbg: cdebug
 asm: assemble
 
-_c: $(SOURCES)
-	@mkdir -p $(BUILD_DIR)
-	# $(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
-	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES) > $(BUILD_DIR)/$(PROJECT).c
-	$(CC) -g $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
-
-_cdebug: $(SOURCES)
-	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
-
-_debug: $(SOURCES)
+_debug:
 	$(ML) $(MLFLAGS) -d -I $(MLLIB) -I src $(SOURCES)
 
 $(PROJECT) : $(OBJECTS)

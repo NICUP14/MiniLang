@@ -1,65 +1,22 @@
 import Def
-from Def import Color
 from Def import Node
 from Def import NodeKind
+from Def import Color
 from Def import color_str
 from Def import rev_type_of
 from Def import rev_type_of_ident
 from Def import print_error
 
-
-def has_indent(kind: NodeKind):
-    return kind in (
-        NodeKind.IF,
-        NodeKind.WHILE,
-        NodeKind.FUN,
-        NodeKind.BLOCK,
-        NodeKind.NAMESPACE
-    )
+from backend.Walker import Walker
+from backend.Walker import fun_call_tree_str
 
 
-def fun_call_tree_str(node: Node):
-    if node.kind == NodeKind.FUN_CALL:
-        name = node.value
-        fun = Def.fun_map.get(name)
-        if fun.arg_cnt == 0:
-            return ''
-
-    args = []
-    glue_node = node.left
-
-    # Fix for single-argument functions
-    if glue_node.kind != NodeKind.GLUE:
-        args.append(tree_str(glue_node))
-
-    else:
-        while glue_node is not None:
-            args.append(tree_str(glue_node.right))
-            glue_node = glue_node.left
-
-    args.reverse()
-    return ', '.join(args)
-
-
-def tree_str(node: Node, parent: Node = None, cnt: int = 0):
-    left = None
-    right = None
+def ml_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int):
 
     if node is None:
         return ''
 
-    if node.kind == NodeKind.ARG_CNT:
-        print_error('tree_str',
-                    f'Use of node of kind {node.kind} (ma_arg) is not allowed outside macros')
-
-    if node.kind != NodeKind.FUN_CALL and node.left:
-        left = tree_str(node.left, node, cnt +
-                        has_indent(node.left.kind) - (node.kind == NodeKind.END))
-    if node.kind != NodeKind.FUN_CALL and node.right:
-        right = tree_str(node.right, node, cnt +
-                         has_indent(node.right.kind) - (node.kind == NodeKind.END))
-
-    indent = '  ' * cnt
+    indent = '  ' * indent_cnt
 
     if node.kind in (NodeKind.INT_LIT, NodeKind.CHAR_LIT):
         return node.value
@@ -85,8 +42,12 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'({left} & {right})'
     if node.kind == NodeKind.OP_OR:
         return f'({left} | {right})'
-    if node.kind in (NodeKind.OP_ASSIGN, NodeKind.DECLARATION):
+    if node.kind == NodeKind.OP_ASSIGN:
         return f'({left} = {right})'
+    if node.kind == NodeKind.DECLARATION:
+        return f'{color_str(Color.BLUE, "let")} {node.left.value} = {right}'
+    if node.kind == NodeKind.ARR_DECLARATION:
+        return f'{color_str(Color.BLUE, "let")} {node.value}: {rev_type_of_ident(node.value)}'
     if node.kind == NodeKind.OP_GT:
         return f'({left} > {right})'
     if node.kind == NodeKind.OP_LT:
@@ -101,9 +62,9 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         return f'{left}[{right}]'
     if node.kind == NodeKind.IF:
         if right is not None:
-            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n  {indent + left}\n{indent}{color_str(Color.BLUE, "else")}\n  {indent + right}'
+            return f'{color_str(Color.BLUE, "if")} {middle}\n  {indent + left}\n{indent}{color_str(Color.BLUE, "else")}\n  {indent + right}'
         else:
-            return f'{color_str(Color.BLUE, "if")} {tree_str(node.middle)}\n  {indent + left}'
+            return f'{color_str(Color.BLUE, "if")} {middle}\n  {indent + left}'
 
     if node.kind == NodeKind.WHILE:
         return f'{color_str(Color.BLUE, "while")} {left}\n{right}'
@@ -117,7 +78,7 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
         else:
             return f'{indent if add_indent else empty_str}{left}\n{indent + right}'
     if node.kind == NodeKind.FUN_CALL:
-        return f'{node.value}({fun_call_tree_str(node)})'
+        return f'{node.value}({fun_call_tree_str(node, ml_walk)})'
     if node.kind == NodeKind.ASM:
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:
@@ -147,4 +108,9 @@ def tree_str(node: Node, parent: Node = None, cnt: int = 0):
     if node.kind == NodeKind.END:
         return color_str(Color.BLUE, 'end')
 
-    print_error('tree_str', f'Invalid node kind {node.kind}')
+    print_error('ml_walker_step', f'Invalid node kind {node.kind}')
+
+
+def ml_walk(node: Node) -> str:
+    walker = Walker(ml_walker_step)
+    return walker.walk(node)

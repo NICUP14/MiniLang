@@ -198,6 +198,7 @@ class NodeKind(enum.Enum):
     OP_OR = enum.auto()
     OP_ASSIGN = enum.auto()
     DECLARATION = enum.auto()
+    ARR_DECLARATION = enum.auto()
     OP_GT = enum.auto()
     OP_LT = enum.auto()
     OP_LTE = enum.auto()
@@ -310,16 +311,18 @@ def print_error(loc: str, msg: str, parser=None, node=None):
     line = ('' if parser is None or parser.no_more_lines() else '\"' +
             parser.curr_line().lstrip('\t ').rstrip('\n') + '\"')
     desc = color_str(Color.FAIL, f'{loc}: {msg}')
-    print()
-    print_stack()
-    print()
+    print(file=sys.stderr)
+    print_stack(file=sys.stderr)
+    print(file=sys.stderr)
     if parser is not None:
-        print(f'location: {color_str(Color.FAIL, line)}')
-        print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}')
+        print(f'location: {color_str(Color.FAIL, line)}', file=sys.stderr)
+        print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}',
+              file=sys.stderr)
     else:
         from GenStr import tree_str
-        print(f'location: {color_str(Color.FAIL, tree_str(node))}')
-        print(f'ERROR: {desc}')
+        print(f'location: {color_str(Color.FAIL, tree_str(node))}',
+              file=sys.stderr)
+        print(f'ERROR: {desc}', file=sys.stderr)
     exit(1)
 
 
@@ -1049,6 +1052,7 @@ str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
 macro_name = ''
+included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0
 macro_arg_map: Dict[str, Node] = dict()

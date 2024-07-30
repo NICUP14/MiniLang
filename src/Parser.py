@@ -535,7 +535,7 @@ class Parser:
                         fun = Def.fun_map.get(token.value)
                         kind = self.node_kind_of(token.kind)
 
-                        if fun.arg_cnt == 0:
+                        if fun.arg_cnt == 0 and not fun.is_variadic:
                             node_stack.append(
                                 Node(kind, fun.ret_type, token.value))
                         else:
@@ -741,6 +741,10 @@ class Parser:
             print_error('import_statement',
                         f'Module \'{module_source}\' does not exist.', self)
 
+        if module_source in Def.included:
+            return None
+        Def.included.add(module_source)
+
         try:
             module_root = Parser().parse(module_source)
         except RecursionError:
@@ -814,7 +818,7 @@ class Parser:
                 print_error('ret_statement',
                             'Cannot return a non-void value from a void function', self)
 
-            return None
+            return Node(NodeKind.RET, void_type, '')
         else:
             node = self.token_list_to_tree()
             if node.ntype != fun.ret_type:
@@ -900,7 +904,15 @@ class Parser:
             print_error('fun_declaration',
                         'Junk after function declaration', self)
 
-        fun = Function(full_name, len(arg_types), arg_names,
+        # ? Temporary
+        full_arg_names = []
+        Def.fun_name_list.append(full_name)
+        for arg_name in arg_names:
+            full_arg_names.append(full_name_of_var(
+                arg_name, exhaustive_match=False))
+        Def.fun_name_list.pop()
+
+        fun = Function(full_name, len(arg_types), full_arg_names,
                        arg_types, ret_type, 0, is_variadic, is_extern)
 
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
@@ -1089,7 +1101,7 @@ class Parser:
     def array_elem_declaration(self, array: Node, elem: Node, idx: int) -> Node:
         idx_node = self.to_node(Token(TokenKind.INT_LIT, str(idx)))
         acc_node = Node(NodeKind.ARR_ACC, elem.ntype, '', array, idx_node)
-        return Node(NodeKind.DECLARATION, elem.ntype, '=', acc_node, elem)
+        return Node(NodeKind.OP_ASSIGN, elem.ntype, '=', acc_node, elem)
 
     def array_declaration(self, name: str) -> Node:
         root = None
@@ -1116,20 +1128,20 @@ class Parser:
         arr_node = Node(NodeKind.IDENT, type_of_ident(name), name)
 
         if len(nodes) == 1:
-            return self.array_elem_declaration(arr_node, nodes.pop(), 0)
-
-        while len(nodes) > 0:
-            if root is None:
-                node = nodes.pop()
-                node2 = nodes.pop()
-                root = Node(NodeKind.GLUE, void_ckind, '', self.array_elem_declaration(
-                    arr_node, node, idx), self.array_elem_declaration(arr_node, node2, idx + 1))
-                idx += 2
-            else:
-                node = nodes.pop()
-                root = Node(
-                    NodeKind.GLUE, void_ckind, '', root, self.array_elem_declaration(arr_node, node, idx))
-                idx += 1
+            root = self.array_elem_declaration(arr_node, nodes.pop(), 0)
+        else:
+            while len(nodes) > 0:
+                if root is None:
+                    node = nodes.pop()
+                    node2 = nodes.pop()
+                    root = Node(NodeKind.GLUE, void_ckind, '', self.array_elem_declaration(
+                        arr_node, node, idx), self.array_elem_declaration(arr_node, node2, idx + 1))
+                    idx += 2
+                else:
+                    node = nodes.pop()
+                    root = Node(
+                        NodeKind.GLUE, void_ckind, '', root, self.array_elem_declaration(arr_node, node, idx))
+                    idx += 1
 
         return root
 
@@ -1236,7 +1248,7 @@ class Parser:
                 var_type, Def.var_off, is_local, value)
 
             if not is_local:
-                return None
+                return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = self.token_list_to_tree()
             if not type_compatible(NodeKind.DECLARATION, var_type.ckind, node.ntype.ckind):
@@ -1257,11 +1269,11 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, is_local)
 
             if self.no_more_tokens():
-                return None
+                return Node(NodeKind.ARR_DECLARATION, void_type, full_name)
 
             self.match_token(TokenKind.LBRACE)
 
-            return self.array_declaration(full_name)
+            return Node(NodeKind.GLUE, void_ckind, '', Node(NodeKind.ARR_DECLARATION, void_type, full_name), self.array_declaration(full_name))
 
         if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
             value = 0
@@ -1286,7 +1298,7 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
 
             if not is_local:
-                return None
+                return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

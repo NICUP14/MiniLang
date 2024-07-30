@@ -21,15 +21,25 @@ MLFLAGS ?=
 MLFLAGS += -C
 
 # Recipes
-default: clean assemble
+default: clean def
 debug: clean _debug
 assemble: $(ASM_OBJECTS)
 compile: $(PROJECT)
 
 # Shortcuts
-def: default
+def: _c
 dbg: debug
+c: _c
 asm: assemble
+
+
+_c:
+	@mkdir -p $(BUILD_DIR)
+	$(ML) $(MLFLAGS) -I $(MLLIB) -I src src/main.ml -o $(BUILD_DIR)/$(PROJECT).c
+	# $(ML) $(MLFLAGS) -I $(MLLIB) -I src src/main.ml > $(BUILD_DIR)/$(PROJECT).c
+	$(CC) $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
+
+_cdebug:
 
 _debug:
 	$(ML) $(MLFLAGS) -d -I $(MLLIB) -I src $(SOURCES)

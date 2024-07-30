@@ -70,7 +70,7 @@ fun _va_start(list: va_list): va_list
 end
 
 fun _va_end(list: va_list): void
-    free(list[1])
+    free(cast("void*", cast("int64", list) + 8))
 end
 
 macro va_start(list)

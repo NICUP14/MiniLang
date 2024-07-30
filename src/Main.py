@@ -6,7 +6,10 @@ import optparse
 import sys
 from Def import Color
 from Def import color_str
+from Def import print_error
 from os.path import exists
+from backend.c.CWalker import c_walk
+from backend.ml.MLWalker import ml_walk
 
 ml_file_type = 'ml'
 default_in_file = f'main.{ml_file_type}'
@@ -22,19 +25,22 @@ if __name__ == '__main__':
     parser.add_option('-o', '--output', default='stdout',
                       help='Write contents to OUTPUT; When set, no-color is enabled by default.')
     parser.add_option('-d', '--debug', action='store_true',
-                      help='Dry run; Print the human-friendly AST representation.')
+                      help='Dry run; Print the human-friendly AST representation. Overrides any specified backend option.')
     parser.add_option('-c', '--no-color', action='store_true',
                       help='Do not use ANSI color sequences in the output.')
     parser.add_option('-C', '--no-comment', action='store_true',
                       help='Do not include human-readable comments in the generated assembly.')
     parser.add_option('-I', '--include', action='append',
                       help='Add the directory to the include path.')
+    parser.add_option('-b', '--backend', default='c',
+                      help='Specify which compiler backend to use. Choose between c, asm and ml.')
     values, in_files = parser.parse_args()
     values_dict = vars(values)
 
     if len(in_files) == 0:
         in_files = [default_in_file]
     out_file = values_dict.get('output')
+    backend = values_dict.get('backend')
 
     include_list = values_dict.get('include')
     Def.include_list = include_list if include_list else []
@@ -56,6 +62,14 @@ if __name__ == '__main__':
         root = parser.parse(in_file)
 
         if values_dict.get('debug'):
-            Def.print_stdout(GenStr.tree_str(root))
+            Def.print_stdout(ml_walk(root))
         else:
-            Gen.gen(root)
+            if backend == 'c':
+                Def.print_stdout(c_walk(root))
+            elif backend == 'ml':
+                Def.print_stdout(ml_walk(root))
+            elif backend == 'asm':
+                Gen.gen(root)
+            else:
+                print(
+                    f'{sys.argv[0]}: {color_str(Color.FAIL, f"Unknown backend {backend}.")}')
