@@ -3,19 +3,18 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
-void x() { 
+
+void y() { 
   (((1 + 2) + 3) + 4);
 }
+
 long long main() { 
-  long long main_i = 0;
-  long long main_a[3];
-  (main_a[0] = 0);
-  (main_a[1] = 1);
-  (main_a[2] = 2);
-  24;
-  while (main_i < 64) {
-    printf("I is now %lld\n", main_i);
-    (main_i = (main_i + 1));;
-    }
+  long long main_c = 5;
+  long long main_d[5];
+  long long* main_x = main_d;
+  5;
+  printf("%lld", main_x);
+  "long long*";
   return 0;
 }
+

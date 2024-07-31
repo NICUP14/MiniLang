@@ -107,7 +107,6 @@ class TokenKind(enum.Enum):
     KW_LINE = enum.auto()
     KW_LINENO = enum.auto()
     KW_TYPE = enum.auto()
-    KW_OFF = enum.auto()
     KW_SIZE = enum.auto()
     KW_LEN = enum.auto()
     KW_CAST = enum.auto()
@@ -173,7 +172,6 @@ TOKEN_KIND_MAP = {
     'line': TokenKind.KW_LINE,
     'lineno': TokenKind.KW_LINENO,
     'type_of': TokenKind.KW_TYPE,
-    'off_of': TokenKind.KW_OFF,
     'size_of': TokenKind.KW_SIZE,
     'len_of': TokenKind.KW_LEN,
     'cast': TokenKind.KW_CAST,
@@ -241,7 +239,6 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.MACRO_CALL,
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
-        TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,
         TokenKind.KW_CAST,
@@ -310,7 +307,6 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.AMP,
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
-        TokenKind.KW_OFF,
         TokenKind.KW_SIZE,
         TokenKind.KW_LEN,
         TokenKind.KW_CAST,

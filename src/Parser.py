@@ -60,7 +60,6 @@ from Snippet import copy_of
 PRECEDENCE_MAP = {
     TokenKind.KW_CAST: 26,
     TokenKind.KW_TYPE: 26,
-    TokenKind.KW_OFF: 26,
     TokenKind.KW_LEN: 26,
     TokenKind.KW_SIZE: 26,
     TokenKind.DEREF: 26,
@@ -113,7 +112,6 @@ NODE_KIND_MAP = {
     TokenKind.KW_ASM: NodeKind.ASM,
     TokenKind.KW_CAST: NodeKind.CAST,
     TokenKind.KW_TYPE: NodeKind.TYPE,
-    TokenKind.KW_OFF: NodeKind.OFF,
     TokenKind.KW_LEN: NodeKind.LEN,
     TokenKind.KW_SIZE: NodeKind.SIZE,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
@@ -275,7 +273,7 @@ class Parser:
 
             elif token_is_op(token.kind):
                 # Assembly, type, offset, size, len, cast builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_OFF, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
                     op_stack.append(token)
                     continue
 
@@ -575,7 +573,7 @@ class Parser:
                             Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.STR_LIT), token.value, node))
                         continue
 
-                    if token.kind in (TokenKind.KW_OFF, TokenKind.KW_LEN, TokenKind.KW_SIZE):
+                    if token.kind in (TokenKind.KW_LEN, TokenKind.KW_SIZE):
                         node_stack.append(
                             Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.INT_LIT), token.value, node))
                         continue
@@ -1298,7 +1296,7 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
 
             if not is_local:
-                return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+                return Node(NodeKind.DECLARATION, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), node)
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

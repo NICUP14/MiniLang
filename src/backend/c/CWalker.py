@@ -2,6 +2,7 @@ import Def
 from Def import Node
 from Def import NodeKind
 from Def import Color
+from Def import ref_ckind
 from Def import color_str
 from Def import print_error
 
@@ -30,6 +31,9 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             '\t', '\\t').replace('\\end', 'end')
         return string
     if node.kind == NodeKind.IDENT:
+        if Def.ident_map.get(node.value) == Def.VariableMetaKind.REF and (
+                parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
+            return f'*{node.value}'
         return node.value
     if node.kind == NodeKind.OP_ADD:
         return f'({left} + {right})'
@@ -46,6 +50,10 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.OP_OR:
         return f'({left} | {right})'
     if node.kind == NodeKind.OP_ASSIGN:
+        # ptr = Def.ptr_map.get(node.left.value)
+        # if ptr.ref:
+        #    return f'(*{left} = {right})'
+        # else:
         return f'({left} = {right})'
     if node.kind == NodeKind.DECLARATION:
         return f'{color_str(Color.GREEN, c_rev_type_of_ident(node.left.value))} {left} = {right}'
@@ -104,7 +112,10 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.NAMESPACE:
         return ''
     if node.kind == NodeKind.REF:
-        return f'&{left}'
+        if Def.ident_map.get(node.left.value) in (Def.VariableMetaKind.REF, Def.VariableMetaKind.ARR):
+            return left
+        else:
+            return f'&{left}'
     if node.kind == NodeKind.DEREF:
         return f'*{left}'
     if node.kind == NodeKind.END:
@@ -114,13 +125,27 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         ]):
             return ''
         else:
-            return indent + '}'
+            if parent.left is not None and parent.left.kind == NodeKind.FUN:
+                return indent + '}\n'
+            else:
+                return indent + '}'
 
     print_error('c_walker_step', f'Invalid node kind {node.kind}')
 
 
 def _c_preamble() -> str:
-    return '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <ctype.h>'
+    headers = [
+        'stdio.h',
+        'stdlib.h',
+        'string.h',
+        'stdbool.h',
+        'ctype.h'
+    ]
+
+    def include(header: str) -> str:
+        return f'#include <{header}>'
+
+    return '\n'.join(map(include, headers))
 
 
 def _c_walk(node):
@@ -129,4 +154,4 @@ def _c_walk(node):
 
 
 def c_walk(node):
-    return f'{_c_preamble()}\n{_c_walk(node)}'
+    return f'{_c_preamble()}\n\n{_c_walk(node)}'

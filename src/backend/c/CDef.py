@@ -41,10 +41,7 @@ def c_rev_type_of(vtype: VariableType):
     if vtype in (any_type, bool_type):
         return rev_of(vtype.ckind)
 
-    if vtype.ckind == ref_ckind:
-        return f'{rev_of(vtype.elem_ckind)}&'
-
-    if vtype.ckind == ptr_ckind:
+    if vtype.ckind in (ptr_ckind, ref_ckind):
         return f'{rev_of(vtype.elem_ckind)}*'
 
     if vtype.ckind == arr_ckind:
@@ -94,14 +91,7 @@ def c_rev_type_of_ident(name: str) -> str:
             print_error('c_rev_type_of_ident', f'No such pointer {name}')
 
         ptr = Def.ptr_map.get(name)
-        specifier = ''
-        if ptr.ref:
-            specifier = '&'
-        elif ptr.elem_cnt == 0:
-            specifier = '*'
-        else:
-            specifier = f'[{ptr.elem_cnt}]*'
-        return f'{rev_of(ptr.elem_type.ckind)}{specifier}'
+        return f'{rev_of(ptr.elem_type.ckind)}*'
 
     print_error('c_rev_type_of_ident', f'No such meta kind {meta_kind}')
 
@@ -140,7 +130,7 @@ def c_expand_builtin(node: Node) -> Node:
         return Node(NodeKind.INT_LIT, default_type, str(size_of_ident(node.left.value)))
 
     if node.kind == NodeKind.TYPE:
-        return Node(NodeKind.STR_LIT, node.ntype, c_rev_type_of(node.left.ntype))
+        return Node(NodeKind.STR_LIT, node.ntype, f'"{c_rev_type_of(node.left.ntype)}"')
 
     if node.kind == NodeKind.LEN:
         if node.left.kind != NodeKind.IDENT:
