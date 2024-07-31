@@ -1,3 +1,4 @@
+from Def import type_compatible
 import Def
 from Def import Node
 from Def import NodeKind
@@ -5,6 +6,8 @@ from Def import VariableKind
 from Def import VariableMetaKind
 from Def import VariableCompKind
 from Def import VariableType
+from Def import Function
+from Def import FunctionSignature
 from Def import bool_ckind
 from Def import any_ckind
 from Def import ptr_ckind
@@ -13,7 +16,6 @@ from Def import ref_ckind
 from Def import any_type
 from Def import bool_type
 from Def import default_type
-from Def import rev_type_of
 from Def import size_of_ident
 from Def import print_error
 

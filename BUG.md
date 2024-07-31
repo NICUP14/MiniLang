@@ -5,7 +5,7 @@ Solved: 12/15
 - [ ] `ma_cnt` builtin is no longer working.
 - [ ] Div/Mod bug (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
-- [ ] Cast in macro allowes this: `cast("int64", (1, 2, 3))`.
+- [ ] Cast in macro allows this: `cast("int64", (1, 2, 3))`.
 - [X] Passing arguments from variadic macro to fun doesn't work.
 - [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
 - [X] Cannot call function as a function param.

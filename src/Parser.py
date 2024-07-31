@@ -24,6 +24,7 @@ from Def import VariableType
 from Def import VariableKind
 from Def import VariableMetaKind
 from Def import Function
+from Def import FunctionSignature
 from Def import Array
 from Def import Pointer
 from Def import Macro
@@ -55,6 +56,8 @@ from Def import size_of
 from Def import is_local_ident
 from Def import rev_type_of
 from Def import node_is_cmp
+from Def import check_signature
+from Def import _find_signature
 from Snippet import copy_of
 
 PRECEDENCE_MAP = {
@@ -412,6 +415,8 @@ class Parser:
 
         arg_list = self.args_to_list(node, signature.arg_cnt)
         arg_names = signature.arg_names
+
+        print('DBG:', arg_names)
 
         if len(arg_list) != len(arg_names):
             print_error('expand_macro',
@@ -902,27 +907,48 @@ class Parser:
             print_error('fun_declaration',
                         'Junk after function declaration', self)
 
+        # Computes the signature name
+        if is_extern:
+            sig_name = full_name
+        else:
+            sig_name = '_'.join([full_name] + list(map(rev_type_of, arg_types))).replace(
+                '*', 'ptr').replace('&', 'ref')
+
         # ? Temporary
         full_arg_names = []
-        Def.fun_name_list.append(full_name)
+        Def.fun_name_list.append(sig_name)
         for arg_name in arg_names:
             full_arg_names.append(full_name_of_var(
                 arg_name, exhaustive_match=False))
         Def.fun_name_list.pop()
 
-        fun = Function(full_name, len(arg_types), full_arg_names,
-                       arg_types, ret_type, 0, is_variadic, is_extern)
+        signature = FunctionSignature(sig_name, len(arg_types), full_arg_names,
+                                      arg_types, ret_type, is_extern)
 
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
-        Def.ident_map[full_name] = VariableMetaKind.FUN
-        Def.fun_map[full_name] = fun
+        if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
+            fun = Def.fun_map.get(full_name)
+
+            # Checks for conflicting signatures
+            if check_signature(fun, signature):
+                print_error('fun_declaration',
+                            f'New signature of {full_name} ({signature}) conflicts with {_find_signature(fun, signature.arg_types)}', parser=self)
+
+            fun.signatures.append(signature)
+        else:
+            fun = Function(full_name, len(arg_types), full_arg_names,
+                           arg_types, ret_type, 0, is_variadic, is_extern, [signature])
+
+            Def.ident_map[full_name] = VariableMetaKind.FUN
+            Def.fun_map[full_name] = fun
+        Def.fun_own_map[sig_name] = full_name
 
         if is_extern:
             return None
 
         Def.block_cnt = 0
-        Def.fun_name = full_name
-        Def.fun_name_list.append(full_name)
+        Def.fun_name = sig_name
+        Def.fun_name_list.append(sig_name)
         Def.var_off = 8
 
         # ? Temporary
@@ -953,7 +979,7 @@ class Parser:
         fun.off = off + align_off
 
         node = Node(NodeKind.GLUE, void_type, '',
-                    Node(NodeKind.FUN, default_ckind, full_name, body), Node(NodeKind.END, void_type, 'end'))
+                    Node(NodeKind.FUN, default_ckind, sig_name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
     def type_definition(self) -> None:
@@ -1051,7 +1077,7 @@ class Parser:
 
             self.match_token(TokenKind.RPAREN)
             if not self.no_more_tokens():
-                print_error('fun_declaration',
+                print_error('macro_statement',
                             'Junk after macro declaration', self)
 
         self.next_line()

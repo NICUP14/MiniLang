@@ -3,9 +3,8 @@
 Solved: 15/20
 
 - [ ] Global arrays.
-- [ ] Generator class (unify Gen*.py `GeneratorKind` `gen(gkind) -> Generator`, `Generator.gen(out)`)
-- [ ] C generator backend (GenC.py)
-- [ ] ML generator backend (GenStr.py -> GenMl.py)
+- [X] C generator backend (CWalker.py)
+- [X] ML generator backend (GenStr.py -> MLWalker.py)
 - [ ] ASM generator backend (Gen.py -> GenASM.py)
 - [X] Fix type system.
 - [X] Widen during parsing.

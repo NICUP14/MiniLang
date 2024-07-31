@@ -15,41 +15,6 @@ def has_indent(kind: NodeKind):
     )
 
 
-def args_to_list(node: Node) -> List[Node]:
-    if node is None:
-        return []
-
-    glue_node = node
-    arg_list: list[Node] = []
-    if glue_node.kind != NodeKind.GLUE:
-        arg_list.append(glue_node)
-    else:
-        # cnt = 0
-        # while glue_node is not None:
-        #     cnt += 1
-        #     glue_node = glue_node.left
-
-        # glue_node = node
-        # if cnt > arg_cnt:
-        #     block_node: Node = copy.deepcopy(node)
-        #     arg_list.append(block_node)
-
-        #     for _ in range(cnt - arg_cnt):
-        #         block_node = block_node.left
-        #     block_node.left = None
-
-        #     for _ in range(cnt - arg_cnt + 1):
-        #         glue_node = glue_node.left
-
-        while glue_node is not None:
-            arg_list.append(glue_node.right)
-            glue_node = glue_node.left
-
-        arg_list.reverse()
-
-    return arg_list
-
-
 def fun_call_tree_str(node: Node, func):
     if node.kind == NodeKind.FUN_CALL:
         name = node.value

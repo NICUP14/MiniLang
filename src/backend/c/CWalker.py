@@ -2,9 +2,9 @@ import Def
 from Def import Node
 from Def import NodeKind
 from Def import Color
-from Def import ref_ckind
 from Def import color_str
 from Def import print_error
+from Def import find_signature
 
 from backend.c.CDef import has_semicolon
 from backend.c.CDef import c_rev_type_of
@@ -19,6 +19,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return ''
 
     indent = '  ' * indent_cnt
+    prev_indent = '  ' * (indent_cnt - 1)
     add_left_semi = node.left is not None and has_semicolon(node.left.kind)
     add_right_semi = node.right is not None and has_semicolon(node.right.kind)
 
@@ -74,7 +75,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{left}[{right}]'
     if node.kind == NodeKind.IF:
         if right is not None:
-            return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{"}"}\n{indent}{color_str(Color.BLUE, "else")} {"{"}\n  {indent + right}{";" if add_right_semi else ""}'
+            return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{prev_indent + "}"}\n{prev_indent}{color_str(Color.BLUE, "else")} {"{"}\n{indent + right}{";" if add_right_semi else ""}'
         else:
             return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}'
 
@@ -90,17 +91,32 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         else:
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}\n{indent + right}{";" if add_right_semi else empty_str}'
     if node.kind == NodeKind.FUN_CALL:
-        return f'{node.value}({fun_call_tree_str(node, _c_walk)})'
+        fun = Def.fun_map.get(node.value)
+        sig = find_signature(fun, node)
+        if sig is None:
+            print_error('c_walker_step',
+                        f'No signature of {fun.name} matches {sig}')
+
+        return f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
     if node.kind == NodeKind.ASM:
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:
-        fun = Def.fun_map.get(node.value)
-        args_zip = zip(fun.arg_names, fun.arg_types)
+        sig_name = node.value
+        fun_name = Def.fun_own_map.get(node.value)
+        fun = Def.fun_map.get(fun_name)
+
+        # ? Temporary
+        sig = None
+        for signature in fun.signatures:
+            if signature.name == sig_name:
+                sig = signature
+
+        args_zip = zip(sig.arg_names, sig.arg_types)
         args_map = map(
             lambda t: f'{color_str(Color.BLUE, c_rev_type_of(t[1]))} {t[0]}', args_zip)
         args_str = ", ".join(
             list(args_map) + (['...'] if fun.is_variadic else []))
-        return f'{color_str(Color.GREEN, c_rev_type_of(fun.ret_type))} {node.value}({args_str}) {"{"} \n{left}{";" if add_left_semi else ""}'
+        return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} {node.value}({args_str}) {"{"} \n{left}{";" if add_left_semi else ""}'
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
     if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.SIZE):

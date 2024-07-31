@@ -1,13 +1,14 @@
 # Ideas
 
-Implemented: 10/13
+Implemented: 11/18
 
 - [ ] Structs
 - [ ] Generics
 - [ ] Access operator (`.`)
-- [ ] `specf_of` builtin
-- [ ] Function overloading
+- [X] Function overloading
 - [ ] Deprecate `ma_cnt` (`count` builtin)
+- [ ] Add `get` builtin (get n'th arg)
+- [ ] Add `slice` builtin (get n'th to m'th arg)
 - [X] Deprecate `off_of` (cannot be reproduced in c)
 - [X] type_of builtin -> str literal.
 - [X] Check for circular imports.

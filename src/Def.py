@@ -149,6 +149,16 @@ class Array:
 
 
 @dataclass
+class FunctionSignature:
+    name: str
+    arg_cnt: int
+    arg_names: List[str]
+    arg_types: List[str]
+    ret_type: VariableCompKind
+    is_extern: bool
+
+
+@dataclass
 class Function:
     """
     Contains the meta-data of a function type.
@@ -166,6 +176,7 @@ class Function:
     off: int
     is_variadic: bool
     is_extern: bool
+    signatures: List[FunctionSignature]
 
 
 @dataclass
@@ -692,7 +703,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
     return VariableType(ckind_map.get(kind), default_ckind)
 
 
-def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind) -> bool:
+def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind, ref_is_ptr: bool = True) -> bool:
     if ckind == any_ckind or ckind2 == any_ckind:
         return True
 
@@ -708,7 +719,7 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if ckind == any_ckind or ckind2 == any_ckind:
         return True
 
-    if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind):
+    if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind) and ref_is_ptr:
         return True
 
     if kind == NodeKind.FUN_CALL and ckind == arr_ckind and ckind2 == ptr_ckind:
@@ -942,6 +953,61 @@ def size_of_ident(ident: str) -> int:
     print_error('size_of_ident', f'No such meta kind {meta_kind}')
 
 
+def args_to_list(node: Node) -> List[Node]:
+    if node is None:
+        return []
+
+    glue_node = node
+    arg_list: list[Node] = []
+    if glue_node.kind != NodeKind.GLUE:
+        arg_list.append(glue_node)
+    else:
+        while glue_node is not None:
+            arg_list.append(glue_node.right)
+            glue_node = glue_node.left
+
+        arg_list.reverse()
+
+    return arg_list
+
+
+def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[FunctionSignature]:
+    # Looks for an exact match
+    for signature in fun.signatures:
+        if arg_types == signature.arg_types:
+            return signature
+
+    # Looks for compatible matches
+    for signature in fun.signatures:
+        if fun.is_variadic or len(arg_types) == signature.arg_cnt:
+            for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
+                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind):
+                    continue
+
+                return signature
+
+    return None
+
+
+def find_signature(fun: Function, node: Node) -> Optional[Node]:
+    def get_type(node: Node) -> VariableType:
+        return node.ntype
+
+    args = args_to_list(node.left)
+    arg_types = list(map(get_type, args))
+
+    return _find_signature(fun, arg_types)
+
+
+# Checks if signature already exists
+def check_signature(fun: Function, sig: FunctionSignature) -> bool:
+    for signature in fun.signatures:
+        if sig.arg_types == signature.arg_types:
+            return True
+
+    return False
+
+
 def node_is_cmp(kind: NodeKind) -> bool:
     return kind in (
         NodeKind.OP_EQ,
@@ -1056,6 +1122,7 @@ included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0
 macro_arg_map: Dict[str, Node] = dict()
+fun_own_map: Dict[str, str] = dict()
 deferred: Optional[Node] = None
 
 type_map = {
