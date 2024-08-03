@@ -58,6 +58,7 @@ from Def import rev_type_of
 from Def import node_is_cmp
 from Def import check_signature
 from Def import _find_signature
+from Def import glue_statements
 from Snippet import copy_of
 
 PRECEDENCE_MAP = {
@@ -75,8 +76,10 @@ PRECEDENCE_MAP = {
     TokenKind.MULT: 20,
     TokenKind.DIV: 20,
     TokenKind.PERC: 7,
-    TokenKind.AND: 7,
-    TokenKind.OR: 7,
+    TokenKind.BIT_OR: 7,
+    TokenKind.BIT_AND: 7,
+    TokenKind.OR: 5,
+    TokenKind.AND: 5,
     TokenKind.KW_AT: 27,
     TokenKind.ASSIGN: 4,
     TokenKind.EQ: 6,
@@ -96,8 +99,10 @@ NODE_KIND_MAP = {
     TokenKind.MULT: NodeKind.OP_MULT,
     TokenKind.DIV: NodeKind.OP_DIV,
     TokenKind.PERC: NodeKind.OP_MOD,
-    TokenKind.AND: NodeKind.OP_AND,
     TokenKind.OR: NodeKind.OP_OR,
+    TokenKind.AND: NodeKind.OP_AND,
+    TokenKind.BIT_OR: NodeKind.OP_BIT_OR,
+    TokenKind.BIT_AND: NodeKind.OP_BIT_AND,
     TokenKind.ASSIGN: NodeKind.OP_ASSIGN,
     TokenKind.EQ: NodeKind.OP_EQ,
     TokenKind.NEQ: NodeKind.OP_NEQ,
@@ -285,7 +290,7 @@ class Parser:
                 if prev_token is None or token_is_op(prev_token.kind) or prev_token.kind == TokenKind.LPAREN:
                     if token.kind == TokenKind.MULT:
                         op_token = Token(TokenKind.DEREF, '*')
-                    elif token.kind == TokenKind.AND:
+                    elif token.kind == TokenKind.BIT_AND:
                         op_token = Token(TokenKind.AMP, '&')
                     else:
                         print_error('to_postfix',
@@ -407,6 +412,8 @@ class Parser:
         if Def.macro_name != '':
             return Node(NodeKind.IDENT, any_type, Def.macro_name)
 
+        #! BUG: Macro definitions with same name must have ascending argument counts
+        #! BUG: Due to assigning `signature = macro.signatures[0]`
         arg_cnt = self.fun_arg_cnt(node)
         signature = macro.signatures[0]
         for sig in macro.signatures:
@@ -415,8 +422,6 @@ class Parser:
 
         arg_list = self.args_to_list(node, signature.arg_cnt)
         arg_names = signature.arg_names
-
-        print('DBG:', arg_names)
 
         if len(arg_list) != len(arg_names):
             print_error('expand_macro',
@@ -684,6 +689,9 @@ class Parser:
         if token.kind == TokenKind.KW_FUN:
             self.next_token()
             return self.fun_declaration(is_extern=False)
+        if token.kind == TokenKind.KW_STRUCT:
+            self.next_token()
+            return self.struct_declaration()
         if token.kind == TokenKind.KW_RET:
             self.next_token()
             return self.ret_statement()
@@ -715,7 +723,7 @@ class Parser:
 
     def compound_statement(self) -> Optional[Node]:
         node = None
-        while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE):
+        while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE, TokenKind.KW_ELIF):
             if node is None:
                 node = self.statement()
             else:
@@ -790,6 +798,28 @@ class Parser:
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
+    # An if_statement helper to parse multiple elif statements
+    def elif_statement(self) -> Optional[Node]:
+        node = None
+        cond_node = None
+        while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE):
+            self.match_token(TokenKind.KW_ELIF)
+            cond_node = self.inject_cond(self.token_list_to_tree())
+
+            end_node = Node(NodeKind.END, void_type, '')
+            elif_node = glue_statements([Node(NodeKind.ELIF, void_type, '',
+                                              self.statement(), None, cond_node), end_node])
+            self.next_line()
+
+            if node is None:
+                node = elif_node
+            else:
+                node = Node(NodeKind.GLUE, void_type,
+                            '', node, elif_node)
+            self.next_line()
+
+        return node
+
     def if_statement(self) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
         if cond_node.ntype not in (any_type, bool_type):
@@ -798,15 +828,28 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
-        true_node = self.compound_statement()
+        end_node = Node(NodeKind.END, void_type, '')
+
+        true_node = glue_statements([Node(NodeKind.IF, void_type, '',
+                                          self.compound_statement(), None, cond_node), end_node])
+
+        elif_node = None
+        if self.curr_token().kind == TokenKind.KW_ELIF:
+            elif_node = self.elif_statement()
 
         false_node = None
         if self.curr_token().kind == TokenKind.KW_ELSE:
             self.next_line()
-            false_node = self.compound_statement()
+            false_node = glue_statements([Node(NodeKind.ELSE, void_type, '',
+                                               self.compound_statement()), end_node])
 
-        node = Node(NodeKind.GLUE, void_type, '', Node(NodeKind.IF, '', void_type,
-                    true_node, false_node, cond_node), Node(NodeKind.END, void_type, 'end'))
+        nodes = [true_node]
+        if elif_node is not None:
+            nodes.append(elif_node)
+        if false_node is not None:
+            nodes.append(false_node)
+
+        node = glue_statements(nodes)
         return node
 
     def ret_statement(self) -> Optional[Node]:
@@ -860,7 +903,7 @@ class Parser:
                 elem_cnt = 0
                 self.next_token()
 
-                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()
                     arg_type = VariableType(ref_ckind, arg_type.ckind)
 
@@ -899,7 +942,7 @@ class Parser:
             self.next_token()
             ret_type = VariableType(ptr_ckind, ret_type.ckind)
 
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
             self.next_token()
             ret_type = VariableType(ref_ckind, ret_type.ckind)
 
@@ -924,6 +967,7 @@ class Parser:
 
         signature = FunctionSignature(sig_name, len(arg_types), full_arg_names,
                                       arg_types, ret_type, is_extern)
+        Def.fun_sig_map[sig_name] = full_name
 
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
         if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
@@ -941,7 +985,6 @@ class Parser:
 
             Def.ident_map[full_name] = VariableMetaKind.FUN
             Def.fun_map[full_name] = fun
-        Def.fun_own_map[sig_name] = full_name
 
         if is_extern:
             return None
@@ -982,6 +1025,18 @@ class Parser:
                     Node(NodeKind.FUN, default_ckind, sig_name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
+    def struct_declaration(self) -> Node:
+        node = None
+        while not self.no_more_lines() and self.curr_token().kind != TokenKind.KW_END:
+            if node is None:
+                node = self.declaration()
+            else:
+                node = Node(NodeKind.GLUE, void_type,
+                            '', node, self.declaration())
+            self.next_line()
+
+        return node
+
     def type_definition(self) -> None:
         if Def.macro_name != '':
             print_error('declaration',
@@ -997,7 +1052,7 @@ class Parser:
             self.next_token()
             meta_kind = VariableMetaKind.PTR
 
-        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
             self.next_token()
             meta_kind = VariableMetaKind.REF
 
@@ -1211,7 +1266,7 @@ class Parser:
             self.next_token()
             meta_kind = VariableMetaKind.PTR
 
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
             self.next_token()
             meta_kind = VariableMetaKind.REF
 
@@ -1304,7 +1359,7 @@ class Parser:
             elem_type = VariableType(
                 VariableCompKind(elem_kind, elem_meta_kind))
             if not is_local:
-                if self.curr_token().kind == TokenKind.AND:
+                if self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()
                     value = self.match_token(TokenKind.IDENT).value
                     if is_local_ident(value):
@@ -1322,7 +1377,7 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
 
             if not is_local:
-                return Node(NodeKind.DECLARATION, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), node)
+                return Node(NodeKind.DECLARATION, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

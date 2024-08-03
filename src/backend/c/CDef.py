@@ -1,4 +1,3 @@
-from Def import type_compatible
 import Def
 from Def import Node
 from Def import NodeKind
@@ -6,8 +5,6 @@ from Def import VariableKind
 from Def import VariableMetaKind
 from Def import VariableCompKind
 from Def import VariableType
-from Def import Function
-from Def import FunctionSignature
 from Def import bool_ckind
 from Def import any_ckind
 from Def import ptr_ckind
@@ -109,6 +106,8 @@ def is_in_block(kind: NodeKind):
         NodeKind.BLOCK,
         NodeKind.NAMESPACE,
         NodeKind.IF,
+        NodeKind.ELIF,
+        NodeKind.ELSE,
         NodeKind.END
     ]
 
@@ -120,6 +119,8 @@ def has_semicolon(kind: NodeKind):
         NodeKind.BLOCK,
         NodeKind.NAMESPACE,
         NodeKind.IF,
+        NodeKind.ELIF,
+        NodeKind.ELSE,
         NodeKind.END
     ]
 
@@ -141,7 +142,7 @@ def c_expand_builtin(node: Node) -> Node:
         ident = node.left.value
         meta_kind = Def.ident_map.get(ident)
         if ident not in Def.ident_map:
-            print_error('c_expand_tree',
+            print_error('c_expand_builtin',
                         f'The len_of builtin only accepts pre-declared identifiers, got {ident}')
 
         elem_cnt = 0

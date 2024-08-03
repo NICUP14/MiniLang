@@ -46,10 +46,14 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'({left} % {right})'
     if node.kind == NodeKind.OP_MULT:
         return f'({left} * {right})'
-    if node.kind == NodeKind.OP_AND:
+    if node.kind == NodeKind.OP_BIT_AND:
         return f'({left} & {right})'
-    if node.kind == NodeKind.OP_OR:
+    if node.kind == NodeKind.OP_BIT_OR:
         return f'({left} | {right})'
+    if node.kind == NodeKind.OP_AND:
+        return f'({left} && {right})'
+    if node.kind == NodeKind.OP_OR:
+        return f'({left} || {right})'
     if node.kind == NodeKind.OP_ASSIGN:
         # ptr = Def.ptr_map.get(node.left.value)
         # if ptr.ref:
@@ -74,11 +78,14 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.ARR_ACC:
         return f'{left}[{right}]'
     if node.kind == NodeKind.IF:
-        if right is not None:
-            return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{prev_indent + "}"}\n{prev_indent}{color_str(Color.BLUE, "else")} {"{"}\n{indent + right}{";" if add_right_semi else ""}'
-        else:
-            return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}'
-
+        # if right is not None:
+        # return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{prev_indent + "}"}\n{prev_indent}{color_str(Color.BLUE, "else")} {"{"}\n{indent + right}{";" if add_right_semi else ""}'
+        # else:
+        return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}'
+    if node.kind == NodeKind.ELIF:
+        return f'{color_str(Color.BLUE, "else if")} {middle} {"{"}\n {indent + left}{";" if add_left_semi else ""}'
+    if node.kind == NodeKind.ELSE:
+        return f'{color_str(Color.BLUE, "else")} {"{"}\n {indent + left}{";" if add_left_semi else ""}'
     if node.kind == NodeKind.WHILE:
         return f'{color_str(Color.BLUE, "while")} {left} {"{"}\n{right}{";" if add_right_semi else ""}'
     if node.kind == NodeKind.GLUE:
@@ -102,7 +109,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:
         sig_name = node.value
-        fun_name = Def.fun_own_map.get(node.value)
+        fun_name = Def.fun_sig_map.get(node.value)
         fun = Def.fun_map.get(fun_name)
 
         # ? Temporary

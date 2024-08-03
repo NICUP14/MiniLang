@@ -26,6 +26,8 @@ OPERATORS = (
     ',',
     '[',
     ']',
+    '&&',
+    '||',
     '&',
     '|',
     '...',
@@ -78,6 +80,8 @@ class TokenKind(enum.Enum):
     AMP = enum.auto()
     OR = enum.auto()
     AND = enum.auto()
+    BIT_OR = enum.auto()
+    BIT_AND = enum.auto()
     DEREF = enum.auto()
     COLON = enum.auto()
     COMMA = enum.auto()
@@ -88,9 +92,11 @@ class TokenKind(enum.Enum):
     KW_LET = enum.auto()
     KW_IF = enum.auto()
     KW_ELSE = enum.auto()
+    KW_ELIF = enum.auto()
     KW_WHILE = enum.auto()
     KW_END = enum.auto()
     KW_FUN = enum.auto()
+    KW_STRUCT = enum.auto()
     KW_RET = enum.auto()
     KW_VOID = enum.auto()
     KW_INT16 = enum.auto()
@@ -144,8 +150,10 @@ TOKEN_KIND_MAP = {
     ',': TokenKind.COMMA,
     '[': TokenKind.LBRACE,
     ']': TokenKind.RBRACE,
-    '&': TokenKind.AND,
-    '|': TokenKind.OR,
+    '&&': TokenKind.AND,
+    '||': TokenKind.OR,
+    '&': TokenKind.BIT_AND,
+    '|': TokenKind.BIT_OR,
     '...': TokenKind.PER_FUN,
     '<<-': TokenKind.HEREDOC,
     '\\end': TokenKind.IDENT,
@@ -153,9 +161,11 @@ TOKEN_KIND_MAP = {
     'let': TokenKind.KW_LET,
     'if': TokenKind.KW_IF,
     'else': TokenKind.KW_ELSE,
+    'elif': TokenKind.KW_ELIF,
     'while': TokenKind.KW_WHILE,
     'end': TokenKind.KW_END,
     'fun': TokenKind.KW_FUN,
+    'struct': TokenKind.KW_STRUCT,
     'void': TokenKind.KW_VOID,
     'int64': TokenKind.KW_INT64,
     'int32': TokenKind.KW_INT32,
@@ -180,7 +190,7 @@ TOKEN_KIND_MAP = {
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
-    'ma_cnt': TokenKind.KW_ARG_CNT
+    'ma_cnt': TokenKind.KW_ARG_CNT,
 }
 
 
@@ -222,8 +232,10 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.MULT,
         TokenKind.DIV,
         TokenKind.PERC,
-        TokenKind.AND,
+        TokenKind.BIT_OR,
+        TokenKind.BIT_AND,
         TokenKind.OR,
+        TokenKind.AND,
         TokenKind.ASSIGN,
         TokenKind.EQ,
         TokenKind.NEQ,
@@ -284,8 +296,10 @@ def token_is_bin_op(kind: TokenKind) -> bool:
         TokenKind.MULT,
         TokenKind.DIV,
         TokenKind.PERC,
-        TokenKind.AND,
+        TokenKind.BIT_OR,
+        TokenKind.BIT_AND,
         TokenKind.OR,
+        TokenKind.AND,
         TokenKind.EQ,
         TokenKind.GT,
         TokenKind.GTE,

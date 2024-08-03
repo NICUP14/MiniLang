@@ -44,15 +44,25 @@ fun main: int32
     let d: int64[5]
     let x = d
     print(64, 65, 66, true)
+
+    if c == 5
+        printf("five")
+    elif c == 6
+        printf("six")
+    elif c == 7
+        printf("seven")
+    else
+        print("else")
+    end
     # print(&c)
     # print(true)
 
-    # let i = 0
-    # let a: int64[3] = [0, 1, 2]
-    # while i < 64
-    #     printf("I is now %lld\n", i)
-    #     i = i + 1
-    # end
+    let i = 0
+    let a: int64[3] = [0, 1, 2]
+    while i < 64 && true
+        printf("I is now %lld\n", i)
+        i = i + 1
+    end
     ret cast("int32", 0)
 end
 end

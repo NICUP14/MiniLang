@@ -205,8 +205,10 @@ class NodeKind(enum.Enum):
     OP_MULT = enum.auto()
     OP_DIV = enum.auto()
     OP_MOD = enum.auto()
-    OP_AND = enum.auto()
     OP_OR = enum.auto()
+    OP_AND = enum.auto()
+    OP_BIT_OR = enum.auto()
+    OP_BIT_AND = enum.auto()
     OP_ASSIGN = enum.auto()
     DECLARATION = enum.auto()
     ARR_DECLARATION = enum.auto()
@@ -217,6 +219,8 @@ class NodeKind(enum.Enum):
     OP_EQ = enum.auto()
     OP_NEQ = enum.auto()
     IF = enum.auto()
+    ELIF = enum.auto()
+    ELSE = enum.auto()
     WHILE = enum.auto()
     GLUE = enum.auto()
     FUN = enum.auto()
@@ -679,8 +683,10 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         NodeKind.OP_SUB: default_ckind,
         NodeKind.OP_DIV: default_ckind,
         NodeKind.OP_MOD: default_ckind,
-        NodeKind.OP_AND: default_ckind,
-        NodeKind.OP_OR: default_ckind,
+        NodeKind.OP_AND: bool_ckind,
+        NodeKind.OP_OR: bool_ckind,
+        NodeKind.OP_BIT_OR: default_ckind,
+        NodeKind.OP_BIT_AND: default_ckind,
         NodeKind.OP_GT: bool_ckind,
         NodeKind.OP_LT: bool_ckind,
         NodeKind.OP_LTE: bool_ckind,
@@ -744,6 +750,8 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_MOD,
             NodeKind.OP_AND,
             NodeKind.OP_OR,
+            NodeKind.OP_BIT_OR,
+            NodeKind.OP_BIT_AND,
             NodeKind.OP_ASSIGN,
             NodeKind.DECLARATION,
             NodeKind.OP_GT,
@@ -781,8 +789,8 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_MULT,
             NodeKind.OP_DIV,
             NodeKind.OP_MOD,
-            NodeKind.OP_AND,
-            NodeKind.OP_OR,
+            NodeKind.OP_BIT_AND,
+            NodeKind.OP_BIT_OR,
             NodeKind.OP_ASSIGN,
             NodeKind.OP_GT,
             NodeKind.OP_LT,
@@ -802,6 +810,8 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_ASSIGN,
             NodeKind.OP_GT,
             NodeKind.OP_LT,
+            NodeKind.OP_OR,
+            NodeKind.OP_AND,
             NodeKind.OP_LTE,
             NodeKind.OP_GTE,
             NodeKind.OP_EQ,
@@ -1008,6 +1018,20 @@ def check_signature(fun: Function, sig: FunctionSignature) -> bool:
     return False
 
 
+def glue_statements(node_list: List[Node]) -> Optional[Node]:
+    if len(node_list) == 0:
+        return None
+
+    glue_node = None
+    for node in node_list:
+        if glue_node is None:
+            glue_node = node
+        else:
+            glue_node = Node(NodeKind.GLUE, void_type, '', glue_node, node)
+
+    return glue_node
+
+
 def node_is_cmp(kind: NodeKind) -> bool:
     return kind in (
         NodeKind.OP_EQ,
@@ -1094,6 +1118,8 @@ block_cnt = 0
 macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
+# Redirects overloads to original function name
+fun_sig_map: Dict[str, str] = dict()
 arr_map: Dict[str, Array] = dict()
 ptr_map: Dict[str, Pointer] = dict()
 ident_map: Dict[str, VariableMetaKind] = dict()
@@ -1122,7 +1148,6 @@ included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0
 macro_arg_map: Dict[str, Node] = dict()
-fun_own_map: Dict[str, str] = dict()
 deferred: Optional[Node] = None
 
 type_map = {

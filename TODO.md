@@ -6,6 +6,7 @@ Solved: 15/20
 - [X] C generator backend (CWalker.py)
 - [X] ML generator backend (GenStr.py -> MLWalker.py)
 - [ ] ASM generator backend (Gen.py -> GenASM.py)
+- [ ] Differentiate between pointer types (type system).
 - [X] Fix type system.
 - [X] Widen during parsing.
 - [X] Static type analysis.
