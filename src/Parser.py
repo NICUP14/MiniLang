@@ -66,6 +66,8 @@ PRECEDENCE_MAP = {
     TokenKind.KW_TYPE: 26,
     TokenKind.KW_LEN: 26,
     TokenKind.KW_SIZE: 26,
+    TokenKind.KW_COUNT: 26,
+    TokenKind.KW_LIT: 26,
     TokenKind.DEREF: 26,
     TokenKind.AMP: 26,
     TokenKind.KW_ASM: 25,
@@ -122,6 +124,8 @@ NODE_KIND_MAP = {
     TokenKind.KW_TYPE: NodeKind.TYPE,
     TokenKind.KW_LEN: NodeKind.LEN,
     TokenKind.KW_SIZE: NodeKind.SIZE,
+    TokenKind.KW_COUNT: NodeKind.COUNT,
+    TokenKind.KW_LIT: NodeKind.LIT,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
     TokenKind.FALSE_LIT: NodeKind.FALSE_LIT
 }
@@ -281,7 +285,7 @@ class Parser:
 
             elif token_is_op(token.kind):
                 # Assembly, type, offset, size, len, cast builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_LEN, TokenKind.KW_CAST):
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST):
                     op_stack.append(token)
                     continue
 
@@ -441,9 +445,6 @@ class Parser:
             if node is None:
                 return None
 
-            if node.kind != NodeKind.ARG_CNT:
-                return node
-
             return Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arg_cnt))
 
         def expand_helper(node: Node) -> Optional[Node]:
@@ -485,11 +486,6 @@ class Parser:
                     node_stack.append(
                         Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(self.lineno + 1)))
 
-                # Argument count builtin
-                elif token.kind == TokenKind.KW_ARG_CNT:
-                    node_stack.append(
-                        Node(NodeKind.ARG_CNT, type_of_lit(NodeKind.INT_LIT), 'arg_cnt'))
-
                 # Line builtin
                 elif token.kind == TokenKind.KW_LINE:
                     chars = '\t '
@@ -517,10 +513,14 @@ class Parser:
                     name = token.value
                     if Def.macro_name == '' and Def.ident_map.get(name) == VariableMetaKind.ANY:
                         if name not in Def.macro_arg_map:
-                            print_error('to_tree',
-                                        f'No such macro argument {name}', self)
-
-                        node_stack.append(Def.macro_arg_map.get(token.value))
+                            # ? Temporary
+                            # print_error('to_tree',
+                            #             f'No such macro argument {name}', self)
+                            node_stack.append(
+                                Node(self.node_kind_of(token.kind), any_type, token.value))
+                        else:
+                            node_stack.append(
+                                Def.macro_arg_map.get(token.value))
 
                     else:
                         name = token.value
@@ -578,12 +578,17 @@ class Parser:
                         print_error('to_tree', 'Missing operand', self)
                     node = node_stack.pop()
 
+                    if token.kind == TokenKind.KW_LIT:
+                        node_stack.append(Node(self.node_kind_of(
+                            token.kind), void_type, token.value, node))
+                        continue
+
                     if token.kind == TokenKind.KW_TYPE:
                         node_stack.append(
                             Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.STR_LIT), token.value, node))
                         continue
 
-                    if token.kind in (TokenKind.KW_LEN, TokenKind.KW_SIZE):
+                    if token.kind in (TokenKind.KW_LEN, TokenKind.KW_SIZE, TokenKind.KW_COUNT):
                         node_stack.append(
                             Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.INT_LIT), token.value, node))
                         continue
@@ -637,7 +642,7 @@ class Parser:
 
                     # Creates the initial parameter tree of a function call
                     if token.kind == TokenKind.COMMA and (
-                            left.left is None or left.left.kind != NodeKind.GLUE):
+                            left.kind != NodeKind.GLUE):
                         node_stack.append(Node(NodeKind.GLUE, void_type, '', Node(
                             NodeKind.GLUE, void_type, '', None, left), right))
 
@@ -672,6 +677,10 @@ class Parser:
 
             print_error('to_tree',
                         f'Unused operands [{", ".join(map(val_of, node_stack[1:]))}]', self)
+
+        if len(node_stack) == 0:
+            print_error('to_tree',
+                        'Missing operands (attempt to pop from empty list)', self)
 
         return node_stack.pop()
 
@@ -857,9 +866,19 @@ class Parser:
             print_error('ret_statement',
                         'Cannot return from outside a function', self)
 
-        fun = Def.fun_map.get(Def.fun_name)
+        sig_name = Def.fun_name
+        fun_name = Def.fun_name
+        if fun_name in Def.fun_sig_map:
+            fun_name = Def.fun_sig_map.get(fun_name)
 
-        if fun.ret_type == Def.void_type:
+        fun = Def.fun_map.get(fun_name)
+
+        sig = None
+        for signature in fun.signatures:
+            if signature.name == sig_name:
+                sig = signature
+
+        if sig.ret_type == Def.void_type:
             if not self.no_more_tokens():
                 print_error('ret_statement',
                             'Cannot return a non-void value from a void function', self)
@@ -867,7 +886,7 @@ class Parser:
             return Node(NodeKind.RET, void_type, '')
         else:
             node = self.token_list_to_tree()
-            if node.ntype != fun.ret_type:
+            if not type_compatible(NodeKind.FUN_CALL, node.ntype.ckind, sig.ret_type.ckind):
                 print_error('ret_statement',
                             'The return type differs from the function\'s', self)
 
@@ -1319,7 +1338,7 @@ class Parser:
         check_ident(full_name)
         Def.ident_map[full_name] = meta_kind
 
-        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
             value = 0 if is_local else self.match_token(
                 TokenKind.INT_LIT).value
             Def.var_off += size_of(var_type.ckind)

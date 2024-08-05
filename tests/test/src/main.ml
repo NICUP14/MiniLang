@@ -4,65 +4,27 @@ import "stdlib/cstdlib"
 # import "stdlib/misc"
 # import "stdlib/debug"
 
-fun _print(x: int32): void
-    printf("%d\n", x)
-end
-
-fun _print(x: int64[5]*): void
-    len_of(x)
-    printf("arr")
-end
-
-fun _print(x: int64): void
-    printf("%lld\n", x)
-end
-
-fun _print(x: int64&): void
-    printf("%lld\n", x)
-end
-
-fun _print(x: bool): void
-    if x
-        printf("true\n")
-    else:
-        printf("false\n")
-    end
-end
-
-macro print(arg)
-    _print(arg)
-end
-
-macro print(arg, other)
-    _print(arg)
-    print(other)
-end
-
+# extern fun va_start(list: void, arg: void): void*
+# extern fun va_arg(list: void, arg: void): void*
+# 
+# macro _va_start(list, param)
+#     va_start(literal("(va_list)", list), literal(param))
+# end
+# 
+# fun _va_arg(list: void*, arg: int64): int64
+#     let val = cast("int64", va_arg(literal("(va_list)", list), literal("long long")))
+#     ret val
+# end
+# 
+# fun var(arg: int64, ...): void
+#     let listx: int64[10]
+#     _va_start(listx, arg)
+# 
+#     printf("%lld", _va_arg(listx, arg))
+# end
 
 fun main: int32
-    let c: int64 = 5
-    let d: int64[5]
-    let x = d
-    print(64, 65, 66, true)
-
-    if c == 5
-        printf("five")
-    elif c == 6
-        printf("six")
-    elif c == 7
-        printf("seven")
-    else
-        print("else")
-    end
-    # print(&c)
-    # print(true)
-
-    let i = 0
-    let a: int64[3] = [0, 1, 2]
-    while i < 64 && true
-        printf("I is now %lld\n", i)
-        i = i + 1
-    end
-    ret cast("int32", 0)
+    count(1, 2, (3, 4, 5))
+    ret 0
 end
 end

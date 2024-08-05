@@ -114,7 +114,9 @@ class TokenKind(enum.Enum):
     KW_LINENO = enum.auto()
     KW_TYPE = enum.auto()
     KW_SIZE = enum.auto()
+    KW_COUNT = enum.auto()
     KW_LEN = enum.auto()
+    KW_LIT = enum.auto()
     KW_CAST = enum.auto()
     KW_BOOL = enum.auto()
     TRUE_LIT = enum.auto()
@@ -122,7 +124,6 @@ class TokenKind(enum.Enum):
     KW_BLOCK = enum.auto()
     KW_MACRO = enum.auto()
     MACRO_CALL = enum.auto()
-    KW_ARG_CNT = enum.auto()
 
 
 @dataclass
@@ -181,16 +182,17 @@ TOKEN_KIND_MAP = {
     'file': TokenKind.KW_FILE,
     'line': TokenKind.KW_LINE,
     'lineno': TokenKind.KW_LINENO,
+    'count': TokenKind.KW_COUNT,
     'type_of': TokenKind.KW_TYPE,
     'size_of': TokenKind.KW_SIZE,
     'len_of': TokenKind.KW_LEN,
+    'literal': TokenKind.KW_LIT,
     'cast': TokenKind.KW_CAST,
     'bool': TokenKind.KW_BOOL,
     'true': TokenKind.TRUE_LIT,
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
-    'ma_cnt': TokenKind.KW_ARG_CNT,
 }
 
 
@@ -200,7 +202,6 @@ def token_is_lit(kind: TokenKind) -> bool:
         TokenKind.KW_LINE,
         TokenKind.KW_FILE,
         TokenKind.KW_LINENO,
-        TokenKind.KW_ARG_CNT,
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
@@ -215,7 +216,6 @@ def token_is_param(kind: TokenKind) -> bool:
         TokenKind.KW_LINE,
         TokenKind.KW_FILE,
         TokenKind.KW_LINENO,
-        TokenKind.KW_ARG_CNT,
         TokenKind.INT_LIT,
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
@@ -252,7 +252,9 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
         TokenKind.KW_SIZE,
+        TokenKind.KW_COUNT,
         TokenKind.KW_LEN,
+        TokenKind.KW_LIT,
         TokenKind.KW_CAST,
     )
 
@@ -322,7 +324,9 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
         TokenKind.KW_SIZE,
+        TokenKind.KW_COUNT,
         TokenKind.KW_LEN,
+        TokenKind.KW_LIT,
         TokenKind.KW_CAST,
         TokenKind.FUN_CALL,
         TokenKind.MACRO_CALL,

@@ -99,7 +99,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}\n{indent + right}{";" if add_right_semi else empty_str}'
     if node.kind == NodeKind.FUN_CALL:
         fun = Def.fun_map.get(node.value)
-        sig = find_signature(fun, node)
+        sig = find_signature(fun, node.left)
         if sig is None:
             print_error('c_walker_step',
                         f'No signature of {fun.name} matches {sig}')
@@ -126,7 +126,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} {node.value}({args_str}) {"{"} \n{left}{";" if add_left_semi else ""}'
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
-    if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.SIZE):
+    if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.LIT, NodeKind.SIZE, NodeKind.COUNT):
         return _c_walk(c_expand_builtin(node))
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "return")} {left if left is not None else ""}'

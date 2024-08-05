@@ -13,6 +13,8 @@ from Def import ref_ckind
 from Def import any_type
 from Def import bool_type
 from Def import default_type
+from Def import arg_cnt
+from Def import args_to_list
 from Def import size_of_ident
 from Def import print_error
 
@@ -114,6 +116,7 @@ def is_in_block(kind: NodeKind):
 
 def has_semicolon(kind: NodeKind):
     return kind not in [
+        NodeKind.LIT,
         NodeKind.GLUE,
         NodeKind.FUN,
         NodeKind.BLOCK,
@@ -126,6 +129,22 @@ def has_semicolon(kind: NodeKind):
 
 
 def c_expand_builtin(node: Node) -> Node:
+    def expand_lit(node: Node):
+        if node.kind == NodeKind.STR_LIT:
+            return node.value.lstrip('"').rstrip('"')
+
+        return node.value
+
+    if node.kind == NodeKind.LIT:
+        nodes = args_to_list(node.left)
+        lit = ''.join(map(expand_lit, nodes))
+
+        # ? Hacky fix
+        return Node(NodeKind.INT_LIT, Def.void_type, lit)
+
+    if node.kind == NodeKind.COUNT:
+        return Node(NodeKind.INT_LIT, default_type, str(arg_cnt(node.left)))
+
     if node.kind == NodeKind.SIZE:
         if node.left.kind != NodeKind.IDENT:
             return Node(NodeKind.INT_LIT, default_type, 0)

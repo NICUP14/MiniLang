@@ -27,8 +27,8 @@ extern fun rand(): int32
 extern fun srand(seed: int32): void
 extern fun fopen(filename: int8*, mode: int8*): void*
 extern fun fclose(stream: void*): int32
-extern fun fread(ptr: void*, size: int64, count: int64, stream: void*): int64
-extern fun fwrite(ptr: void*, size: int64, count: int64, stream: void*): int64
+extern fun fread(ptr: void*, size: int64, cnt: int64, stream: void*): int64
+extern fun fwrite(ptr: void*, size: int64, cnt: int64, stream: void*): int64
 extern fun fseek(stream: void*, offset: int64, origin: int32): int32
 extern fun ftell(stream: void*): int64
 extern fun rewind(stream: void*): void

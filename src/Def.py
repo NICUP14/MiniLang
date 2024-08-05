@@ -240,10 +240,11 @@ class NodeKind(enum.Enum):
     TYPE = enum.auto()
     OFF = enum.auto()
     LEN = enum.auto()
+    LIT = enum.auto()
     SIZE = enum.auto()
+    COUNT = enum.auto()
     BLOCK = enum.auto()
     NAMESPACE = enum.auto()
-    ARG_CNT = enum.auto()
     END = enum.auto()
 
 
@@ -908,7 +909,7 @@ def size_of(ckind: VariableCompKind) -> int:
     if ckind == bool_ckind:
         return 1
 
-    if ckind in (ptr_ckind, ref_ckind, arr_ckind):
+    if ckind in (any_ckind, ptr_ckind, ref_ckind, arr_ckind):
         return 8
 
     if ckind.meta_kind == VariableMetaKind.PRIM:
@@ -963,6 +964,15 @@ def size_of_ident(ident: str) -> int:
     print_error('size_of_ident', f'No such meta kind {meta_kind}')
 
 
+def arg_cnt(node: Node) -> int:
+    arg_cnt = 0
+    while node is not None:
+        arg_cnt += 1
+        node = node.left
+
+    return arg_cnt
+
+
 def args_to_list(node: Node) -> List[Node]:
     if node is None:
         return []
@@ -972,7 +982,7 @@ def args_to_list(node: Node) -> List[Node]:
     if glue_node.kind != NodeKind.GLUE:
         arg_list.append(glue_node)
     else:
-        while glue_node is not None:
+        while glue_node is not None and glue_node.kind == NodeKind.GLUE:
             arg_list.append(glue_node.right)
             glue_node = glue_node.left
 
@@ -1003,7 +1013,7 @@ def find_signature(fun: Function, node: Node) -> Optional[Node]:
     def get_type(node: Node) -> VariableType:
         return node.ntype
 
-    args = args_to_list(node.left)
+    args = args_to_list(node)
     arg_types = list(map(get_type, args))
 
     return _find_signature(fun, arg_types)
