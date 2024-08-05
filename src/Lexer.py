@@ -31,6 +31,7 @@ OPERATORS = (
     '&',
     '|',
     '...',
+    '.',
 )
 
 
@@ -85,6 +86,7 @@ class TokenKind(enum.Enum):
     DEREF = enum.auto()
     COLON = enum.auto()
     COMMA = enum.auto()
+    PERIOD = enum.auto()
     PER_FUN = enum.auto()
     FUN_CALL = enum.auto()
     HEREDOC = enum.auto()
@@ -149,6 +151,7 @@ TOKEN_KIND_MAP = {
     ')': TokenKind.RPAREN,
     ':': TokenKind.COLON,
     ',': TokenKind.COMMA,
+    '.': TokenKind.PERIOD,
     '[': TokenKind.LBRACE,
     ']': TokenKind.RBRACE,
     '&&': TokenKind.AND,
@@ -244,6 +247,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.GTE,
         TokenKind.LTE,
         TokenKind.COMMA,
+        TokenKind.PERIOD,
         TokenKind.KW_AT,
         TokenKind.AMP,
         TokenKind.DEREF,
@@ -310,7 +314,9 @@ def token_is_bin_op(kind: TokenKind) -> bool:
         TokenKind.NEQ,
         TokenKind.ASSIGN,
         TokenKind.COMMA,
+        TokenKind.PERIOD,
         TokenKind.KW_AT,
+        TokenKind.PERIOD,
     ]
 
 

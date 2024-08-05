@@ -46,7 +46,7 @@ def ml_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: in
         return f'({left} = {right})'
     if node.kind == NodeKind.DECLARATION:
         return f'{color_str(Color.BLUE, "let")} {node.left.value}: {rev_type_of_ident(node.left.value)} = {right}'
-    if node.kind == NodeKind.ARR_DECLARATION:
+    if node.kind == NodeKind.ARR_DECL:
         return f'{color_str(Color.BLUE, "let")} {node.value}: {rev_type_of_ident(node.value)}'
     if node.kind == NodeKind.OP_GT:
         return f'({left} > {right})'

@@ -1,10 +1,11 @@
 # Ideas
 
-Implemented: 14/20
+Implemented: 15/21
 
 - [ ] Structs
 - [ ] Generics
-- [ ] Access operator (`.`)
+- [X] Access operator (`.`)
+- [ ] Macro overloading (by type)
 - [X] Function overloading (by args)
 - [ ] Function overloading (by return)
 - [X] Deprecate `ma_cnt` (`count` builtin)

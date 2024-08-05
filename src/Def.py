@@ -85,13 +85,14 @@ class VariableType:
     Allows type checking in a structured manner.
     """
 
-    def __init__(self, ckind: VariableCompKind, elem_ckind: VariableCompKind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)) -> None:
+    def __init__(self, ckind: VariableCompKind, elem_ckind: VariableCompKind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM), name: str = '') -> None:
+        self.name = name
         self.ckind = ckind
         self.elem_ckind = elem_ckind
 
     def __eq__(self, other):
         if isinstance(other, VariableType):
-            return (self.ckind, self.elem_ckind) == (other.ckind, self.elem_ckind)
+            return (self.ckind, self.elem_ckind, self.name) == (other.ckind, other.elem_ckind, other.name)
         return False
 
     def __str__(self) -> str:
@@ -149,11 +150,19 @@ class Array:
 
 
 @dataclass
+class Structure:
+    name: str
+    vtype: VariableType
+    elem_names: List[str]
+    elem_types: List[VariableType]
+
+
+@dataclass
 class FunctionSignature:
     name: str
     arg_cnt: int
     arg_names: List[str]
-    arg_types: List[str]
+    arg_types: List[VariableType]
     ret_type: VariableCompKind
     is_extern: bool
 
@@ -211,7 +220,11 @@ class NodeKind(enum.Enum):
     OP_BIT_AND = enum.auto()
     OP_ASSIGN = enum.auto()
     DECLARATION = enum.auto()
-    ARR_DECLARATION = enum.auto()
+    ARR_DECL = enum.auto()
+    STRUCT = enum.auto()
+    STRUCT_DECL = enum.auto()
+    STRUCT_ARR_DECL = enum.auto()
+    STRUCT_ELEM_DECL = enum.auto()
     OP_GT = enum.auto()
     OP_LT = enum.auto()
     OP_LTE = enum.auto()
@@ -231,6 +244,7 @@ class NodeKind(enum.Enum):
     OP_WIDEN = enum.auto()
     RET = enum.auto()
     ARR_ACC = enum.auto()
+    ELEM_ACC = enum.auto()
     REF = enum.auto()
     DEREF = enum.auto()
     STR_LIT = enum.auto()
@@ -587,6 +601,9 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
+    if vtype.ckind == struct_ckind:
+        return vtype.name
+
     if vtype in (any_type, bool_type):
         return rev_of(vtype.ckind)
 
@@ -622,6 +639,12 @@ def type_of_ident(ident: str) -> VariableType:
 
     if meta_kind == VariableMetaKind.ANY:
         return any_type
+
+    if meta_kind == VariableMetaKind.STRUCT:
+        if ident not in struct_map:
+            print_error('type_of_ident', f'No such struct {ident}')
+
+        return struct_map.get(ident).vtype
 
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
         if ident not in ptr_map:
@@ -664,6 +687,9 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
+    if kind == NodeKind.ELEM_ACC:
+        return prev_type
+
     if kind == NodeKind.REF:
         if prev_type.ckind == ref_ckind:
             return VariableType(ptr_ckind, prev_type.elem_ckind)
@@ -714,11 +740,21 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if ckind == any_ckind or ckind2 == any_ckind:
         return True
 
-    if kind in (NodeKind.DECLARATION, NodeKind.ARR_ACC, NodeKind.WHILE, NodeKind.IF):
+    if kind in (
+            NodeKind.STRUCT_ELEM_DECL,
+            NodeKind.DECLARATION,
+            NodeKind.ARR_DECL,
+            NodeKind.ELEM_ACC,
+            NodeKind.ARR_ACC,
+            NodeKind.WHILE,
+            NodeKind.IF):
         return True
 
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
+
+    if ckind == struct_ckind:
+        return True
 
     if ckind.meta_kind == ckind2.meta_kind:
         return True
@@ -742,6 +778,7 @@ def allowed_op(ckind: VariableCompKind):
     # Fix for macros
     if ckind == any_ckind:
         return [
+            NodeKind.ELEM_ACC,
             NodeKind.IDENT,
             NodeKind.INT_LIT,
             NodeKind.OP_ADD,
@@ -772,6 +809,7 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_WIDEN,
             NodeKind.RET,
             NodeKind.ARR_ACC,
+            NodeKind.ELEM_ACC,
             NodeKind.REF,
             NodeKind.DEREF,
             NodeKind.STR_LIT,
@@ -873,11 +911,20 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.REF
         ]
 
+    if ckind == struct_ckind:
+        return [
+            NodeKind.OP_ASSIGN,
+            NodeKind.ELEM_ACC
+        ]
+
     print_error('allowed_op', f'Invalid type: {ckind}')
 
 
 def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
+        return 0
+
+    if ckind == struct_ckind or ckind2 == struct_ckind:
         return 0
 
     if ckind == any_ckind or ckind2 == any_ckind:
@@ -906,6 +953,10 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
 
 
 def size_of(ckind: VariableCompKind) -> int:
+    #! BUG: Should be corrected later
+    if ckind == struct_ckind:
+        return 0
+
     if ckind == bool_ckind:
         return 1
 
@@ -1128,6 +1179,7 @@ block_cnt = 0
 macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
+struct_map: Dict[str, Structure] = dict()
 # Redirects overloads to original function name
 fun_sig_map: Dict[str, str] = dict()
 arr_map: Dict[str, Array] = dict()
@@ -1146,14 +1198,17 @@ bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL)
 default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
 any_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ANY)
+struct_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.STRUCT)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
 any_type = VariableType(any_ckind)
+struct_type = VariableType(struct_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
     VariableKind.INT8, VariableMetaKind.PRIM))
 fun_name = ''
 macro_name = ''
+struct_name = ''
 included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0

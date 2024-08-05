@@ -26,6 +26,7 @@ from Def import VariableMetaKind
 from Def import Function
 from Def import FunctionSignature
 from Def import Array
+from Def import Structure
 from Def import Pointer
 from Def import Macro
 from Def import MacroSignature
@@ -35,6 +36,7 @@ from Def import ref_ckind
 from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
+from Def import struct_ckind
 from Def import any_type
 from Def import void_type
 from Def import bool_type
@@ -73,6 +75,7 @@ PRECEDENCE_MAP = {
     TokenKind.KW_ASM: 25,
     TokenKind.FUN_CALL: 25,
     TokenKind.MACRO_CALL: 26,
+    TokenKind.PERIOD: 24,
     TokenKind.PLUS: 10,
     TokenKind.MINUS: 10,
     TokenKind.MULT: 20,
@@ -115,6 +118,7 @@ NODE_KIND_MAP = {
     TokenKind.IDENT: NodeKind.IDENT,
     TokenKind.COMMA: NodeKind.GLUE,
     TokenKind.KW_AT: NodeKind.ARR_ACC,
+    TokenKind.PERIOD: NodeKind.ELEM_ACC,
     TokenKind.DEREF: NodeKind.DEREF,
     TokenKind.AMP: NodeKind.REF,
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
@@ -441,20 +445,14 @@ class Parser:
         for name, node in zip(arg_names, arg_list):
             Def.macro_arg_map[name] = node
 
-        def expand_arg(node: Node) -> Optional[Node]:
-            if node is None:
-                return None
-
-            return Node(NodeKind.INT_LIT, type_of_lit(NodeKind.INT_LIT), str(arg_cnt))
-
         def expand_helper(node: Node) -> Optional[Node]:
             if node is None:
                 return None
 
             middle, left, right = list(
-                map(lambda n: expand_helper(expand_arg(n)), (node.middle, node.left, node.right)))
+                map(lambda n: expand_helper(n), (node.middle, node.left, node.right)))
 
-            return expand_arg(Node(node.kind, node.ntype, node.value, left, right, middle))
+            return Node(node.kind, node.ntype, node.value, left, right, middle)
 
         parser = Parser(signature.parser)
         parser.source = self.source
@@ -666,7 +664,7 @@ class Parser:
                                          right.value, right)
 
                         node_stack.append(
-                            Node(kind, type_of_op(kind), token.value, left, right))
+                            Node(kind, type_of_op(kind, left.ntype), token.value, left, right))
                 else:
                     print_error('to_tree',
                                 f'Operator kind {token.kind} is neither binary or unary', self)
@@ -706,8 +704,12 @@ class Parser:
             return self.ret_statement()
         if token.kind == TokenKind.KW_EXTERN:
             self.next_token()
-            self.match_token(TokenKind.KW_FUN)
-            return self.fun_declaration(is_extern=True)
+            if self.curr_token().kind == TokenKind.KW_FUN:
+                self.match_token(TokenKind.KW_FUN)
+                return self.fun_declaration(is_extern=True)
+            else:
+                self.match_token(TokenKind.KW_STRUCT)
+                return self.struct_declaration(is_extern=True)
         if token.kind == TokenKind.KW_TYPEDEF:
             self.next_token()
             return self.type_definition()
@@ -1020,12 +1022,30 @@ class Parser:
                 arg_name, exhaustive_match=False)] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
-            if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+            if meta_kind == VariableMetaKind.STRUCT:
+                def add_prefix(name: str, arg_name: str = arg_name) -> str:
+                    return f'{arg_name}_{name}'
+
+                struct: Structure = Def.struct_map.get(arg_type.name)
+                elem_names = struct.elem_names
+                struct_elem_types = struct.elem_types
+                full_elem_names = list(map(add_prefix, elem_names))
+                self.struct_elem_declaration(full_elem_names, struct)
+
+                Def.struct_map[full_name_of_var(arg_name)] = Structure(
+                    full_name, struct.vtype, full_elem_names, struct_elem_types)
+
+            elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
                 Def.var_map[full_name_of_var(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
-            if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+
+            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
                     full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
+
+            else:
+                print_error('fun_declaration',
+                            f'Invalid argument meta kind {meta_kind}', parser=self)
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
@@ -1044,17 +1064,30 @@ class Parser:
                     Node(NodeKind.FUN, default_ckind, sig_name, body), Node(NodeKind.END, void_type, 'end'))
         return node
 
-    def struct_declaration(self) -> Node:
+    def struct_declaration(self, is_extern: bool = False) -> Optional[Node]:
+        #! BUG: Nested structures
+        name = self.match_token(TokenKind.IDENT).value
+        vtype = VariableType(struct_ckind, name=name)
+        Def.struct_map[name] = Structure(name, vtype, [], [])
+        Def.type_map[name] = vtype
+
+        if is_extern:
+            return None
+
+        Def.struct_name = name
+        self.next_line()
+
         node = None
         while not self.no_more_lines() and self.curr_token().kind != TokenKind.KW_END:
             if node is None:
-                node = self.declaration()
+                node = self.declaration(is_struct=True)
             else:
                 node = Node(NodeKind.GLUE, void_type,
-                            '', node, self.declaration())
+                            '', node, self.declaration(is_struct=True))
             self.next_line()
 
-        return node
+        return glue_statements([Node(NodeKind.STRUCT, void_type, Def.struct_name, node),
+                               Node(NodeKind.END, void_type, 'end')])
 
     def type_definition(self) -> None:
         if Def.macro_name != '':
@@ -1255,13 +1288,40 @@ class Parser:
         value = ''.join(parts).rstrip('\n')
         return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), value)
 
-    def declaration(self) -> Optional[Node]:
+    def struct_elem_declaration(self, names: List[str], og_struct: Structure) -> Optional[Node]:
+        for new_name, og_name, var_type in zip(names, og_struct.elem_names, og_struct.elem_types):
+            meta_kind = var_type.meta_kind()
+            Def.ident_map[new_name] = meta_kind
+
+            if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
+                Def.var_off += size_of(var_type.ckind)
+                Def.var_map[new_name] = Def.var_map[og_name]
+                Def.var_map[new_name].off = Def.var_off
+
+            elif meta_kind == VariableMetaKind.ARR:
+                arr = Def.arr_map.get(og_name)
+                elem_cnt = arr.elem_cnt
+                elem_type = arr.elem_type
+                Def.var_off += size_of(elem_type.ckind) * elem_cnt
+                Def.arr_map[new_name] = arr
+
+            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+                ptr = Def.ptr_map.get(og_name)
+                Def.var_off += size_of(var_type.ckind)
+                Def.ptr_map[new_name] = ptr
+
+            else:
+                print_error('struct_elem_declaration',
+                            f'Unknown meta kind {new_name} ({og_name}) {meta_kind}', self)
+
+    def declaration(self, is_struct: bool = False) -> Optional[Node]:
         if Def.macro_name != '':
             print_error('declaration',
                         f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
 
         name = self.match_token(TokenKind.IDENT).value
 
+        type_name = ''
         is_implicit = self.curr_token().kind != TokenKind.COLON
         kind, meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
         elem_kind, elem_meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
@@ -1269,6 +1329,7 @@ class Parser:
             self.match_token(TokenKind.COLON)
 
             var_type = type_of(self.curr_token().value)
+            type_name = var_type.name
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
             elem_kind, elem_meta_kind = kind, meta_kind
             self.next_token()
@@ -1292,7 +1353,8 @@ class Parser:
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
 
-        var_type = VariableType(VariableCompKind(kind, meta_kind))
+        var_type = VariableType(VariableCompKind(
+            kind, meta_kind), name=type_name)
         if is_implicit:
             if self.curr_token().kind == TokenKind.LBRACE:
                 print_error(
@@ -1335,21 +1397,59 @@ class Parser:
             name, force_local=True, exhaustive_match=False)
         full_name = var_name if is_local else full_name_of_var(name, True)
 
+        decl_kind = NodeKind.ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.DECLARATION
+        if is_struct:
+            decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
+
+        if is_struct:
+            Def.struct_map[Def.struct_name].elem_names.append(full_name)
+            Def.struct_map[Def.struct_name].elem_types.append(var_type)
+
         check_ident(full_name)
         Def.ident_map[full_name] = meta_kind
 
+        if meta_kind == VariableMetaKind.STRUCT:
+            def add_prefix(name: str) -> str:
+                return f'{full_name}_{name}'
+
+            struct = Def.struct_map.get(var_type.name)
+            elem_names = struct.elem_names
+            elem_types = struct.elem_types
+            full_elem_names = list(map(add_prefix, elem_names))
+            self.struct_elem_declaration(full_name, struct)
+
+            Def.struct_map[full_name] = Structure(
+                full_name, var_type, full_elem_names, elem_types)
+
+            if self.no_more_tokens():
+                return Node(NodeKind.STRUCT_DECL, var_type, full_name)
+
+            node = self.token_list_to_tree()
+            if var_type != node.ntype:
+                print_error('declaration',
+                            f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
+
+            return Node(NodeKind.STRUCT_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
-            value = 0 if is_local else self.match_token(
+            value = 0 if is_local or is_struct else self.match_token(
                 TokenKind.INT_LIT).value
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
 
+            if is_struct:
+                if not self.no_more_tokens():
+                    print_error('declaration',
+                                'Junk after struct element declaration', parser=self)
+
+                return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
+
             if not is_local:
-                return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
+                return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = self.token_list_to_tree()
-            if not type_compatible(NodeKind.DECLARATION, var_type.ckind, node.ntype.ckind):
+            if not type_compatible(decl_kind, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
 
@@ -1357,7 +1457,7 @@ class Parser:
                 print_error('declaration',
                             'Declaration of void primitive is not allowed.', self)
 
-            return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+            return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         if meta_kind == VariableMetaKind.ARR:
             elem_type = VariableType(VariableCompKind(
@@ -1367,11 +1467,11 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, is_local)
 
             if self.no_more_tokens():
-                return Node(NodeKind.ARR_DECLARATION, void_type, full_name)
+                return Node(decl_kind, void_type, full_name)
 
             self.match_token(TokenKind.LBRACE)
 
-            return Node(NodeKind.GLUE, void_ckind, '', Node(NodeKind.ARR_DECLARATION, void_type, full_name), self.array_declaration(full_name))
+            return Node(NodeKind.GLUE, void_ckind, '', Node(decl_kind, void_type, full_name), self.array_declaration(full_name))
 
         if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
             value = 0
@@ -1396,7 +1496,7 @@ class Parser:
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
 
             if not is_local:
-                return Node(NodeKind.DECLARATION, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), Node(NodeKind.INT_LIT, var_type, value))
+                return Node(decl_kind, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:
@@ -1405,11 +1505,11 @@ class Parser:
             else:
                 node = self.token_list_to_tree()
 
-            if not type_compatible(NodeKind.DECLARATION, var_type.ckind, node.ntype.ckind):
+            if not type_compatible(decl_kind, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
 
-            return Node(NodeKind.DECLARATION, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+            return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         print_error('declaration',
                     f'Unknown meta kind {meta_kind}', self)

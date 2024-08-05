@@ -60,9 +60,21 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         #    return f'(*{left} = {right})'
         # else:
         return f'({left} = {right})'
+    if node.kind == NodeKind.STRUCT:
+        return f'typedef {color_str(Color.BLUE, "struct")} {"{"}\n {indent + left}'
     if node.kind == NodeKind.DECLARATION:
         return f'{color_str(Color.GREEN, c_rev_type_of_ident(node.left.value))} {left} = {right}'
-    if node.kind == NodeKind.ARR_DECLARATION:
+    if node.kind == NodeKind.STRUCT_DECL:
+        if node.right is not None:
+            return f'{color_str(Color.GREEN, c_rev_type_of(node.ntype))} {left} = {right}'
+        else:
+            return f'{color_str(Color.GREEN, c_rev_type_of(node.ntype))} {node.value}'
+    if node.kind == NodeKind.STRUCT_ELEM_DECL:
+        return f'{color_str(Color.GREEN, c_rev_type_of_ident(node.left.value))} {left}'
+    if node.kind == NodeKind.ARR_DECL:
+        arr = Def.arr_map.get(node.value)
+        return f'{color_str(Color.GREEN, c_rev_type_of(arr.elem_type))} {node.value}[{arr.elem_cnt}]'
+    if node.kind == NodeKind.STRUCT_ARR_DECL:
         arr = Def.arr_map.get(node.value)
         return f'{color_str(Color.GREEN, c_rev_type_of(arr.elem_type))} {node.value}[{arr.elem_cnt}]'
     if node.kind == NodeKind.OP_GT:
@@ -77,6 +89,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'({left} != {right})'
     if node.kind == NodeKind.ARR_ACC:
         return f'{left}[{right}]'
+    if node.kind == NodeKind.ELEM_ACC:
+        return f'{left}.{right}'
     if node.kind == NodeKind.IF:
         # if right is not None:
         # return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{prev_indent + "}"}\n{prev_indent}{color_str(Color.BLUE, "else")} {"{"}\n{indent + right}{";" if add_right_semi else ""}'
@@ -143,11 +157,12 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'*{left}'
     if node.kind == NodeKind.END:
         if (parent.left is not None and parent.left.kind in [
-            NodeKind.NAMESPACE,
-            NodeKind.BLOCK
-        ]):
+                NodeKind.NAMESPACE,
+                NodeKind.BLOCK]):
             return ''
         else:
+            if parent.left is not None and parent.left.kind == NodeKind.STRUCT:
+                return indent + f'{"}"} {parent.left.value};\n'
             if parent.left is not None and parent.left.kind == NodeKind.FUN:
                 return indent + '}\n'
             else:

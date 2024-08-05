@@ -10,6 +10,7 @@ from Def import any_ckind
 from Def import ptr_ckind
 from Def import arr_ckind
 from Def import ref_ckind
+from Def import struct_ckind
 from Def import any_type
 from Def import bool_type
 from Def import default_type
@@ -38,6 +39,9 @@ def c_rev_type_of(vtype: VariableType):
 
     if vtype.kind() not in rev_kind_map:
         print_error('c_rev_type_of', f'Invalid variable kind {vtype.kind}')
+
+    if vtype.ckind == struct_ckind:
+        return vtype.name
 
     if vtype in (any_type, bool_type):
         return rev_of(vtype.ckind)
@@ -70,6 +74,10 @@ def c_rev_type_of_ident(name: str) -> str:
         print_error('c_rev_type_of_ident', f'No such identifier {name}')
 
     meta_kind = Def.ident_map.get(name)
+
+    if meta_kind == VariableMetaKind.STRUCT:
+        return f'struct {name}'
+
     if meta_kind == VariableMetaKind.ANY:
         return c_rev_type_of(any_type)
 

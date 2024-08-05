@@ -23,8 +23,27 @@ import "stdlib/cstdlib"
 #     printf("%lld", _va_arg(listx, arg))
 # end
 
+extern struct mystr3
+
+struct mystr
+    a: int64
+    b: int64
+    c: int64
+end
+
+struct mystr2
+    d: int64
+end
+
+fun printstr(arg: mystr): void
+    printf("%lld", arg.a)
+end
+
 fun main: int32
-    count(1, 2, (3, 4, 5))
+    let x: mystr
+    let c: mystr = x
+
+    
     ret 0
 end
 end
