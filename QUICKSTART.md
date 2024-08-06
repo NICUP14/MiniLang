@@ -182,19 +182,19 @@ asm "sub $48, %rsp"
 
 ```
 
-## Type definitions
+## Aliases
 
 > [!Note]
-> The type definitions defined below are part of the standard library. (`stdlib/stddef.ml`)
+> The type aliases defined below are part of the standard library. (`stdlib/stddef.ml`)
 
 ```txt
-typedef int = int64
-typedef ptr = void*
-typedef cint = int32
-typedef cstr = int8*
-typedef byte = int8
-typedef char = int8
-typedef size_t = int64
+alias int = int64
+alias ptr = void*
+alias cint = int32
+alias cstr = int8*
+alias byte = int8
+alias char = int8
+alias size_t = int64
 ```
 
 ## Declaration/Assignment

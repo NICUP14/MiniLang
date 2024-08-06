@@ -1,5 +1,5 @@
-import "stdlib/cstdlib"
-import "stdlib/stddef"
+import "stdlib/c/cstdlib"
+import "stdlib/defs"
 
 macro add(_aptr, _aoff)
     ptr(int(_aptr) + _aoff)
@@ -49,7 +49,7 @@ fun strnToU64(str: int8*, len: int64): int64
     ret nr
 end
 
-fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
+fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): int64
  	let zf_set: int8  = (flag & 8)
  	let mf_set: int8  = (flag & 4)
  	let pf_set: int8  = (flag & 2)
@@ -76,15 +76,13 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
         else
             if sf_set > 0
                 sign_ch = ' '
-            end
-
-            if pf_set > 0
+            elif pf_set > 0
                 sign_ch = '+'
             end
         end
     end
 
-    puts("number before width")
+    # puts("number before width")
 
     let len = U64ToStrLen(num)
     width = width - U64ToStrLen(num)
@@ -92,7 +90,7 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
         width = 0
     end
 
-    puts("number after width")
+    # puts("number after width")
 
     if mf_set == 0
         memset(add(buff, idx), width_ch, width)
@@ -118,10 +116,13 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): void
 
     let nbytes = U64ToStr(num, add(buff, idx))
     idx = idx + nbytes
+    # printf("DBG number: %s\n", buff)
 
     if mf_set > 0
         memset(add(buff, idx), width_ch, width)
         idx = idx + width
     end
+
+    ret idx
 end
 end

@@ -258,10 +258,18 @@ class Parser:
         for token in tokens:
             if token_is_param(token.kind):
                 if token_is_lit(token.kind):
-                    postfix_tokens.append(token)
+                    if Def.ident_map.get(token.value) == VariableMetaKind.ALIAS:
+                        name = Def.alias_map.get(token.value)
+                        postfix_tokens.append(Token(TokenKind.IDENT, name))
+                    else:
+                        postfix_tokens.append(token)
                 else:
                     # Detects if the token is a function/macro call (token correction)
                     fun_name = full_name_of_fun(token.value)
+
+                    if Def.ident_map.get(fun_name) == VariableMetaKind.ALIAS:
+                        fun_name = Def.alias_map.get(fun_name)
+
                     if Def.ident_map.get(fun_name) == VariableMetaKind.MACRO:
                         op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
 
@@ -348,7 +356,7 @@ class Parser:
 
     def fun_arg_cnt(self, node: Node) -> int:
         arg_cnt = 0
-        while node is not None:
+        while node is not None and node.kind == NodeKind.GLUE:
             arg_cnt += 1
             node = node.left
         return arg_cnt
@@ -423,7 +431,7 @@ class Parser:
         #! BUG: Macro definitions with same name must have ascending argument counts
         #! BUG: Due to assigning `signature = macro.signatures[0]`
         arg_cnt = self.fun_arg_cnt(node)
-        signature = macro.signatures[0]
+        signature = min(macro.signatures, key=lambda s: s.arg_cnt)
         for sig in macro.signatures:
             if sig.arg_cnt <= arg_cnt and sig.arg_cnt > signature.arg_cnt:
                 signature = sig
@@ -511,9 +519,6 @@ class Parser:
                     name = token.value
                     if Def.macro_name == '' and Def.ident_map.get(name) == VariableMetaKind.ANY:
                         if name not in Def.macro_arg_map:
-                            # ? Temporary
-                            # print_error('to_tree',
-                            #             f'No such macro argument {name}', self)
                             node_stack.append(
                                 Node(self.node_kind_of(token.kind), any_type, token.value))
                         else:
@@ -538,7 +543,11 @@ class Parser:
                 if token_is_unary_op(token.kind):
                     # Function call fix
                     if token.kind == TokenKind.FUN_CALL:
-                        fun = Def.fun_map.get(token.value)
+                        fun_name = token.value
+                        if fun_name in Def.fun_sig_map:
+                            fun_name = Def.fun_sig_map.get(fun_name)
+
+                        fun = Def.fun_map.get(fun_name)
                         kind = self.node_kind_of(token.kind)
 
                         if fun.arg_cnt == 0 and not fun.is_variadic:
@@ -547,11 +556,11 @@ class Parser:
                         else:
                             if len(node_stack) == 0:
                                 print_error('to_tree',
-                                            'Missing function operand', self)
-                            node = node_stack.pop()
-
+                                            f'Missing function operand of {token.value}', self)
+                            node = self.merge_fun_call(node_stack.pop()) if len(
+                                node_stack) > 0 else None
                             node_stack.append(
-                                Node(kind, fun.ret_type, token.value, self.merge_fun_call(node)))
+                                Node(kind, fun.ret_type, token.value, node))
                         continue
 
                     if token.kind == TokenKind.MACRO_CALL:
@@ -615,7 +624,12 @@ class Parser:
 
                 elif token_is_bin_op(token.kind):
                     if len(node_stack) < 2:
-                        print_error('to_tree', 'Missing operand', self)
+                        # ? Dirty fix
+                        if token.kind == TokenKind.PERIOD:
+                            continue
+
+                        print_error(
+                            'to_tree', f'Missing operand {token.kind} {node_stack[0]}', self)
 
                     right = node_stack.pop()
                     left = node_stack.pop()
@@ -639,13 +653,22 @@ class Parser:
                                             f'Cannot access element at {idx} from {left.value}', self)
 
                     # Creates the initial parameter tree of a function call
-                    if token.kind == TokenKind.COMMA and (
-                            left.kind != NodeKind.GLUE):
+                    if token.kind == TokenKind.COMMA and left.kind != NodeKind.GLUE:
                         node_stack.append(Node(NodeKind.GLUE, void_type, '', Node(
                             NodeKind.GLUE, void_type, '', None, left), right))
 
                     else:
                         kind = self.node_kind_of(token.kind)
+
+                        # De-sugars a member-like function call
+                        if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.FUN_CALL:
+                            args = Node(NodeKind.GLUE, void_type, '', Node(
+                                NodeKind.GLUE, void_type, '', None, left), right.left)
+                            new_args = self.merge_fun_call(args)
+                            node_stack.append(
+                                Node(right.kind, right.ntype, right.value, new_args))
+                            continue
+
                         if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type or not type_compatible(kind, left.ntype.ckind, right.ntype.ckind)):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #1)', self)
@@ -710,6 +733,9 @@ class Parser:
             else:
                 self.match_token(TokenKind.KW_STRUCT)
                 return self.struct_declaration(is_extern=True)
+        if token.kind == TokenKind.KW_ALIAS:
+            self.next_token()
+            return self.alias_definition()
         if token.kind == TokenKind.KW_TYPEDEF:
             self.next_token()
             return self.type_definition()
@@ -732,7 +758,7 @@ class Parser:
         node = self.token_list_to_tree()
         return node
 
-    def compound_statement(self) -> Optional[Node]:
+    def compound_statement(self, match_elif: bool = True) -> Optional[Node]:
         node = None
         while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE, TokenKind.KW_ELIF):
             if node is None:
@@ -817,17 +843,16 @@ class Parser:
             self.match_token(TokenKind.KW_ELIF)
             cond_node = self.inject_cond(self.token_list_to_tree())
 
+            self.next_line()
             end_node = Node(NodeKind.END, void_type, '')
             elif_node = glue_statements([Node(NodeKind.ELIF, void_type, '',
-                                              self.statement(), None, cond_node), end_node])
-            self.next_line()
+                                              self.compound_statement(), None, cond_node), end_node])
 
             if node is None:
                 node = elif_node
             else:
                 node = Node(NodeKind.GLUE, void_type,
                             '', node, elif_node)
-            self.next_line()
 
         return node
 
@@ -1074,6 +1099,7 @@ class Parser:
         if is_extern:
             return None
 
+        # Parses the structure body
         Def.struct_name = name
         self.next_line()
 
@@ -1086,17 +1112,70 @@ class Parser:
                             '', node, self.declaration(is_struct=True))
             self.next_line()
 
-        return glue_statements([Node(NodeKind.STRUCT, void_type, Def.struct_name, node),
-                               Node(NodeKind.END, void_type, 'end')])
+        # Creates a constructor-like function
+        # ? Requires some solid refactoring
+        # ? Duplicated from Parser.fun_declaration
+        struct = Def.struct_map.get(name)
+        tmp_name = f'{struct.name}_tmp'
+        fun_name = name
+        # fun_name = f'{name}_new'
 
-    def type_definition(self) -> None:
+        sig_name = '_'.join([fun_name] + list(map(rev_type_of, struct.elem_types))).replace(
+            '*', 'ptr').replace('&', 'ref')
+
+        # ? Temporary
+        full_arg_names = []
+        Def.fun_name_list.append(sig_name)
+        for arg_name in struct.elem_names:
+            full_arg_names.append(full_name_of_var(
+                arg_name, exhaustive_match=False))
+        Def.fun_name_list.pop()
+
+        signature = FunctionSignature(sig_name, len(struct.elem_names), full_arg_names,
+                                      struct.elem_types, struct.vtype, is_extern)
+        Def.fun_sig_map[sig_name] = fun_name
+
+        Def.ident_map[fun_name] = VariableMetaKind.FUN
+        Def.fun_map[fun_name] = Function(fun_name, len(struct.elem_names), struct.elem_names, struct.elem_types,
+                                         struct.vtype, 0, False, False, [signature])
+
+        def inject_decl(tpl: Tuple[str, str, VariableType]) -> Node:
+            #!BUG: No array declaration
+            new_name, og_name, var_type = tpl
+            elem_acc = Node(NodeKind.ELEM_ACC, struct.vtype, '', Node(
+                NodeKind.IDENT, struct.vtype, tmp_name), Node(NodeKind.IDENT, var_type, new_name))
+
+            return Node(NodeKind.OP_ASSIGN, var_type, '=',
+                        elem_acc, Node(NodeKind.IDENT, var_type, og_name))
+
+        decl = Node(NodeKind.STRUCT_DECL, struct.vtype, tmp_name)
+        ret = Node(NodeKind.RET, struct.vtype, '', Node(
+            NodeKind.IDENT, struct.vtype, tmp_name))
+        body = glue_statements(list(map(inject_decl, zip(
+            full_arg_names, struct.elem_names, struct.elem_types))))
+        ctor = Node(NodeKind.FUN, struct.vtype, sig_name,
+                    glue_statements([decl, body, ret]))
+        end = Node(NodeKind.END, void_type, 'end')
+
+        return glue_statements([Node(NodeKind.STRUCT, void_type, Def.struct_name, node),
+                               end, ctor, end])
+
+    def alias_definition(self) -> None:
         if Def.macro_name != '':
             print_error('declaration',
                         f'Type definitions within macro ({Def.macro_name}) are not allowed', self)
 
-        alias = self.match_token(TokenKind.IDENT).value
+        name = self.match_token(TokenKind.IDENT).value
         self.match_token(TokenKind.ASSIGN)
-        type_str = self.curr_token().value
+
+        alias = self.curr_token().value
+        if alias in Def.ident_map:
+            Def.ident_map[name] = VariableMetaKind.ALIAS
+            while Def.ident_map.get(alias) == VariableMetaKind.ALIAS:
+                alias = Def.alias_map.get(alias)
+
+            Def.alias_map[name] = alias
+            return
 
         self.next_token()
         meta_kind = VariableMetaKind.PRIM
@@ -1109,16 +1188,16 @@ class Parser:
             meta_kind = VariableMetaKind.REF
 
         if not self.no_more_tokens():
-            print_error('type_definition',
+            print_error('alias_definition',
                         'Junk after type definition', self)
 
-        vtype = type_of(type_str)
+        vtype = type_of(alias)
         if meta_kind == VariableMetaKind.PRIM:
-            Def.type_map[alias] = vtype
+            Def.type_map[name] = vtype
         if meta_kind == VariableMetaKind.PTR:
-            Def.type_map[alias] = VariableType(ptr_ckind, vtype.ckind)
+            Def.type_map[name] = VariableType(ptr_ckind, vtype.ckind)
         if meta_kind == VariableMetaKind.REF:
-            Def.type_map[alias] = VariableType(ref_ckind, vtype.ckind)
+            Def.type_map[name] = VariableType(ref_ckind, vtype.ckind)
 
     def defer_statement(self) -> None:
         if Def.macro_name != '':
@@ -1167,7 +1246,7 @@ class Parser:
                         'Local macros are not allowed', self)
 
         full_name = full_name_of_fun(self.match_token(
-            TokenKind.IDENT).value, exhaustive_match=False)
+            TokenKind.IDENT).value, exhaustive_match=False, force_global=True)
 
         has_args = not self.no_more_tokens()
         arg_names: list[str] = []
@@ -1283,7 +1362,6 @@ class Parser:
         while not self.no_more_lines() and self.curr_token().kind != TokenKind.KW_END:
             parts.append(self.curr_line().lstrip('\t '))
             self.next_line()
-        # self.next_line()
 
         value = ''.join(parts).rstrip('\n')
         return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), value)
@@ -1354,7 +1432,7 @@ class Parser:
             self.match_token(TokenKind.ASSIGN)
 
         var_type = VariableType(VariableCompKind(
-            kind, meta_kind), name=type_name)
+            kind, meta_kind), VariableCompKind(elem_kind, elem_meta_kind), name=type_name)
         if is_implicit:
             if self.curr_token().kind == TokenKind.LBRACE:
                 print_error(
@@ -1383,14 +1461,15 @@ class Parser:
                 elem_kind = var_type.elem_ckind.kind
                 elem_meta_kind = var_type.elem_ckind.meta_kind
         else:
+            elem_ckind = VariableCompKind(elem_kind, elem_meta_kind)
             if meta_kind == VariableMetaKind.ARR:
-                var_type = VariableType(arr_ckind)
+                var_type = VariableType(arr_ckind, elem_ckind)
             if meta_kind == VariableMetaKind.BOOL:
-                var_type = VariableType(bool_ckind)
+                var_type = VariableType(bool_ckind, elem_ckind)
             if meta_kind == VariableMetaKind.PTR:
-                var_type = VariableType(ptr_ckind)
+                var_type = VariableType(ptr_ckind, elem_ckind)
             if meta_kind == VariableMetaKind.REF:
-                var_type = VariableType(ref_ckind)
+                var_type = VariableType(ref_ckind, elem_ckind)
 
         is_local = Def.fun_name != ''
         var_name = full_name_of_var(
@@ -1402,6 +1481,7 @@ class Parser:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
         if is_struct:
+            # full_name = f'{Def.struct_name}_{full_name}'
             Def.struct_map[Def.struct_name].elem_names.append(full_name)
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
@@ -1477,7 +1557,7 @@ class Parser:
             value = 0
             elem_type = VariableType(
                 VariableCompKind(elem_kind, elem_meta_kind))
-            if not is_local:
+            if not is_local and not is_struct:
                 if self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()
                     value = self.match_token(TokenKind.IDENT).value
@@ -1494,6 +1574,9 @@ class Parser:
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
+
+            if is_struct:
+                return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
 
             if not is_local:
                 return Node(decl_kind, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), Node(NodeKind.INT_LIT, var_type, value))

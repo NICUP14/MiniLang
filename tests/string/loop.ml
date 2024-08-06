@@ -1,5 +1,5 @@
-typedef int = int32
-typedef cstr = int8*
+alias int = int32
+alias cstr = int8*
 extern fun exit(status: int32): void
 extern fun printf(fmt: cstr, ...): int
 extern fun strlen(s: cstr): int

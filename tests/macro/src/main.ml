@@ -1,6 +1,6 @@
 # import "everything"
-import "stdlib/stddef"
-import "stdlib/cstdlib"
+import "stdlib/defs"
+import "stdlib/c/cstdlib"
 import "stdlib/misc"
 
 # fun myfun: void

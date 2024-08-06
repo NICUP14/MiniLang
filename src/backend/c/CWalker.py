@@ -5,6 +5,7 @@ from Def import Color
 from Def import color_str
 from Def import print_error
 from Def import find_signature
+from Def import args_to_list
 
 from backend.c.CDef import has_semicolon
 from backend.c.CDef import c_rev_type_of
@@ -115,8 +116,11 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         fun = Def.fun_map.get(node.value)
         sig = find_signature(fun, node.left)
         if sig is None:
+            def get_type(node: Node):
+                return node.ntype
+
             print_error('c_walker_step',
-                        f'No signature of {fun.name} matches {sig}')
+                        f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))}')
 
         return f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
     if node.kind == NodeKind.ASM:

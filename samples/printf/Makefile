@@ -22,7 +22,7 @@ MLFLAGS += -C -c
 
 # Recipes
 default: clean def
-c: clean c
+c: clean _c
 debug: clean _debug
 cdebug: clean _cdebug
 assemble: $(ASM_OBJECTS)

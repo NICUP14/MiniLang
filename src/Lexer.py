@@ -106,6 +106,7 @@ class TokenKind(enum.Enum):
     KW_INT64 = enum.auto()
     KW_INT8 = enum.auto()
     KW_EXTERN = enum.auto()
+    KW_ALIAS = enum.auto()
     KW_TYPEDEF = enum.auto()
     KW_IMPORT = enum.auto()
     KW_NAMESPACE = enum.auto()
@@ -177,7 +178,7 @@ TOKEN_KIND_MAP = {
     'int8': TokenKind.KW_INT8,
     'ret': TokenKind.KW_RET,
     'extern': TokenKind.KW_EXTERN,
-    'typedef': TokenKind.KW_TYPEDEF,
+    'alias': TokenKind.KW_ALIAS,
     'defer': TokenKind.KW_DEFER,
     'import': TokenKind.KW_IMPORT,
     'namespace': TokenKind.KW_NAMESPACE,

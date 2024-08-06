@@ -60,6 +60,7 @@ class VariableMetaKind(enum.Enum):
     FUN = enum.auto()
     STRUCT = enum.auto()
     MACRO = enum.auto()
+    ALIAS = enum.auto()
 
 
 class VariableKind(enum.Enum):
@@ -914,7 +915,8 @@ def allowed_op(ckind: VariableCompKind):
     if ckind == struct_ckind:
         return [
             NodeKind.OP_ASSIGN,
-            NodeKind.ELEM_ACC
+            NodeKind.ELEM_ACC,
+            NodeKind.REF
         ]
 
     print_error('allowed_op', f'Invalid type: {ckind}')
@@ -1053,7 +1055,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
         if fun.is_variadic or len(arg_types) == signature.arg_cnt:
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
                 if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind):
-                    continue
+                    break
 
                 return signature
 
@@ -1184,6 +1186,7 @@ struct_map: Dict[str, Structure] = dict()
 fun_sig_map: Dict[str, str] = dict()
 arr_map: Dict[str, Array] = dict()
 ptr_map: Dict[str, Pointer] = dict()
+alias_map: Dict[str, str] = dict()
 ident_map: Dict[str, VariableMetaKind] = dict()
 str_lit_map: Dict[str, str] = dict()
 opd_map = {reg: None for reg in REGS}

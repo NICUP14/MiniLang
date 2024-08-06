@@ -1,13 +1,4 @@
-asm ".macro printf_rsp fmt"
-asm "   lea \fmt, %rdi"
-asm "   mov %rsp, %rsi"
-asm "   xor %rax, %rax"
-asm "   call printf"
-asm ".endm"
-
-# Needed for assert_exit/panic_exit
-extern fun exit(status: int32): void
-extern fun printf(msg: int8*, ...): int32
+import "stdlib/c/cstdlib"
 
 # Debug standard library assertion macros
 macro panic_exit
@@ -27,10 +18,6 @@ macro assert_exit
     printf("Assertion failed, file %s, line %lld.", fun, lineno)
     exit(1)
 end
-# macro assert_exit
-#     printf("Assertion failed: %s, file %s, line %lld.", line, fun, lineno)
-#     exit(1)
-# end
 macro assert(_cond)
     if _cond == false
         assert_exit
