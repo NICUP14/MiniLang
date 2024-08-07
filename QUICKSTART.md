@@ -65,8 +65,7 @@ end
 end
 ```
 
-> [!IMPORTANT]
-> Pointers are often used for tasks involving dynamic memory allocation and low-level operations, while references are commonly used for more straightforward and safer variable access, especially for passing variables to functions.
+Pointers are often used for tasks involving dynamic memory allocation and low-level operations, while references are commonly used for more straightforward and safer variable access, especially for passing variables to functions.
 
 ## Literals
 
@@ -110,7 +109,6 @@ asm("statement")   | Void                 | -
 
 ```txt
 # Source code (before parsing)
-# From tests/builtins/main.ml:
 fun main(): int64
     let a: int8* = 0
     printf("size_of(a): %lld", size_of(a))
@@ -143,6 +141,8 @@ Symbol | Type   | Location | Operation
 &      | Binary | -        | Bitwise and
 =      | Binary | -        | Assignment
 at     | Binary | -        | Array access
+\|\|   | Binary | -        | Logical or
+&&     | Binary | -        | Logical and
 ==     | Binary | -        | Comparison (Equals)
 !=     | Binary | -        | Negated comparison (Not equals)
 <=     | Binary | -        | Less-than-or-equal comparison
@@ -230,6 +230,7 @@ array[i] = 15
 ```txt
 # If statement syntax
 # if expression1 sign expression2
+
 if a + 5 > 20
     a = 30
 elif a + 15 == 20
@@ -244,6 +245,7 @@ end
 ```txt
 # While loop syntax
 # while expression sign expression2
+
 while a >= 10
     a = a / 10
 end
@@ -264,7 +266,6 @@ import "mymodule"
 
 ```txt
 # Source code (before parsing)
-# From tests/defer/main.ml:
 fun main(): int64
     let arr: int64[5] = [0, 1, 2, 4, 4]
     let arr_size = size_of "arr"
@@ -282,7 +283,6 @@ fun main(): int64
 end
 
 # AST representation (after parsing)
-# Command: "python src/Main.py -i tests/defer/main.ml -d"
 fun main()
   ((int64[5])(main_arr)[0] = 0)
   ((int64[5])(main_arr)[1] = 1)
@@ -305,6 +305,39 @@ fun main()
 end
 ```
 
+## Structures
+
+> [!TIP]
+> For each defined struct the compiler automatically inserts a constructor-like function with the same name as the struct.
+
+> [!WARNING]
+> Currently struct elements block the declaration of identifiers with the same name.
+> This is a bug and will be fixed soon.
+
+```txt
+# Struct syntax
+# struct name
+#   memb1: type
+#   ...
+#   membn: type
+#
+# end
+
+struct mystring
+    len: int64
+    cptr: int64*
+end
+
+fun main: int32
+    # Struct object declaration
+    let obj: mystring
+    let obj2 = mystring(3, "Hel")
+
+    # Triggers a redeclaration error for cptr
+    let cptr = 15
+end
+```
+
 ## Macros
 
 Compared to C/C++ macros, the ML macro system is hygienic. That means that each macro is represented internally by an AST (pre-processor-less macros). On each macro call, the parser substitutes each macro argument with their invoked counterpart.
@@ -314,7 +347,6 @@ Compared to C/C++ macros, the ML macro system is hygienic. That means that each 
 # macro mymacro
 # macro mymacro(arg1, arg2, arg3, ...)
 
-# From stdlib/defs.ml:
 macro int(_expr)
     cast("int", _expr)
 end
@@ -323,12 +355,11 @@ end
 let myint = int(50)
 ```
 
-> [!Note]
+> [!NOTE]
 > Macros are variadic by default. Thus, the last argument of a macro accepts a variable number of expressions.
 > The macro argument count can be determined by using the `count` builtin. This feature is particularly useful for passing the parameter count to a variadic function.
 
 ```txt
-# From samples/max/main.ml
 macro max(args)
     _max(count(args), args)
 end
@@ -360,10 +391,30 @@ fun U64ToStrLen(nr: int64): int64
 end
 ```
 
+### Function overloading
+
+> [!WARNING]
+> Currently function overloading does cannot infer functions solely based on their return types.
+
+Function overloading enables the creation of multiple functions with the same name, distinguished by their different parameter types or counts.
+
+```txt
+fun _print(arg: int64): void
+    printf("%lld", arg)
+end
+
+fun _print(arg: int8*): void
+    printf("%s", arg)
+end
+
+fun _print(arg: void*): void
+    printf("%p", arg)
+end
+```
+
 ### Uniform function call syntax (UFCS)
 
-> [!IMPORTANT]
-> Uniform Function Call Syntax (UFCS) enables calling standalone functions using method call syntax on the objects they operate on. It behaves similar to the pipe operator found in other languages, enabling a more fluid and expressive way to chain function calls.
+Uniform Function Call Syntax (UFCS) enables calling standalone functions using method call syntax on the objects they operate on. It behaves similar to the pipe operator found in other languages, enabling a more fluid and expressive way to chain function calls.
 
 ```txt
 let mystr = str("Hello")

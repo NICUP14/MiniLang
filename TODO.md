@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 16/22
+Solved: 19/22
 
 - [ ] Global arrays.
 - [X] C generator backend (CWalker.py)
@@ -13,7 +13,7 @@ Solved: 16/22
 - [X] Check args in function call.
 - [X] Include section in README regarding miscellaneous features (references, fixed-len pointers, namespaces)
 - [X] Update README (#1) (new builtins, elif, ufcs, alias)
-- [ ] Update README (#2) (new operators, function overloading, structs)
+- [X] Update README (#2) (new operators, function overloading, structs)
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack alignment. (align by 16-bytes)
