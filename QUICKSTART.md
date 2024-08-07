@@ -13,13 +13,16 @@ Pointer   | No         | Yes
 Reference | No         | No*
 Array     | No         | Yes
 
-### Boolean primitives
+### Void primitive
+
+* `void`
+
+### Boolean primitive
 
 * `bool`
 
 ### Integer primitives
 
-* `void`
 * `int8`
 * `int16`
 * `int32`
@@ -96,12 +99,13 @@ fun                | String literal       | Function name
 file               | String literal       | Source file
 line               | String literal       | Source line
 lineno             | Integer literal      | Source line number
-ma_cnt             | Integer literal      | Macro argument expression count*
+count(args)        | Integer literal      | Parameter count
 off_of(ident)      | Integer literal      | Variable stack offset
 len_of(ident)      | Integer literal      | Element count of the array
 size_of(ident)     | Integer literal      | Variable size
 type_of(expr)      | String literal       | Expression type
 cast("type", expr) | Any                  | The expression cast to type
+literal(lit, ...)  | Void                 | The arguments merged as a literal
 asm("statement")   | Void                 | -
 
 ```txt
@@ -109,7 +113,6 @@ asm("statement")   | Void                 | -
 # From tests/builtins/main.ml:
 fun main(): int64
     let a: int8* = 0
-    printf("off_of(a): %lld", off_of(a))
     printf("size_of(a): %lld", size_of(a))
     printf("%s:%s: Test", file, fun)
     assert_extra(a != 0, line, file, lineno)
@@ -120,7 +123,6 @@ end
 # Command: "python src/Main.py -i tests/builtins/main.ml -d"
 fun main()
   ((int8*)(main_a) = 0)
-  printf("off_of(a): %lld\n", 16)
   printf("size_of(a): %lld\n", 8)
   printf("%s:%s: Test\n", "main.ml", "main")
   assert_extra(((int8*)(main_a) != 0), "assert_extra(a != 0, line, file, lineno)", "main.ml", 9)
@@ -156,7 +158,6 @@ at     | Binary | -        | Array access
 > The `asm` builtin does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack  leads to undefined behavior.
 
 ```txt
-# From samples/printf/va_utils.ml:
 asm ".macro stack_snapshot"
 asm "   push %r9"
 asm "   push %r8"
@@ -167,7 +168,6 @@ asm "   push %rdi"
 asm ".endm"
 ...
 
-# From samples/printf/printf.ml:
 fun custom_printf(format: int8*, ...): void
     let va_list: int64[3]
 
@@ -179,15 +179,18 @@ fun custom_printf(format: int8*, ...): void
 
 # Undefined behavior
 asm "sub $48, %rsp"
-
 ```
 
 ## Aliases
 
 > [!Note]
-> The type aliases defined below are part of the standard library. (`stdlib/stddef.ml`)
+> The alias statement defines alternative names for existing types and variables, structures and functions.
+> The type aliases defined below are part of the standard library. (`stdlib/defs.ml`)
 
 ```txt
+# Alias syntax
+# alias alternative_name = name
+# alias alternative_type = type
 alias int = int64
 alias ptr = void*
 alias cint = int32
@@ -228,6 +231,8 @@ array[i] = 15
 # If statement syntax
 # if expression1 sign expression2
 if a + 5 > 20
+    a = 30
+elif a + 15 == 20
     a = 20
 else
     a = 10
@@ -248,8 +253,8 @@ end
 
 ```txt
 # Import statement syntax
-# Note: This instructs the compiler to include the cstdlib module (cstdlib.ml) in the build.
-import "../../cstdlib"
+# Note: This instructs the compiler to include mymodule (`mymodule.ml`) in the build.
+import "mymodule"
 ```
 
 ## Defer statements
@@ -309,7 +314,7 @@ Compared to C/C++ macros, the ML macro system is hygienic. That means that each 
 # macro mymacro
 # macro mymacro(arg1, arg2, arg3, ...)
 
-# From stdlib/stddef.ml:
+# From stdlib/defs.ml:
 macro int(_expr)
     cast("int", _expr)
 end
@@ -319,25 +324,13 @@ let myint = int(50)
 ```
 
 > [!Note]
-> Macros are variadic by default, Thus, the last argument of a macro accepts a variable number of expressions and stores the expression count in `ma_cnt`. This feature is particularly useful for passing the parameter count to a variadic function.
+> Macros are variadic by default. Thus, the last argument of a macro accepts a variable number of expressions.
+> The macro argument count can be determined by using the `count` builtin. This feature is particularly useful for passing the parameter count to a variadic function.
 
 ```txt
 # From samples/max/main.ml
-fun _max(cnt: int64, ...): int64
-    let vlist: int64[3]
-    asm "stack_snapshot"
-    va_start(&vlist)
-    va_arg(&vlist)
-
-    let arg = 0
-    let max = 0
-    for_until(0, cnt, expr(arg = va_arg(&vlist)), expr(max = cond(arg > max, arg, max)))
-
-    ret max
-end
-
 macro max(args)
-    _max(ma_cnt, args)
+    _max(count(args), args)
 end
 ```
 
@@ -365,4 +358,17 @@ fun U64ToStrLen(nr: int64): int64
 
     ret cnt
 end
+```
+
+### Uniform function call syntax (UFCS)
+
+> [!IMPORTANT]
+> Uniform Function Call Syntax (UFCS) enables calling standalone functions using method call syntax on the objects they operate on. It behaves similar to the pipe operator found in other languages, enabling a more fluid and expressive way to chain function calls.
+
+```txt
+let mystr = str("Hello")
+
+# Is equivalent to:
+# print(len(concat(mystr, " World!")))
+mystr.concat(" World!").len.print
 ```

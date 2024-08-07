@@ -22,10 +22,10 @@ Some features are missing.
 
 * Minimal
 * Compiled
-* Typed
-* Functional
+* Strongly typed
 * Hygienic macro system
 * C function interoperability
+* Uniform function call syntax (UFCS)
 
 Minimal - As close as possible to actual assembly code while maintaining as many high-level features as possible.
 
@@ -33,6 +33,9 @@ Minimal - As close as possible to actual assembly code while maintaining as many
 
 > [!IMPORTANT]
 > The language documentation is provided at [QuickStart](QUICKSTART.md).
+
+> [!IMPORTANT]
+> The standard library documentation is coming soon...
 
 * [Ideas](IDEAS.md)
 * [Bug list](BUG.md)
@@ -51,28 +54,35 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 ## Code statistics
 
 ```txt
--------------------------------------------------------------------------------
-File                             blank        comment           code
--------------------------------------------------------------------------------
-src/Parser.py                      251             46            981
-src/Def.py                         210             56            738
-src/Gen.py                         189             66            649
-src/Lexer.py                        43              0            296
-src/GenStr.py                       17              1            130
-src/Snippet.py                      38              0            106
-src/Main.py                          9              0             45
--------------------------------------------------------------------------------
-SUM:                               757            169           2945
--------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+File                                      blank        comment           code  
+----------------------------------------------------------------------------------------
+src\Parser.py                               303             46           1249  
+src\Def.py                                  262             65            901  
+src\Gen.py                                  217            134            697  
+src\Lexer.py                                 43              0            322
+src\backend\c\CWalker.py                     18              8            173
+src\backend\c\CDef.py                        45              1            140
+src\GenStr.py                                16              1            129
+src\Snippet.py                               38              0            106
+src\backend\ml\MLWalker.py                   10              0            106
+src\Main.py                                   9              2             64
+src\backend\Walker.py                        15              1             50
+----------------------------------------------------------------------------------------
+SUM:                                        976            258           3937
+----------------------------------------------------------------------------------------
 ```
 
 > [!NOTE]
 > Statistics were generated with [cloc](https://github.com/AlDanial/cloc.git).
 <!-- 
-> Current statistics are out-of-date.
+> Current statistics are up-to-date.
 -->
 
 ## Usage
+
+> [!WARNING]
+> The ml and asm compiler backends are currently far outdated. The latest features exclusively require the c compiler backend.
 
 ```txt
 Usage: Main.py [options]
@@ -82,15 +92,19 @@ https://github.com/NICUP14/MiniLang.git
 
 Options:
   -h, --help            show this help message and exit
-  -i INPUT, --input=INPUT
-                        Read contents from INPUT.
   -o OUTPUT, --output=OUTPUT
-                        Write contents to OUTPUT; When set, no-color is
+                        Write contents to OUTPUT; When set, no-color is        
                         enabled by default.
-  -d, --debug           Dry run; Print the human-friendly AST representation.
+  -d, --debug           Dry run; Print the human-friendly AST representation.  
+                        Overrides any specified backend option.
   -c, --no-color        Do not use ANSI color sequences in the output.
   -C, --no-comment      Do not include human-readable comments in the
                         generated assembly.
+  -I INCLUDE, --include=INCLUDE
+                        Add the directory to the include path.
+  -b BACKEND, --backend=BACKEND
+                        Specify which compiler backend to use. Choose between  
+                        c, asm and ml.
 ```
 
 ## Samples
@@ -104,17 +118,14 @@ Options:
 > [!NOTE]
 > All MiniLang samples (example projects) are located within the `samples` directory. All samples are written entirely in ML.
 
-> [!NOTE]
-> The `printf` sample is currently broken due to a type system update.
-
 ## Hello World
 
 ```txt
 # From samples/helloworld.ml:
-import "../../stdlib/c/cstdlib"
+import "stdlib/print"
 
-fun main: int64
-    puts "Hello World!"
+fun main: int32
+    print "Hello World!"
     ret 0
 end
 end

@@ -4,7 +4,7 @@ import "stdlib/string"
 
 fun main: int32
     let mystr = str("Hello")
-    let mystr2 = str_printf("Hello %s", "John Doe")
+    mystr.concat(" World!").len.print
  
     ret 0
 end

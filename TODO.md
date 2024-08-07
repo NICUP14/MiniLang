@@ -1,6 +1,6 @@
 # TODO
 
-Solved: 15/21
+Solved: 16/22
 
 - [ ] Global arrays.
 - [X] C generator backend (CWalker.py)
@@ -12,7 +12,8 @@ Solved: 15/21
 - [X] Static type analysis.
 - [X] Check args in function call.
 - [X] Include section in README regarding miscellaneous features (references, fixed-len pointers, namespaces)
-- [ ] Update README (elif, logical ops, function overloading, structs, alias)
+- [X] Update README (#1) (new builtins, elif, ufcs, alias)
+- [ ] Update README (#2) (new operators, function overloading, structs)
 - [X] Fix array access.
 - [X] Fix array variable offset.
 - [X] Implement stack alignment. (align by 16-bytes)
