@@ -23,6 +23,7 @@ Some features are missing.
 * Minimal
 * Compiled
 * Strongly typed
+* Function overloading
 * Hygienic macro system
 * C function interoperability
 * Uniform function call syntax (UFCS)
@@ -50,6 +51,63 @@ To suggest features/fixes, modify `IDEAS.md`/`BUG.md` and submit a pull request 
 Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vsix`.
 
 `Extensions -> Views and more actions... (top-left three dots) -> Install from VSIX...`
+
+## Create a ML project
+
+> [!IMPORTANT]
+> The ML project creator utility (`ml-init`) will be available soon...
+
+> [!WARNING]
+> For new ML projects, makefile parameters `ML`, `MLLIB` need to be adjusted if they are specified by a relative path. Check **Makefile** section below.
+
+```txt
+# I. Copy project skeleton
+cp -r skel <PATH_TO_PROJ>
+
+# II. Configure makefile parameters (ML, MLLIB)
+$EDITOR <PATH_TO_PROJ>/Makefile
+```
+
+### Project skeleton structure
+
+```txt
+skel/
+├── include
+│   ├── gc.c
+│   ├── gc.h
+│   ├── gc-LICENSE
+│   ├── log.c
+│   ├── log.h
+│   ├── sds.c
+│   ├── sds.h
+│   ├── sdsalloc.h
+│   └── sds-LICENSE
+├── Makefile
+└── src
+    ├── gc.ml
+    └── main.ml
+```
+
+### Makefile
+
+#### Recipes
+
+Recipe   | Alias  | Backend
+---------|--------|--------
+default  | def, c | c
+cdebug   | cdbg   | c
+debug    | dbg    | ml
+assemble | asm    | asm
+
+### Parameters
+
+Parameter | Description
+----------|------------------------------
+CC        | Path to c compiler
+ML        | Path to ML compiler
+MLLIB     | Path to ml standard library
+CFLAGS    | Options passed to c compiler
+MLFLAGS   | Options passed to ml compiler
 
 ## Code statistics
 
