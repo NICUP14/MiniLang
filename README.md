@@ -88,6 +88,10 @@ skel/
     └── main.ml
 ```
 
+The [sds](https://github.com/antirez/sds) (Simple Dynamic Strings) library is required by the ML string library. (`stdlib/string.ml`)
+
+The [gc](https://github.com/mkirchner/gc) library will be required by the ML alloc library. (*Coming soon*)
+
 ### Makefile
 
 #### Recipes
@@ -105,9 +109,9 @@ Parameter | Description
 ----------|------------------------------
 CC        | Path to c compiler
 ML        | Path to ML compiler
-MLLIB     | Path to ml standard library
+MLLIB     | Path to ML standard library
 CFLAGS    | Options passed to c compiler
-MLFLAGS   | Options passed to ml compiler
+MLFLAGS   | Options passed to ML compiler
 
 ## Code statistics
 
@@ -140,7 +144,7 @@ SUM:                                        976            258           3937
 ## Usage
 
 > [!WARNING]
-> The ml and asm compiler backends are currently far outdated. The latest features exclusively require the c compiler backend.
+> The ML and asm compiler backends are currently far outdated. The latest features exclusively require the c compiler backend.
 
 ```txt
 Usage: Main.py [options]

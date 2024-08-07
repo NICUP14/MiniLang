@@ -1,6 +1,6 @@
 # string.ml - string library for ml.
-# Provides a functional-like ml frontend of the sds c library.
-# WARNING: Relies on the sds bindings for ml (string-backend.ml).
+# Provides a functional-like ML frontend of the sds c library.
+# WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
 import "stdlib/c/cstdarg"
 import "stdlib/backend/string-backend"
