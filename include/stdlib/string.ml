@@ -146,7 +146,7 @@ end
 
 # Join an array of C strings using the specified separator (also a C string).
 # Returns the result as an sds string.
-fun join(argv: void*, argc: int32, sep: int8*): sds
+fun join(argv: void*, argc: int32, sep: int8*): str
     ret sdsjoin(argv, argc, sep)
 end
 
@@ -168,5 +168,4 @@ end
 # Create an sds string from a pointer value. 
 fun to_str(value: void*): str
     ret str_printf("%p", value)
-end
 end

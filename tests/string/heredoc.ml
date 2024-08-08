@@ -12,4 +12,3 @@ fun main(): int64
     printf("%s", my_str)
     ret 0
 end
-end

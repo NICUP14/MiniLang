@@ -155,4 +155,3 @@ end
 fun join(argv: void*, argc: int32, sep: int8*): sds
     ret sdsjoin(argv, argc, sep)
 end
-end

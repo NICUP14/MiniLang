@@ -65,4 +65,3 @@ fun main: int64
     print(c)
     ret 0
 end
-end

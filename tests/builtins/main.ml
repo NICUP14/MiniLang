@@ -8,4 +8,3 @@ fun main(): int64
     assert_extra(a != 0, line, file, lineno)
     ret 0
 end
-end

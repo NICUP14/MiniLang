@@ -1,7 +1,6 @@
-import "stdlib/c/cstdlib"
+import "stdlib/print"
 
 fun main: int64
-    puts "Hello World!"
+    print("Hello World!")
     ret 0
-end
 end

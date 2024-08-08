@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import "stdlib/print"
 
 fun print_fib(num: int64): void
     let term1 = 1
@@ -8,12 +8,12 @@ fun print_fib(num: int64): void
         term1 = term2
         term2 = term3
         term3 = term1 + term2
-        printf("%lld ", term3)
+
+        print(term3)
     end
 end
 
 fun main(): int64
     print_fib(100)
     ret 0
-end
 end

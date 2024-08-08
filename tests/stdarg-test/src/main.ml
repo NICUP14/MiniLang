@@ -13,4 +13,3 @@ fun main: int32
     var(1, 2)
     ret 0
 end
-end

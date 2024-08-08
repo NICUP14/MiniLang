@@ -23,4 +23,3 @@ fun main(): int64
     end
     ret 0
 end
-end

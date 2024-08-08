@@ -34,4 +34,3 @@ extern fun ftell(stream: void*): int64
 extern fun rewind(stream: void*): void
 extern fun remove(filename: int8*): int32
 extern fun rename(oldname: int8*, newname: int8*): int32
-end

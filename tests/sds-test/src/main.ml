@@ -8,4 +8,3 @@ fun main: int32
  
     ret 0
 end
-end

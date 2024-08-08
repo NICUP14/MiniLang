@@ -1,5 +1,5 @@
-import "stdlib/c/cstdlib"
 import "stdlib/c/cstdarg"
+import "stdlib/print"
 
 fun cond(maybe: bool, tval: int64, fval: int64): int64
     let val = 0 - 1
@@ -40,8 +40,7 @@ end
 
 fun main: int64
     let mx = max(1, 2, 3, 4, 5)
-    printf("Max: %lld", mx)
+    println("Max: ", mx)
 
     ret 0
-end
 end

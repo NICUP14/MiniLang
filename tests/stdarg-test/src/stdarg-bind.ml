@@ -26,4 +26,3 @@ end
 fun va_arg(list: va_list, argx: int64): int64
     ret cast("int64", c_va_arg(list, literal("long long")))
 end
-end

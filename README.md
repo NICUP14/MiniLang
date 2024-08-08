@@ -2,13 +2,53 @@
 
 <img src="Logo.png" width="250px"></img>
 
-A type-safe C successor that compiles directly to x86_64 assembly.
-
 > [!WARNING]
 > The language is still under development.
 Some features are missing.
 
+> [!IMPORTANT]
+> The language documentation is provided at [QuickStart](QUICKSTART.md).
+
+> [!IMPORTANT]
+> The standard library documentation is coming soon...
+
+A type-safe C successor that compiles directly to various platforms.
+
 **Check out [acwj-git](https://github.com/DoctorWkt/acwj.git)**, DoctorWkt's tutorial is the main (best) source of inspiration of this project's structure.
+
+## Motivation
+
+The language is designed to closely **match c features** along with some **zero-overhead** quality of life improvements that you would find in a modern language, while maintaining the **ease of learning the language** (in about 10 minutes or less via [QUICKSTART](QUICKSTART.md)). Moreover, the type system is **stricter than c**, which prevents common bugs (flaws) of the c language. **Memory safety** is also a primary concern. As for c compatibility, the language is **bidirectionally compatible with c** (c can be used in ML, ML can be used in c).
+
+## Language-specific features
+
+* Builtins
+* Booleans
+* References
+* Fixed-length integers
+* Fixed-length pointers
+* Type inference
+* Heredocs
+* Aliases
+* Defers
+* Imports
+* Namespaces
+* Hygienic macros
+* Function overloading
+* Uniform function call syntax (UFCS)
+* Multi-line statements
+
+## Features
+
+* Modern
+* Compiled
+* Strongly typed
+* Function overloading
+* Hygienic macro system
+* C bidirectional compatibility
+* Uniform function call syntax (UFCS)
+* **Easy to learn and use**
+* **Flat learning curve**
 
 ## Branches
 
@@ -18,25 +58,7 @@ Some features are missing.
 > [!WARNING]
 > The **unstable** branch is updated more often than the **main** (stable) branch and offers access to experimental features, but is more prone to breakage/bugs.
 
-## Features
-
-* Minimal
-* Compiled
-* Strongly typed
-* Function overloading
-* Hygienic macro system
-* C function interoperability
-* Uniform function call syntax (UFCS)
-
-Minimal - As close as possible to actual assembly code while maintaining as many high-level features as possible.
-
 ## Links
-
-> [!IMPORTANT]
-> The language documentation is provided at [QuickStart](QUICKSTART.md).
-
-> [!IMPORTANT]
-> The standard library documentation is coming soon...
 
 * [Ideas](IDEAS.md)
 * [Bug list](BUG.md)
@@ -175,26 +197,70 @@ Options:
 * [Max](https://github.com/NICUP14/MiniLang/tree/main/samples/max)
 * [Fib](https://github.com/NICUP14/MiniLang/tree/main/samples/fib)
 * [FizzBuzz](https://github.com/NICUP14/MiniLang/tree/main/samples/fizzbuzz)
+* [Str-ufcs](https://github.com/NICUP14/MiniLang/tree/main/samples/str-ufcs)
 * [Printf](https://github.com/NICUP14/MiniLang/tree/main/samples/printf)
 
 > [!NOTE]
 > All MiniLang samples (example projects) are located within the `samples` directory. All samples are written entirely in ML.
 
-## Hello World
+### Hello World
 
 ```txt
-# From samples/helloworld.ml:
+# From samples/helloworld/src/main.ml:
 import "stdlib/print"
 
 fun main: int32
     print "Hello World!"
     ret 0
 end
+```
+
+### String (UFCS)
+
+```txt
+# From samples/str-ufcs/src/main.ml:
+import "stdlib/print"
+import "stdlib/string"
+
+fun main: int32
+    # Is equivalent to:
+    # print(concat(str("Hello "), str("World!")))
+    (str("Hello ").
+        concat(str("World!")).
+        print)
+end
+```
+
+### FizzBuzz
+
+```txt
+# From samples/fizzbuzz/src/main.ml:
+import "stdlib/print"
+
+fun fizz_buzz(num: int64): void
+    let idx = 1
+
+    while idx <= num
+        if idx % 15 == 0
+            println(idx, ": FizzBuzz")
+        elif idx % 3 == 0
+            println(idx, ": Fizzz")
+        elif idx % 5 == 0
+            println(idx, ": Buzz")
+        end
+
+        idx = idx + 1
+    end
+end
+
+fun main(): int64
+    fizz_buzz(15)
+    ret 0
 end
 ```
 
 ## License
 
-Copyright © 2023 Nicolae Petri
+Copyright © 2023-2024 Nicolae Petri
 
 Licensed under the MIT License.

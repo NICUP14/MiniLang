@@ -23,4 +23,3 @@ fun main(): int32
     assert((p at 4) == 4)
     exit(0)
 end
-end

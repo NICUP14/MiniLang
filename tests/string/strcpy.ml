@@ -9,4 +9,3 @@ fun main(): int64
     printf(fmt, arr)
     ret 0
 end
-end

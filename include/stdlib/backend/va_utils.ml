@@ -94,4 +94,3 @@ fun va_arg(list: va_list): int64
     let addr = cast("int64*", base + idx * 8)
     ret *addr
 end
-end

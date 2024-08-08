@@ -61,6 +61,7 @@ class VariableMetaKind(enum.Enum):
     STRUCT = enum.auto()
     MACRO = enum.auto()
     ALIAS = enum.auto()
+    NAMESPACE = enum.auto()
 
 
 class VariableKind(enum.Enum):

@@ -30,4 +30,3 @@ end
 # Convenience aliases
 alias get_int64 = va_arg_int64
 alias get_voidptr = va_arg_voidptr
-end

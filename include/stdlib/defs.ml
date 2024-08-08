@@ -41,4 +41,3 @@ end
 macro size_t(_expr)
     cast("size_t", _expr)
 end
-end

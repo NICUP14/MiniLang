@@ -27,4 +27,3 @@ fun main(): int
     assert(strcmp(res, "Test Best") == 0)
     exit(0)
 end
-end

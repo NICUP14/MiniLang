@@ -26,4 +26,3 @@ fun main(): int64
     printf("After: %lld\n", ref)
     ret 0
 end
-end

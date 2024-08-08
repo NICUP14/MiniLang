@@ -6,4 +6,3 @@ fun main(): int64
     custom_printf(fmt, "Hello world", 16)
     ret 0
 end
-end

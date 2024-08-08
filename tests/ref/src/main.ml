@@ -31,5 +31,3 @@ fun main(): int64
     printf("Terms: %lld %lld", term1, term2)
     ret 0
 end
-end
-end

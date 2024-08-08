@@ -1,14 +1,18 @@
 # Ideas
 
-Implemented: 15/19
+Implemented: 16/23
 
-- [ ] Structs
+- [X] Structs
+- [ ] Unions
+- [ ] Enums
 - [ ] Generics
 - [X] Access operator (`.`)
 - [ ] Macro overloading (by type)
 - [X] Function overloading (by args)
-- [ ] Call params by name in function call
+- [ ] Default arguments for function
+- [ ] Named parameters in function call
 - [ ] Function overloading (by return)
+- [ ] Rethink assembly interface (regs as variables, ...)
 - [X] Deprecate `ma_cnt` (`count` builtin)
 - [X] Add `literal` builtin (pass arg directly to backend)
 - [X] Deprecate `off_of` (cannot be reproduced in c)

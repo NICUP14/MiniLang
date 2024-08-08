@@ -1,16 +1,20 @@
 import "stdlib/print"
 import "stdlib/c/cstdarg"
 
-fun var(first: int64, ...): void
-    let listx: va_list
-    init(listx, first)
-    defer listx.deinit
-    listx.get_int64.print
-    listx.get_int64.print
+# fun var(first: int64, ...): void
+#     let listx: va_list
+#     init(listx, first)
+#     defer listx.deinit
+#     listx.get_int64.print
+#     listx.get_int64.print
+# end
+
+namespace nsp
+    let a = 15
 end
 
 fun main: int32
-    var(1, 2, 3)
+    nsp.a.print
+    "Hello"
     ret 0
-end
 end

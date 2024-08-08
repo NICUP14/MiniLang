@@ -125,4 +125,3 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): int64
 
     ret idx
 end
-end

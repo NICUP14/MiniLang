@@ -159,10 +159,11 @@ class Parser:
         self.skip_blank_lines()
 
         self.tokens = tokenize(self.curr_line())
-        return self.compound_statement()
+        return self.program_statement()
 
-    def no_more_lines(self) -> bool:
-        return self.lines_idx >= len(self.lines)
+    def no_more_lines(self, check_next_lines: bool = False) -> bool:
+        return self.lines_idx + (
+            1 if check_next_lines else 0) >= len(self.lines)
 
     def curr_line(self) -> str:
         return self.lines[self.lines_idx]
@@ -189,7 +190,7 @@ class Parser:
     def lookahead_token(self) -> Token:
         return self.tokens[self.tokens_idx + 1]
 
-    def curr_token(self) -> Token:
+    def curr_token(self) -> Optional[Token]:
         if self.no_more_tokens():
             self.next_line()
             # print_error('curr_token', 'No more tokens in list.', self)
@@ -661,6 +662,10 @@ class Parser:
                         kind = self.node_kind_of(token.kind)
 
                         # De-sugars a member-like function call
+                        if kind == NodeKind.ELEM_ACC and Def.ident_map.get(left.value) == VariableMetaKind.NAMESPACE:
+                            # TODO: Here namespace access
+                            pass
+
                         if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.FUN_CALL:
                             args = Node(NodeKind.GLUE, void_type, '', Node(
                                 NodeKind.GLUE, void_type, '', None, left), right.left)
@@ -736,9 +741,6 @@ class Parser:
         if token.kind == TokenKind.KW_ALIAS:
             self.next_token()
             return self.alias_definition()
-        if token.kind == TokenKind.KW_TYPEDEF:
-            self.next_token()
-            return self.type_definition()
         if token.kind == TokenKind.KW_IMPORT:
             self.next_token()
             return self.import_statement()
@@ -758,9 +760,22 @@ class Parser:
         node = self.token_list_to_tree()
         return node
 
-    def compound_statement(self, match_elif: bool = True) -> Optional[Node]:
+    def program_statement(self) -> Optional[Node]:
         node = None
-        while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE, TokenKind.KW_ELIF):
+        while not self.no_more_lines(check_next_lines=True):
+            if node is None:
+                node = self.statement()
+            else:
+                node = glue_statements([node, self.statement()])
+
+            if not self.no_more_lines(check_next_lines=True):
+                self.next_line()
+
+        return node
+
+    def compound_statement(self) -> Optional[Node]:
+        node = None
+        while not self.no_more_lines(check_next_lines=True) and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE, TokenKind.KW_ELIF):
             if node is None:
                 node = self.statement()
             else:
@@ -808,6 +823,7 @@ class Parser:
         namespace = self.match_token(TokenKind.IDENT).value
         self.next_line()
 
+        Def.ident_map[namespace] = VariableMetaKind.NAMESPACE
         Def.module_name_list.append(namespace)
         namespace_node = Node(NodeKind.NAMESPACE, void_type,
                               namespace, self.compound_statement())

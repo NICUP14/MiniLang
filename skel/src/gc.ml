@@ -35,4 +35,3 @@ end
 macro _free(pointer)
     gc_free(&ml_gc, pointer)
 end
-end

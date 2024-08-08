@@ -11,4 +11,3 @@ fun main(): int64
 
     ret 0
 end
-end

@@ -119,6 +119,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             def get_type(node: Node):
                 return node.ntype
 
+            print('DBG:', node.left)
+
             print_error('c_walker_step',
                         f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))}')
 

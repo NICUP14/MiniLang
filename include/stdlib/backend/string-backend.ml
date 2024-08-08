@@ -46,4 +46,3 @@ extern fun sdsAllocPtr(s: sds): void*
 extern fun sds_malloc(size: int64): void* 
 extern fun sds_realloc(pointer: void*, size: int64): void* 
 extern fun sds_free(pointer: void*): void 
-end
