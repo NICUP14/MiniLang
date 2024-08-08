@@ -1,8 +1,5 @@
 # QuickStart
 
-> [!WARNING]
-> Source files should be terminated by an extra `end` keyword due to reusing `Parser.compund_statement` to parse the program's logic.
-
 ## Primitive Types
 
 Meta type | Arithmetic | Implicit cast-to-pointer

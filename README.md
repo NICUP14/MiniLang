@@ -22,20 +22,20 @@ The language is designed to closely **match c features** along with some **zero-
 
 ## Language-specific features
 
-* Builtins
-* Booleans
-* References
-* Fixed-length integers
-* Fixed-length pointers
-* Type inference
-* Heredocs
-* Aliases
-* Defers
-* Imports
+* [Builtins](QUICKSTART.md#builtins)
+* [Booleans](QUICKSTART.md#primitive-types)
+* [References](QUICKSTART.md#reference-type)
+* [Fixed-length integers](QUICKSTART.md#integer-primitives)
+* [Fixed-length pointers](QUICKSTART.md#pointer-type)
+* [Type inference](QUICKSTART.md#declarationassignment)
+* [Heredocs](QUICKSTART.md#declarationassignment)
+* [Aliases](QUICKSTART.md#aliases)
+* [Defers](QUICKSTART.md#defer-statements)
+* [Imports](QUICKSTART.md#import-statements)
 * Namespaces
-* Hygienic macros
-* Function overloading
-* Uniform function call syntax (UFCS)
+* [Hygienic macros](QUICKSTART.md#macros)
+* [Function overloading](QUICKSTART.md#function-overloading)
+* [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
 * Multi-line statements
 
 ## Features
