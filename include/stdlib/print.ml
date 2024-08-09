@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import stdlib.c.cstdlib
 
 # Print helper functions
 fun _print(arg: bool): void

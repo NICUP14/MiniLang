@@ -2,8 +2,8 @@
 # Provides a functional-like ML frontend of the sds c library.
 # WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
-import "stdlib/c/cstdarg"
-import "stdlib/backend/string-backend"
+import stdlib.c.cstdarg
+import stdlib.backend.string-backend
 
 alias str = sds
 

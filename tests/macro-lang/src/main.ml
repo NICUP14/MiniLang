@@ -1,5 +1,5 @@
-import "stdlib/c/cstdlib"
-import "stdlib/defs"
+import stdlib.c.cstdlib
+import stdlib.defs
 
 macro body(_body)
     _body

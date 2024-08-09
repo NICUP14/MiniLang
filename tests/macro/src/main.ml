@@ -1,7 +1,7 @@
-# import "everything"
-import "stdlib/defs"
-import "stdlib/c/cstdlib"
-import "stdlib/misc"
+# import everything
+import stdlib.defs
+import stdlib.c.cstdlib
+import stdlib.misc
 
 # fun myfun: void
 #     panic("Help")

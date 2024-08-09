@@ -1,4 +1,4 @@
-import "stdlib/print"
+import stdlib.print
 
 fun fizz_buzz(num: int64): void
     let idx = 1

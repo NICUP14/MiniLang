@@ -1,5 +1,5 @@
-import "stdlib/c/cstdlib"
-import "src/stdarg-bind"
+import stdlib.c.cstdlib
+import src.stdarg-bind
 
 fun var(argx: int64, ...): void
     let listx: va_list

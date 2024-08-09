@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import stdlib.c.cstdlib
 
 alias uint = int64
 alias ptr = int64*

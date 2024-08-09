@@ -1,5 +1,5 @@
-import "../../debug"
-import "../../cstdlib"
+import stdlib.debug
+import stdlib.c.cstdlib
 
 fun main(): int64
     let a: int8* = 0

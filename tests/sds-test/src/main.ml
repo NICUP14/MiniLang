@@ -1,6 +1,6 @@
-import "stdlib/c/cstdlib"
-import "stdlib/print"
-import "stdlib/string"
+import stdlib.c.cstdlib
+import stdlib.print
+import stdlib.string
 
 fun main: int32
     let mystr = str("Hello")

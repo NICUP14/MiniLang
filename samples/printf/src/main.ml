@@ -1,5 +1,5 @@
-import "src/printf"
-import "stdlib/c/cstdlib"
+import src.printf
+import stdlib.c.cstdlib
 
 fun main(): int64
     let fmt = "Message %s 20%d!"

@@ -1,6 +1,6 @@
-import "stdlib/c/cstdlib"
-import "stdlib/defs"
-import "src/gc"
+import stdlib.c.cstdlib
+import stdlib.defs
+import src.gc
 
 fun test: void
     let arr: int64[15]* = arr.alloc

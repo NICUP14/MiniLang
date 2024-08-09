@@ -1,4 +1,4 @@
-import "stdlib/print"
+import stdlib.print
 
 fun main: int32
     println "HelloWorld"

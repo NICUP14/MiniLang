@@ -850,10 +850,19 @@ class Parser:
             print_error('import_statement',
                         'Local imports are not allowed', self)
 
-        module = self.match_token(
-            TokenKind.STR_LIT).value.lstrip('\"').rstrip('\"')
-        module_source = f'{module}.ml'
+        module = ''
+        while not self.no_more_tokens():
+            part = self.match_token(TokenKind.IDENT).value
+            module = os.path.join(module, part)
 
+            if not self.no_more_tokens():
+                self.match_token(TokenKind.PERIOD)
+
+                if self.no_more_tokens():
+                    print_error('import_statement',
+                                'Invalid trailing period in import', parser=self)
+
+        module_source = f'{module}.ml'
         if not exists(module_source):
             for module_dir in Def.include_list:
                 other_source = os.path.join(module_dir, module_source)

@@ -1,5 +1,5 @@
-import "src/gc-backend"
-import "stdlib/defs"
+import src.gc-backend
+import stdlib.defs
 
 # fun start(gc: GarbageCollector*, bos: void*): void
 #     gc_start(gc, bos)

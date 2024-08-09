@@ -1,5 +1,5 @@
-import "stdlib/c/cstdlib"
-import "stdlib/defs"
+import stdlib.c.cstdlib
+import stdlib.defs
 
 alias int = int32
 alias ptr = void*

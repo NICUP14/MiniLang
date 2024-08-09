@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import stdlib.c.cstdlib
 
 fun x(): void
     let c: void* = 15

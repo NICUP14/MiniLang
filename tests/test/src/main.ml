@@ -1,5 +1,5 @@
-import "stdlib/print"
-import "stdlib/c/cstdarg"
+import stdlib.print
+import stdlib.c.cstdarg
 
 # fun var(first: int64, ...): void
 #     let listx: va_list

@@ -1,5 +1,5 @@
-import "stdlib/print"
-import "stdlib/string"
+import stdlib.print
+import stdlib.string
 
 fun main: int32
     # Is equivalent to:

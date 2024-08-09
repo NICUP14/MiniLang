@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import stdlib.c.cstdlib
 
 fun main(): int64
     let x: bool = true

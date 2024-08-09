@@ -1,4 +1,4 @@
-import "stdlib/c/cstdlib"
+import stdlib.c.cstdlib
 
 # Debug standard library assertion macros
 macro panic_exit

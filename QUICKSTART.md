@@ -253,7 +253,8 @@ end
 ```txt
 # Import statement syntax
 # Note: This instructs the compiler to include mymodule (`mymodule.ml`) in the build.
-import "mymodule"
+import mymodule
+import dir.dir2.othermodule
 ```
 
 ## Defer statements
