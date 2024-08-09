@@ -1,3 +1,4 @@
+literal("#define GC_NO_GLOBAL_GC")
 literal("#include <gc.h>")
 
 extern struct GarbageCollector
@@ -16,7 +17,7 @@ extern fun gc_calloc(gc: GarbageCollector*, cnt: int64, size: int64): void*
 extern fun gc_realloc(gc: GarbageCollector*, pointer: void*, size: int64): void*
 extern fun gc_free(gc: GarbageCollector*, pointer: void*): void*
 
-# Aliases
+# Convenience macros
 macro _gc_start(bos)
     gc_start(&ml_gc, &bos)
 end

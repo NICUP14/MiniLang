@@ -1254,7 +1254,9 @@ class Parser:
         name = self.match_token(TokenKind.IDENT).value
         self.match_token(TokenKind.ASSIGN)
 
-        alias = self.match_token(TokenKind.IDENT).value
+        alias = self.curr_token().value
+        self.next_token()
+
         while not self.no_more_tokens() and self.curr_token().kind == TokenKind.PERIOD:
             self.match_token(TokenKind.PERIOD)
             if self.no_more_tokens():
@@ -1272,7 +1274,8 @@ class Parser:
             Def.alias_map[name] = alias
             return
 
-        self.next_token()
+        #! BUG: This does not parse correctly
+        # self.next_token()
         meta_kind = VariableMetaKind.PRIM
         if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
             self.next_token()
