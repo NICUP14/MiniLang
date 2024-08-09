@@ -32,11 +32,11 @@ The language is designed to closely **match c features** along with some **zero-
 * [Aliases](QUICKSTART.md#aliases)
 * [Defers](QUICKSTART.md#defer-statements)
 * [Imports](QUICKSTART.md#import-statements)
-* Namespaces
+* [Namespaces](QUICKSTART.md#namespace-statements)
 * [Hygienic macros](QUICKSTART.md#macros)
 * [Function overloading](QUICKSTART.md#function-overloading)
 * [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
-* Multi-line statements
+* [Multi-line statements](QUICKSTART.md#multi-line-statements)
 
 ## Features
 

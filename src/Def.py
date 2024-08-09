@@ -879,6 +879,7 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == void_ckind:
         return [
+            NodeKind.ELEM_ACC,
             NodeKind.CAST,
             NodeKind.GLUE
         ]

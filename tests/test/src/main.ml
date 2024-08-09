@@ -23,7 +23,13 @@ namespace nsp
     fun hello: void
         print "Hi"
     end
+    
+    fun greet(name: int8*): void
+        print("Hello ", name, "!")
+    end
 end
+
+alias greet = nsp.greet
 
 fun main: int32
     let b = 16
@@ -31,6 +37,7 @@ fun main: int32
     # nsp.nsp2.e.print
     nsp.hello
     nsp.nsp2.hello2
+    "You".greet
     # c.print
     ret 0
 end

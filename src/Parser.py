@@ -1254,7 +1254,16 @@ class Parser:
         name = self.match_token(TokenKind.IDENT).value
         self.match_token(TokenKind.ASSIGN)
 
-        alias = self.curr_token().value
+        alias = self.match_token(TokenKind.IDENT).value
+        while not self.no_more_tokens() and self.curr_token().kind == TokenKind.PERIOD:
+            self.match_token(TokenKind.PERIOD)
+            if self.no_more_tokens():
+                print_error('alias_definition',
+                            'Invalid trailing period in alias', parser=self)
+
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.IDENT:
+                alias += f'_{self.match_token(TokenKind.IDENT).value}'
+
         if alias in Def.ident_map:
             Def.ident_map[name] = VariableMetaKind.ALIAS
             while Def.ident_map.get(alias) == VariableMetaKind.ALIAS:

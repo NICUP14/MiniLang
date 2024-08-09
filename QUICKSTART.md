@@ -250,11 +250,49 @@ end
 
 ## Import statements
 
+> [!TIP]
+> Importing ML files from a parent directory can only be achieved by adding that directory to the include path of the ML compiler using the `-I` option (`python Main.py -I <PATH_TO_DIR> ...`)
+
 ```txt
 # Import statement syntax
 # Note: This instructs the compiler to include mymodule (`mymodule.ml`) in the build.
 import mymodule
 import dir.dir2.othermodule
+```
+
+## Multi-line statements
+
+```txt
+# Expression-based statements
+(str("Hello ").
+    concat(str("World!")).
+    print)
+
+# Function statement (example)
+fun
+myfunc
+(arg1: int64, arg2: int64): int64
+    ret arg1 + arg2
+end
+```
+
+For expression-based statements and array declarations, the compiler checks whether every parentheses and square brackets have been properly closed. If not, the compiler continues to the next line. However, for all other unterminated statements this check is done automatically.
+
+## Namespace statements
+
+```txt
+# Namespace statement syntax
+namespace mynamespc
+    let var = 15
+
+    fun greet(name: int8*): void
+        println("Hello ", name, "!")
+    end
+end
+
+# Namespace member access
+mynamespc.var = 20
+mynamespc.greet("You")
 ```
 
 ## Defer statements
