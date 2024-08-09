@@ -16,11 +16,23 @@ A type-safe C successor that compiles directly to various platforms.
 
 **Check out [acwj-git](https://github.com/DoctorWkt/acwj.git)**, DoctorWkt's tutorial is the main (best) source of inspiration of this project's structure.
 
+## Design choices
+
+* Modern
+* Compiled
+* Procedural
+* Strongly typed
+* Type and memory safe
+* Closely match C features
+* Bidirectionally compatible with C
+* ML must be easy to learn and use
+* ML abstractions introduce zero-overhead compared to C
+
 ## Motivation
 
 The language is designed to closely **match c features** along with some **zero-overhead** quality of life improvements that you would find in a modern language, while maintaining the **ease of learning the language** (in about 10 minutes or less via [QUICKSTART](QUICKSTART.md)). Moreover, the type system is **stricter than c**, which prevents common bugs (flaws) of the c language. **Memory safety** is also a primary concern. As for c compatibility, the language is **bidirectionally compatible with c** (c can be used in ML, ML can be used in c).
 
-## Language-specific features
+## Goodies
 
 * [Builtins](QUICKSTART.md#builtins)
 * [Booleans](QUICKSTART.md#primitive-types)
@@ -37,18 +49,6 @@ The language is designed to closely **match c features** along with some **zero-
 * [Function overloading](QUICKSTART.md#function-overloading)
 * [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
 * [Multi-line statements](QUICKSTART.md#multi-line-statements)
-
-## Features
-
-* Modern
-* Compiled
-* Strongly typed
-* Function overloading
-* Hygienic macro system
-* C bidirectional compatibility
-* Uniform function call syntax (UFCS)
-* **Easy to learn and use**
-* **Flat learning curve**
 
 ## Branches
 
