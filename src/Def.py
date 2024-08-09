@@ -233,6 +233,9 @@ class NodeKind(enum.Enum):
     OP_GTE = enum.auto()
     OP_EQ = enum.auto()
     OP_NEQ = enum.auto()
+    TERN = enum.auto()
+    TERN_COND = enum.auto()
+    TERN_BODY = enum.auto
     IF = enum.auto()
     ELIF = enum.auto()
     ELSE = enum.auto()
@@ -465,7 +468,7 @@ def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bo
 def full_name_of_var(name: str, force_local: bool = False, exhaustive_match: bool = True):
     # Local match (forced)
     if force_local:
-        return "_".join(fun_name_list + [name])
+        return "_".join(module_name_list + fun_name_list + [name])
 
     # Namespace match
     global_name = "_".join(module_name_list + [name])
@@ -635,9 +638,13 @@ def cmp_var_kind(kind: VariableKind, kind2: VariableKind):
 
 def type_of_ident(ident: str) -> VariableType:
     if ident not in ident_map:
-        print_error('type_of_ident', f'No such identifier {ident}')
+        # print_error('type_of_ident', f'No such identifier {ident}')
+        return any_type
 
     meta_kind = ident_map.get(ident)
+
+    if meta_kind == VariableMetaKind.NAMESPACE:
+        return void_type
 
     if meta_kind == VariableMetaKind.ANY:
         return any_type
@@ -689,7 +696,7 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
-    if kind == NodeKind.ELEM_ACC:
+    if kind in (NodeKind.ELEM_ACC, NodeKind.TERN_COND, NodeKind.TERN_BODY):
         return prev_type
 
     if kind == NodeKind.REF:
@@ -773,6 +780,9 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if kind == NodeKind.OP_ASSIGN and ckind == ptr_ckind and ckind2 == arr_ckind:
         return True
 
+    if kind == NodeKind.TERN_COND and ckind2 == bool_ckind:
+        return True
+
     return False
 
 
@@ -780,6 +790,8 @@ def allowed_op(ckind: VariableCompKind):
     # Fix for macros
     if ckind == any_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.ELEM_ACC,
             NodeKind.IDENT,
             NodeKind.INT_LIT,
@@ -822,6 +834,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind.meta_kind == VariableMetaKind.PRIM:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.INT_LIT,
             NodeKind.CHAR_LIT,
             NodeKind.CAST,
@@ -845,6 +859,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == bool_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.TRUE_LIT,
             NodeKind.FALSE_LIT,
             NodeKind.CAST,
@@ -869,6 +885,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == arr_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.CAST,
             NodeKind.OP_ADD,
             NodeKind.OP_SUB,
@@ -880,6 +898,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == ptr_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.CAST,
             NodeKind.GLUE,
             NodeKind.ARR_ACC,
@@ -896,6 +916,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == ref_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.CAST,
             NodeKind.GLUE,
             NodeKind.OP_ADD,
@@ -915,6 +937,8 @@ def allowed_op(ckind: VariableCompKind):
 
     if ckind == struct_ckind:
         return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
             NodeKind.OP_ASSIGN,
             NodeKind.ELEM_ACC,
             NodeKind.REF

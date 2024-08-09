@@ -92,6 +92,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{left}[{right}]'
     if node.kind == NodeKind.ELEM_ACC:
         return f'{left}.{right}'
+    if node.kind == NodeKind.TERN:
+        return f'({middle} ? {left} : {right})'
     if node.kind == NodeKind.IF:
         # if right is not None:
         # return f'{color_str(Color.BLUE, "if")} {middle} {"{"}\n  {indent + left}{";" if add_left_semi else ""}\n{prev_indent + "}"}\n{prev_indent}{color_str(Color.BLUE, "else")} {"{"}\n{indent + right}{";" if add_right_semi else ""}'
@@ -118,8 +120,6 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         if sig is None:
             def get_type(node: Node):
                 return node.ntype
-
-            print('DBG:', node.left)
 
             print_error('c_walker_step',
                         f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))}')
@@ -152,8 +152,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{color_str(Color.BLUE, "return")} {left if left is not None else ""}'
     if node.kind == NodeKind.BLOCK:
         return ''
-    if node.kind == NodeKind.NAMESPACE:
-        return ''
+    if node.kind in (NodeKind.NAMESPACE, NodeKind.BLOCK):
+        return left
     if node.kind == NodeKind.REF:
         if Def.ident_map.get(node.left.value) in (Def.VariableMetaKind.REF, Def.VariableMetaKind.ARR):
             return left

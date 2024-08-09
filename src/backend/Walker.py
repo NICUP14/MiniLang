@@ -10,9 +10,9 @@ def has_indent(kind: NodeKind):
         NodeKind.IF,
         NodeKind.WHILE,
         NodeKind.FUN,
-        NodeKind.BLOCK,
         NodeKind.STRUCT_DECL,
-        NodeKind.NAMESPACE
+        # NodeKind.BLOCK,
+        # NodeKind.NAMESPACE,
     )
 
 

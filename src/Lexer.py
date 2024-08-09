@@ -261,6 +261,8 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
         TokenKind.KW_CAST,
+        TokenKind.KW_IF,
+        TokenKind.KW_ELSE,
     )
 
 
@@ -318,6 +320,8 @@ def token_is_bin_op(kind: TokenKind) -> bool:
         TokenKind.PERIOD,
         TokenKind.KW_AT,
         TokenKind.PERIOD,
+        TokenKind.KW_IF,
+        TokenKind.KW_ELSE,
     ]
 
 

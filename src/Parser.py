@@ -86,14 +86,16 @@ PRECEDENCE_MAP = {
     TokenKind.OR: 5,
     TokenKind.AND: 5,
     TokenKind.KW_AT: 27,
-    TokenKind.ASSIGN: 4,
+    TokenKind.KW_IF: 4,
+    TokenKind.KW_ELSE: 4,
+    TokenKind.ASSIGN: 3,
     TokenKind.EQ: 6,
     TokenKind.NEQ: 6,
     TokenKind.GT: 6,
     TokenKind.LT: 6,
     TokenKind.LTE: 6,
     TokenKind.GTE: 6,
-    TokenKind.COMMA: 3,
+    TokenKind.COMMA: 2,
 }
 
 NODE_KIND_MAP = {
@@ -131,7 +133,9 @@ NODE_KIND_MAP = {
     TokenKind.KW_COUNT: NodeKind.COUNT,
     TokenKind.KW_LIT: NodeKind.LIT,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
-    TokenKind.FALSE_LIT: NodeKind.FALSE_LIT
+    TokenKind.FALSE_LIT: NodeKind.FALSE_LIT,
+    TokenKind.KW_IF: NodeKind.TERN_COND,
+    TokenKind.KW_ELSE: NodeKind.TERN_BODY,
 }
 
 
@@ -253,7 +257,7 @@ class Parser:
         postfix_tokens = []
         prev_token = None
 
-        def cmp_precedence(t, t2):
+        def cmp_precedence(t: Token, t2: Token):
             return self.precedence_of(t.kind) <= self.precedence_of(t2.kind)
 
         for token in tokens:
@@ -278,14 +282,19 @@ class Parser:
                         op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
 
                     else:
-                        name = full_name_of_var(
-                            token.value, exhaustive_match=True)
-                        if name not in Def.ident_map:
-                            print_error('to_postfix',
-                                        f'Invalid identifier {name}', self)
+                        if prev_token is not None and prev_token.kind == TokenKind.PERIOD:
+                            postfix_tokens.append(
+                                Token(TokenKind.IDENT, token.value))
 
-                        postfix_tokens.append(
-                            Token(TokenKind.IDENT, name))
+                        else:
+                            name = full_name_of_var(
+                                token.value, exhaustive_match=True)
+                            if name not in Def.ident_map and (prev_token is None or prev_token.kind != TokenKind.PERIOD):
+                                print_error('to_postfix',
+                                            f'Invalid identifier {name}', self)
+
+                            postfix_tokens.append(
+                                Token(TokenKind.IDENT, name))
 
             elif token_is_paren(token.kind):
                 if token.kind == TokenKind.LPAREN:
@@ -483,6 +492,27 @@ class Parser:
                 del Def.macro_arg_map[name]
         return expand_helper(body)
 
+    def _fun_call(self, fun_name: str, node_stack: List[Node]) -> List[Node]:
+        if fun_name in Def.fun_sig_map:
+            fun_name = Def.fun_sig_map.get(fun_name)
+
+        fun = Def.fun_map.get(fun_name)
+        kind = NodeKind.FUN_CALL
+
+        if fun.arg_cnt == 0 and not fun.is_variadic:
+            node_stack.append(Node(kind, fun.ret_type, fun_name))
+        else:
+            if len(node_stack) == 0:
+                print_error('to_tree',
+                            f'Missing function operand of {fun_name}', self)
+
+            node = self.merge_fun_call(node_stack.pop()) if len(
+                node_stack) > 0 else None
+            node_stack.append(
+                Node(kind, fun.ret_type, fun_name, node))
+
+        return node_stack
+
     def to_tree(self, tokens: List[Token]) -> Node:
         node_stack: list[Node] = []
 
@@ -544,24 +574,25 @@ class Parser:
                 if token_is_unary_op(token.kind):
                     # Function call fix
                     if token.kind == TokenKind.FUN_CALL:
-                        fun_name = token.value
-                        if fun_name in Def.fun_sig_map:
-                            fun_name = Def.fun_sig_map.get(fun_name)
+                        self._fun_call(token.value, node_stack)
+                        # fun_name = token.value
+                        # if fun_name in Def.fun_sig_map:
+                        #     fun_name = Def.fun_sig_map.get(fun_name)
 
-                        fun = Def.fun_map.get(fun_name)
-                        kind = self.node_kind_of(token.kind)
+                        # fun = Def.fun_map.get(fun_name)
+                        # kind = self.node_kind_of(token.kind)
 
-                        if fun.arg_cnt == 0 and not fun.is_variadic:
-                            node_stack.append(
-                                Node(kind, fun.ret_type, token.value))
-                        else:
-                            if len(node_stack) == 0:
-                                print_error('to_tree',
-                                            f'Missing function operand of {token.value}', self)
-                            node = self.merge_fun_call(node_stack.pop()) if len(
-                                node_stack) > 0 else None
-                            node_stack.append(
-                                Node(kind, fun.ret_type, token.value, node))
+                        # if fun.arg_cnt == 0 and not fun.is_variadic:
+                        #     node_stack.append(
+                        #         Node(kind, fun.ret_type, token.value))
+                        # else:
+                        #     if len(node_stack) == 0:
+                        #         print_error('to_tree',
+                        #                     f'Missing function operand of {token.value}', self)
+                        #     node = self.merge_fun_call(node_stack.pop()) if len(
+                        #         node_stack) > 0 else None
+                        #     node_stack.append(
+                        #         Node(kind, fun.ret_type, token.value, node))
                         continue
 
                     if token.kind == TokenKind.MACRO_CALL:
@@ -663,8 +694,32 @@ class Parser:
 
                         # De-sugars a member-like function call
                         if kind == NodeKind.ELEM_ACC and Def.ident_map.get(left.value) == VariableMetaKind.NAMESPACE:
-                            # TODO: Here namespace access
-                            pass
+                            name = f'{left.value}_{right.value}'
+
+                            if Def.ident_map.get(name) == VariableMetaKind.FUN:
+                                self._fun_call(name, node_stack)
+                            else:
+                                ntype = type_of_ident(name)
+                                node_stack.append(
+                                    Node(NodeKind.IDENT, ntype, f'{left.value}_{right.value}'))
+                            continue
+
+                        # Builds the python-like ternary condition (check #1)
+                        if kind != NodeKind.TERN_BODY and left.kind == NodeKind.TERN_COND:
+                            print_error('to_tree',
+                                        'Missing else clause in ternary condition', parser=self)
+                        if kind == NodeKind.TERN_BODY:
+                            if left.kind != NodeKind.TERN_COND:
+                                print_error('to_tree',
+                                            f'Expected a ternary condition, got {left.kind}', parser=self)
+
+                            if not type_compatible(NodeKind.FUN_CALL, right.ntype.ckind, left.left.ntype.ckind):
+                                print_error('to_tree',
+                                            f'Incompatible types in ternary condition {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)}', parser=self)
+
+                            node_stack.append(
+                                Node(NodeKind.TERN, right.ntype, '', left.left, right, left.right))
+                            continue
 
                         if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.FUN_CALL:
                             args = Node(NodeKind.GLUE, void_type, '', Node(
@@ -684,10 +739,10 @@ class Parser:
 
                         # Widens the operands if necessary
                         code = needs_widen(left.ntype.ckind, right.ntype.ckind)
-                        if code == 1 and kind not in (NodeKind.GLUE, NodeKind.OP_ASSIGN):
+                        if code == 1 and kind not in (NodeKind.GLUE, NodeKind.OP_ASSIGN, NodeKind.TERN_COND):
                             left = Node(NodeKind.OP_WIDEN,
                                         right.ntype, left.value, left)
-                        if code == 2 and kind != NodeKind.GLUE:
+                        if code == 2 and kind not in (NodeKind.GLUE, NodeKind.TERN_COND):
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
@@ -708,7 +763,12 @@ class Parser:
             print_error('to_tree',
                         'Missing operands (attempt to pop from empty list)', self)
 
-        return node_stack.pop()
+        node = node_stack.pop()
+        if node.kind in (NodeKind.TERN_COND, NodeKind.TERN_BODY):
+            print_error('to_tree',
+                        'Missing else clause in ternary condition', parser=self)
+
+        return node
 
     def statement(self) -> Optional[Node]:
         token = self.curr_token()
@@ -823,7 +883,8 @@ class Parser:
         namespace = self.match_token(TokenKind.IDENT).value
         self.next_line()
 
-        Def.ident_map[namespace] = VariableMetaKind.NAMESPACE
+        Def.ident_map[full_name_of_fun(
+            namespace, force_global=True)] = VariableMetaKind.NAMESPACE
         Def.module_name_list.append(namespace)
         namespace_node = Node(NodeKind.NAMESPACE, void_type,
                               namespace, self.compound_statement())

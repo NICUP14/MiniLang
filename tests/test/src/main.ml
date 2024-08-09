@@ -10,11 +10,27 @@ import "stdlib/c/cstdarg"
 # end
 
 namespace nsp
-    let a = 15
+    namespace nsp2
+        let e = 200
+
+        fun hello2: void
+            print "Hi"
+        end
+    end
+
+    let a = 100
+
+    fun hello: void
+        print "Hi"
+    end
 end
 
 fun main: int32
-    nsp.a.print
-    "Hello"
+    let b = 16
+    let c = 15 if b == 16 else 20
+    # nsp.nsp2.e.print
+    nsp.hello
+    nsp.nsp2.hello2
+    # c.print
     ret 0
 end

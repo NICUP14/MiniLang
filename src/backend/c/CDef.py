@@ -113,8 +113,6 @@ def is_in_block(kind: NodeKind):
     return kind in [
         NodeKind.GLUE,
         NodeKind.FUN,
-        NodeKind.BLOCK,
-        NodeKind.NAMESPACE,
         NodeKind.IF,
         NodeKind.ELIF,
         NodeKind.ELSE,
@@ -127,8 +125,6 @@ def has_semicolon(kind: NodeKind):
         NodeKind.LIT,
         NodeKind.GLUE,
         NodeKind.FUN,
-        NodeKind.BLOCK,
-        NodeKind.NAMESPACE,
         NodeKind.IF,
         NodeKind.ELIF,
         NodeKind.ELSE,

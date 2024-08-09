@@ -29,6 +29,7 @@ compile: $(PROJECT)
 # Shortcuts
 def: _c
 dbg: debug
+cdbg: _cdebug
 c: _c
 asm: assemble
 
@@ -40,6 +41,7 @@ _c:
 	$(CC) $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
 
 _cdebug:
+	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
 
 _debug:
 	$(ML) $(MLFLAGS) -d -I $(MLLIB) -I src $(SOURCES)
