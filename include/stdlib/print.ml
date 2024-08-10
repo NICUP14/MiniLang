@@ -2,7 +2,7 @@ import stdlib.c.cstdlib
 
 # Print helper functions
 fun _print(arg: bool): void
-    if arg
+    if arg == true
         printf("true")
     else
         printf("false")

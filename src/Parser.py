@@ -607,7 +607,7 @@ class Parser:
 
                             node = node_stack.pop()
                             body = self.expand_macro(
-                                macro, node)
+                                macro, self.merge_fun_call(node))
 
                             node_stack.append(body)
 

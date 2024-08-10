@@ -1,7 +1,8 @@
 # Bugs
 
-Solved: 12/18
+Solved: 12/19
 
+- [ ] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
 - [ ] Struct elements pollute the global scope with non-existent variables.
 - [ ] Cannot call function as struct method with only one arg.
 - [ ] Macro-related bug (check `expand_macro`).

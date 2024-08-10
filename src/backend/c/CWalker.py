@@ -84,6 +84,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'({left} < {right})'
     if node.kind == NodeKind.OP_EQ:
         return f'({left} == {right})'
+    if node.kind == NodeKind.OP_GTE:
+        return f'({left} >= {right})'
     if node.kind == NodeKind.OP_LTE:
         return f'({left} <= {right})'
     if node.kind == NodeKind.OP_NEQ:
