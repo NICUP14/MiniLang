@@ -1079,10 +1079,13 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
     # Looks for compatible matches
     for signature in fun.signatures:
         if fun.is_variadic or len(arg_types) == signature.arg_cnt:
+            compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
                 if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind):
+                    compatible = False
                     break
 
+            if compatible:
                 return signature
 
     return None

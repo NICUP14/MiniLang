@@ -2,6 +2,7 @@
 extern fun exit(status: int32): void
 extern fun getchar: int32
 extern fun printf(msg: int8*, ...): int32
+extern fun fprintf(stream: void*, msg: int8*, ...): int32
 extern fun scanf(format: int8*, ...): int32
 extern fun fscanf(stream: void*, format: int8*, ...): int32
 extern fun puts(str: int8*): int32

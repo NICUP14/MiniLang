@@ -1,4 +1,4 @@
-import stdlib.print
+import stdlib.io.print
 
 fun print_fib(num: int64): void
     let term1 = 1

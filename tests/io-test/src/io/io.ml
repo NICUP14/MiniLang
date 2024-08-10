@@ -4,3 +4,4 @@
 
 import src.io.fio
 import src.io.read
+import src.io.print

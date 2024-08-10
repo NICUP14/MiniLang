@@ -15,8 +15,8 @@ CFLAGS ?=
 CLAGS += -g
 
 # Compiler parameters
-ML = python ../src/Main.py
-MLLIB ?= "../include"
+ML = python ../../src/Main.py
+MLLIB ?= "../../include"
 MLFLAGS ?=
 MLFLAGS += -C -c
 

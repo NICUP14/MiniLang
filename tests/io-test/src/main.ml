@@ -1,6 +1,6 @@
 import src.io.fio
 import src.io.read
-import stdlib.print
+import src.io.print
 
 fun main: int32
     # let a: bool = false
@@ -9,13 +9,14 @@ fun main: int32
     # let d: int64 = 0
 
     let f = open_file("test-num.txt")
+    let w = open_file("out.txt", "w")
 
     let a = 0
     let b = 0
     let c = 0
     let d = 0
     read_from(f, a, b, c)
-    print(a, " ", b) 
+    println_to(w, a, " ", b) 
 
     # read(a, b, c, d)
     # println(a, " ", b, " ", c, " ", d)

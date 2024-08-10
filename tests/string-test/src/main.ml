@@ -1,5 +1,5 @@
 import stdlib.c.cstdlib
-import stdlib.print
+import stdlib.io.print
 import stdlib.string
 
 fun main: int32

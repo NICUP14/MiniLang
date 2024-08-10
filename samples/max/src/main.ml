@@ -1,5 +1,5 @@
 import stdlib.c.cstdarg
-import stdlib.print
+import stdlib.io.print
 
 fun cond(maybe: bool, tval: int64, fval: int64): int64
     let val = 0 - 1

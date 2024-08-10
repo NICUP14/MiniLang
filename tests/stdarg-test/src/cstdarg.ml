@@ -4,8 +4,8 @@ literal("#define c_va_arg va_arg")
 
 extern struct va_list
 extern fun va_end(list: va_list) void
-extern fun c_va_start(list: va_list, arg: void): void
-extern fun c_va_arg(list: va_list, arg: void): void*
+# extern fun c_va_start(list: va_list, arg: void): void
+# extern fun c_va_arg(list: va_list, arg: void): void*
 
 macro va_start(list, param)
     c_va_start(list, literal(param))

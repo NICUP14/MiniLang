@@ -764,7 +764,7 @@ class Parser:
                         'Missing operands (attempt to pop from empty list)', self)
 
         node = node_stack.pop()
-        if node.kind in (NodeKind.TERN_COND, NodeKind.TERN_BODY):
+        if node is not None and node.kind in (NodeKind.TERN_COND, NodeKind.TERN_BODY):
             print_error('to_tree',
                         'Missing else clause in ternary condition', parser=self)
 
@@ -875,7 +875,8 @@ class Parser:
 
         if module_source in Def.included:
             return None
-        Def.included.add(module_source)
+        else:
+            Def.included.add(module_source)
 
         try:
             module_root = Parser().parse(module_source)

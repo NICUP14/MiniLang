@@ -207,7 +207,7 @@ Options:
 
 ```txt
 # From samples/helloworld/src/main.ml:
-import stdlib.print
+import stdlib.io.print
 
 fun main: int32
     print "Hello World!"
@@ -219,7 +219,7 @@ end
 
 ```txt
 # From samples/str-ufcs/src/main.ml:
-import stdlib.print
+import stdlib.io.print
 import stdlib.string
 
 fun main: int32
@@ -235,7 +235,7 @@ end
 
 ```txt
 # From samples/fizzbuzz/src/main.ml:
-import stdlib.print
+import stdlib.io.print
 
 fun fizz_buzz(num: int64): void
     let idx = 1

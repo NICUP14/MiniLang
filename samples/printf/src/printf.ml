@@ -1,6 +1,6 @@
 import src.number
-import src.stdarg-bind
 import stdlib.c.cstdlib
+import stdlib.c.cstdarg
 
 fun custom_printf(format: int8*, ...): void
     let va_list: va_list

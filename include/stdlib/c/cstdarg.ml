@@ -4,11 +4,12 @@ literal("#define c_va_arg va_arg")
 
 extern struct va_list
 extern fun va_end(list: va_list): void
-extern fun c_va_start(list: va_list, arg: void): void
+extern fun c_va_start(list: va_list, arg: int64): void
 extern fun c_va_arg(list: va_list, arg: void): void*
 
 macro va_start(list, param)
-    c_va_start(list, literal(param))
+    # Hacky fix, literal(param) should be void
+    c_va_start(list, cast("int64", literal(param)))
 end
 
 macro va_arg_voidptr(list)

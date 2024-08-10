@@ -12,13 +12,13 @@ macro null
     cast("ptr", 0)
 end
 macro stdin
-    cast("ptr", 0)
+    cast("ptr", literal("stdin"))
 end
 macro stdout
-    cast("ptr", 1)
+    cast("ptr", literal("stdout"))
 end
 macro stderr
-    cast("ptr", 2)
+    cast("ptr", literal("stderr"))
 end
 macro int(_expr)
     cast("int", _expr)

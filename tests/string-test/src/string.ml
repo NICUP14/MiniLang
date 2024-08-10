@@ -3,7 +3,7 @@
 # WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
 import stdlib.c.cstdarg
-import src.string-backend
+import src.string_backend
 
 alias str = sds
 
