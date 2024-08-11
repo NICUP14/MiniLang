@@ -3,7 +3,7 @@ import stdlib.debug
 import stdlib.c.cstdlib
 
 # Print helper functions
-fun _print(st: void*, arg: bool): void
+fun _print(st: stream, arg: bool): void
     if arg == true
         fprintf(st, "true")
     elif arg == false
@@ -12,22 +12,22 @@ fun _print(st: void*, arg: bool): void
         panic("Logic error")
     end
 end
-fun _print(st: void*, arg: int8): void
+fun _print(st: stream, arg: int8): void
     fprintf(st, "%hhd", arg)
 end
-fun _print(st: void*, arg: int16): void
+fun _print(st: stream, arg: int16): void
     fprintf(st, "%hd", arg)
 end
-fun _print(st: void*, arg: int32): void
+fun _print(st: stream, arg: int32): void
     fprintf(st, "%d", arg)
 end
-fun _print(st: void*, arg: int64): void
+fun _print(st: stream, arg: int64): void
     fprintf(st, "%lld", arg)
 end
-fun _print(st: void*, arg: int8*): void
+fun _print(st: stream, arg: int8*): void
     fprintf(st, "%s", arg)
 end
-fun _print(st: void*, arg: void*): void
+fun _print(st: stream, arg: void*): void
     fprintf(st, "%p", arg)
 end
 

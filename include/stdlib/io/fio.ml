@@ -4,9 +4,6 @@ import stdlib.debug
 import stdlib.string
 import stdlib.string.backend
 
-extern struct FILE;
-alias stream = FILE*
-
 # It moves file pointer position to the beginning of the file.
 macro c_SEEK_END
     cast("int32", literal("SEEK_END"))
@@ -54,5 +51,5 @@ fun read_file(st: stream): str
     let size = ftell(st)
     fseek(st, 0, c_SEEK_SET)
 
-    ret read_file(st, size)
+    ret read_file(st, size + 1)
 end

@@ -7,6 +7,9 @@ alias cstr = int8*
 alias byte = int8
 alias char = int8
 
+extern struct FILE;
+alias stream = FILE*
+
 # ML standard standard definition macros
 macro null
     cast("ptr", 0)

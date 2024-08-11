@@ -3,22 +3,22 @@ import stdlib.debug
 import stdlib.string
 import stdlib.c.cstdlib
 
-fun _read(stream: void*, arg: int8*): void
-    fscanf(stream, "%hhd", arg)
+fun _read(st: stream, arg: int8*): void
+    fscanf(st, "%hhd", arg)
 end
-fun _read(stream: void*, arg: int16*): void
-    fscanf(stream, "%hd", arg)
+fun _read(st: stream, arg: int16*): void
+    fscanf(st, "%hd", arg)
 end
-fun _read(stream: void*, arg: int32*): void
-    fscanf(stream, "%d", arg)
+fun _read(st: stream, arg: int32*): void
+    fscanf(st, "%d", arg)
 end
-fun _read(stream: void*, arg: int64*): void
-    fscanf(stream, "%lld", arg)
+fun _read(st: stream, arg: int64*): void
+    fscanf(st, "%Ld", arg)
 end
-fun _read(stream: void*, arg: void*): void
+fun _read(st: stream, arg: void*): void
     panic("Cannot read void value")
 end
-fun _read(stream: void*, arg: bool*): void
+fun _read(st: stream, arg: bool*): void
     panic("Cannot read boolean value")
 end
 
