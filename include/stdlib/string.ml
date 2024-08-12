@@ -13,7 +13,7 @@ fun str(s: int8*): str
 end
 
 # Create a new sds string starting from a printf-alike format specifier.
-fun str_printf(fmt: int8*, ...): str
+fun str_from(fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 

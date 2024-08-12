@@ -38,11 +38,12 @@ end
 
 fun read_file(st: stream, size: int64): str
     let s = empty_str
-    let cs = malloc(size)
+    let cs: int8* = malloc(size)
 
     defer s = str(cs)
     defer free(cs)
-    fgets(cs, size, st)
+    fread(cs, 1, size - 1, st)
+    cs[size] = 0
     ret s
 end
 
@@ -51,5 +52,5 @@ fun read_file(st: stream): str
     let size = ftell(st)
     fseek(st, 0, c_SEEK_SET)
 
-    ret read_file(st, size + 1)
+    ret read_file(st, size)
 end

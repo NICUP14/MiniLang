@@ -15,13 +15,13 @@ macro null
     cast("ptr", 0)
 end
 macro stdin
-    cast("ptr", literal("stdin"))
+    cast("stream", literal("stdin"))
 end
 macro stdout
-    cast("ptr", literal("stdout"))
+    cast("stream", literal("stdout"))
 end
 macro stderr
-    cast("ptr", literal("stderr"))
+    cast("stream", literal("stderr"))
 end
 macro int(_expr)
     cast("int", _expr)

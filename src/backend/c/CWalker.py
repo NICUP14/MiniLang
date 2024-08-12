@@ -126,6 +126,12 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             print_error('c_walker_step',
                         f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
+        # ? For easy debugging of signatures
+        # def get_type(node: Node):
+        #    return node.ntype
+        # print('DBG:',
+        #      f'Call to {fun.name}: {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
+
         return f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
     if node.kind == NodeKind.ASM:
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'

@@ -1275,8 +1275,6 @@ class Parser:
             Def.alias_map[name] = alias
             return
 
-        #! BUG: This does not parse correctly
-        # self.next_token()
         meta_kind = VariableMetaKind.PRIM
         if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
             self.next_token()
@@ -1508,7 +1506,13 @@ class Parser:
             var_type = type_of(self.curr_token().value)
             type_name = var_type.name
             kind, meta_kind = var_type.kind(), var_type.meta_kind()
-            elem_kind, elem_meta_kind = kind, meta_kind
+
+            # Fixes bug regarding complex types from Def.type_of
+            if var_type.meta_kind() == VariableMetaKind.PRIM:
+                elem_kind, elem_meta_kind = kind, meta_kind
+            else:
+                elem_kind, elem_meta_kind = var_type.elem_ckind.kind, var_type.elem_ckind.meta_kind
+
             self.next_token()
 
         elem_cnt = 0

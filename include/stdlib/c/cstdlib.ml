@@ -22,7 +22,9 @@ extern fun strncat(dest: int8*, src: int8*, num: int64): int8*
 extern fun strchr(str: int8*, character: int32): int8*
 extern fun strrchr(str: int8*, character: int32): int8*
 extern fun strstr(str1: int8*, str2: int8*): int8*
+extern fun strtoll(str1: int8*, str_end: int8*, base: int64): int32
 extern fun isdigit(arg: int32): int32
+extern fun isspace(arg: int32): int32
 extern fun atoi(str: int8*): int32
 # extern fun atof(str: int8*): double
 extern fun abs(number: int32): int32
