@@ -5,9 +5,9 @@ Solved: 12/19
 - [ ] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
 - [ ] Struct elements pollute the global scope with non-existent variables.
 - [ ] Cannot call function as struct method with only one arg.
-- [ ] Macro-related bug (check `expand_macro`).
 - [ ] Function declarations do not work inside macros (fails signature check).
-- [ ] `ma_cnt` builtin is no longer working.
+- [X] Macro-related bug (check `expand_macro`).
+- [X] `ma_cnt` builtin is no longer working.
 - [ ] Div/Mod bug (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
 - [X] Passing arguments from variadic macro to fun doesn't work.

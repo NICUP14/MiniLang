@@ -4,9 +4,10 @@ Solved: 20/28
 
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)
-- [ ] Add block, namespace section to README
-- [ ] Replace "minimal" by "easy to learn", "gentle curve" in README
-- [ ] Add section at the start of README about lang-specific features
+- [ ] Add block section to README
+- [X] Add namespace section to README
+- [X] Replace "minimal" by "easy to learn", "gentle curve" in README
+- [X] Add section at the start of README about lang-specific features
 - [ ] Add unsigned and floating point types.
 - [X] `end` no longed needed at bottom of module.
 

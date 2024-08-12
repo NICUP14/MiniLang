@@ -3,11 +3,11 @@
 Implemented: 16/23
 
 - [X] Structs
+- [ ] stdlib.slice: [slice99](https://github.com/Hirrolot/slice99)
 - [ ] Unions
 - [ ] Enums
 - [ ] Generics
 - [X] Access operator (`.`)
-- [ ] Macro overloading (by type)
 - [X] Function overloading (by args)
 - [ ] Default arguments for function
 - [ ] Named parameters in function call

@@ -10,7 +10,7 @@ Some features are missing.
 > The language documentation is provided at [QuickStart](QUICKSTART.md).
 
 > [!IMPORTANT]
-> The standard library documentation is coming soon...
+> The standard library documentation is provided at [STDLIB](STDLIB.md)
 
 A type-safe C successor that compiles directly to various platforms.
 
@@ -65,6 +65,7 @@ The language is designed to closely **match c features** along with some **zero-
 * [TODO list](TODO.md)
 * [License](LICENSE)
 * [QuickStart](QUICKSTART.md)
+* [STDLIB](STDLIB.md)
 
 To suggest features/fixes, modify `IDEAS.md`/`BUG.md` and submit a pull request or contact me via the email address in my github profile.
 
