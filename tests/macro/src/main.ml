@@ -1,5 +1,5 @@
 # import everything
-import stdlib.defs
+import stdlib.c.cdef
 import stdlib.c.cstdlib
 import stdlib.misc
 

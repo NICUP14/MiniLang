@@ -1,5 +1,5 @@
 import stdlib.c.cstdlib
-import stdlib.defs
+import stdlib.c.cdef
 import stdlib.debug
 import stdlib.string
 import stdlib.string.backend
@@ -26,7 +26,7 @@ macro close_file(_stream)
 end
 
 # Opens a file indicated by filename and returns a file stream associated with that file. mode is used to determine the file access mode. 
-fun open_file(filename: int8*, mode: int8*): stream
+fun open_file(filename: int8*, mode: int8*): c_stream
     let st = fopen(filename, mode)
     if st == null
         panicf("No such file '%s'", filename)
@@ -35,11 +35,11 @@ fun open_file(filename: int8*, mode: int8*): stream
     ret st
 end
 
-fun open_file(filename: int8*): stream
+fun open_file(filename: int8*): c_stream
     ret open_file(filename, "r")
 end
 
-fun read_file(st: stream, size: int64): str
+fun read_file(st: c_stream, size: int64): str
     let s = empty_str
     let cs = malloc(size)
 
@@ -49,7 +49,7 @@ fun read_file(st: stream, size: int64): str
     ret s
 end
 
-fun read_file(st: stream): str
+fun read_file(st: c_stream): str
     fseek(st, 0, c_SEEK_END)
     let size = ftell(st)
     fseek(st, 0, c_SEEK_SET)

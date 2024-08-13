@@ -1,6 +1,6 @@
 import stdlib.c.cstdlib
 import stdlib.io.print
-import stdlib.defs
+import stdlib.c.cdef
 import src.alloc
 
 fun test: void

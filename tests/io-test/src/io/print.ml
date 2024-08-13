@@ -1,29 +1,29 @@
 import stdlib.c.cstdlib
 
 # Print helper functions
-fun _print(st: stream, arg: bool): void
+fun _print(st: c_stream, arg: bool): void
     if arg == true
         fprintf(st, "true")
     else
         fprintf(st, "false")
     end
 end
-fun _print(st: stream, arg: int8): void
+fun _print(st: c_stream, arg: int8): void
     fprintf(st, "%hhd", arg)
 end
-fun _print(st: stream, arg: int16): void
+fun _print(st: c_stream, arg: int16): void
     fprintf(st, "%hd", arg)
 end
-fun _print(st: stream, arg: int32): void
+fun _print(st: c_stream, arg: int32): void
     fprintf(st, "%d", arg)
 end
-fun _print(st: stream, arg: int64): void
+fun _print(st: c_stream, arg: int64): void
     fprintf(st, "%lld", arg)
 end
-fun _print(st: stream, arg: int8*): void
+fun _print(st: c_stream, arg: int8*): void
     fprintf(st, "%s", arg)
 end
-fun _print(st: stream, arg: void*): void
+fun _print(st: c_stream, arg: void*): void
     fprintf(st, "%p", arg)
 end
 

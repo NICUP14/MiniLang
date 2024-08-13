@@ -10,7 +10,7 @@ Some features are missing.
 > The language documentation is provided at [QuickStart](QUICKSTART.md).
 
 > [!IMPORTANT]
-> The standard library documentation is provided at [STDLIB](STDLIB.md)
+> The standard library documentation is provided at [STDLIB](STDLIB.md).
 
 A type-safe C successor that compiles directly to various platforms.
 

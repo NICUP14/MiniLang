@@ -1,5 +1,5 @@
 import stdlib.c.cstdlib
-import stdlib.defs
+import stdlib.c.cdef
 
 macro add(_aptr, _aoff)
     ptr(int(_aptr) + _aoff)

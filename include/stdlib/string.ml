@@ -167,5 +167,5 @@ end
 
 # Create an sds string from a pointer value. 
 fun to_str(value: void*): str
-    ret str_printf("%p", value)
+    ret str_from("%p", value)
 end

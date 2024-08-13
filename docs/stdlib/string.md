@@ -1,11 +1,10 @@
 # String library
 
-> [!WARNING]
-> Relies on the sds bindings for ML (string-backend.ml).
-
 Source: [include/stdlib/string.ml](../../include/stdlib/string.ml)
 
 Provides a functional-like ML frontend of the sds c library.
+
+**Check out [sds](https://github.com/antirez/sds)**, the string library couldn't be made possible without without this c library.
 
 ## Aliases
 
@@ -33,3 +32,8 @@ to_lower      | Apply tolower to every character of the string
 to_upper      | Apply toupper to every character of the string
 join          | Joins an array of C strings using the specified separator and returns the result
 to_str        | Creates strings from different types
+
+## Warnings
+
+> [!WARNING]
+> Relies on the sds bindings for ML (string-backend.ml).

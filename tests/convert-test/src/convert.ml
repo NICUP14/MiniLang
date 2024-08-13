@@ -6,7 +6,7 @@ literal("#include <errno.h>")
 
 import stdlib.c.cstdlib
 import stdlib.debug
-import stdlib.defs
+import stdlib.c.cdef
 
 macro c_errno
     cast("int64", literal("errno"))

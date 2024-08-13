@@ -1,5 +1,5 @@
 import src.alloc_backend
-import stdlib.defs
+import stdlib.c.cdef
 
 # # Starts the garbage collector
 # fun start(gc: GarbageCollector*, bos: void*): void

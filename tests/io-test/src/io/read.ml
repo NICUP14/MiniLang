@@ -1,4 +1,4 @@
-import stdlib.defs
+import stdlib.c.cdef
 import stdlib.debug
 import stdlib.string
 import stdlib.c.cstdlib
