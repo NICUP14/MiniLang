@@ -746,8 +746,10 @@ class Parser:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
+                        prev_type = left.ntype if left.ntype.meta_kind(
+                        ) != VariableMetaKind.STRUCT else right.ntype
                         node_stack.append(
-                            Node(kind, type_of_op(kind, left.ntype), token.value, left, right))
+                            Node(kind, type_of_op(kind, prev_type), token.value, left, right))
                 else:
                     print_error('to_tree',
                                 f'Operator kind {token.kind} is neither binary or unary', self)
@@ -1035,6 +1037,10 @@ class Parser:
                 elem_type = arg_type
                 elem_cnt = 0
                 self.next_token()
+
+                # Fixes bug in when the argumen gets the type thru an alias
+                if arg_type.ckind in (ptr_ckind, ref_ckind):
+                    elem_type = VariableType(arg_type.elem_ckind)
 
                 if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()

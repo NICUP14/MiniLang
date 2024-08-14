@@ -1073,6 +1073,11 @@ def args_to_list(node: Node) -> List[Node]:
 def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[FunctionSignature]:
     # Looks for an exact match
     for signature in fun.signatures:
+        # if fun.name == '_print':
+        #     print('DBG:', rev_type_of(arg_types[0]), rev_type_of(
+        #         signature.arg_types[0]), signature.arg_types[0], arg_types[0], "comp =", arg_types[0] == signature.arg_types[0])
+        #     print('DBG:', rev_type_of(arg_types[1]), rev_type_of(
+        #         signature.arg_types[1]), signature.arg_types[1], arg_types[1], "comp =", arg_types[1] == signature.arg_types[1])
         if arg_types == signature.arg_types:
             return signature
 

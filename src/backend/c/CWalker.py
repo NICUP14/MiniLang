@@ -118,19 +118,19 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}\n{indent + right}{";" if add_right_semi else empty_str}'
     if node.kind == NodeKind.FUN_CALL:
         fun = Def.fun_map.get(node.value)
-        sig = find_signature(fun, node.left)
+        sig: Def.FunctionSignature = find_signature(fun, node.left)
         if sig is None:
             def get_type(node: Node):
                 return node.ntype
 
             print_error('c_walker_step',
-                        f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
+                        f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
         # ? For easy debugging of signatures
         # def get_type(node: Node):
-        #    return node.ntype
+        #     return node.ntype
         # print('DBG:',
-        #      f'Call to {fun.name}: {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
+        #       f'Call to {fun.name}: {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} fetches {[list(map(Def.rev_type_of, sig.arg_types))]} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
         return f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
     if node.kind == NodeKind.ASM:

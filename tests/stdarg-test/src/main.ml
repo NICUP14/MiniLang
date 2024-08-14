@@ -1,15 +1,16 @@
+import stdlib.io.print
 import stdlib.c.cstdlib
-import src.cstdarg
+import stdlib.c.cstdarg
 
 fun var(argx: int64, ...): void
     let listx: va_list
-    ml_va_start(listx, argx)
+    va_start(listx, argx)
+    defer va_end(listx)
 
-    printf("%lld", ml_va_arg(listx, argx))
+    listx.get_int64.println
 end
 
 fun main: int32
-    let x: c
     var(1, 2)
     ret 0
 end

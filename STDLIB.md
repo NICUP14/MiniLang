@@ -15,8 +15,8 @@ Module                            | Parent dir.   | Description
 ----------------------------------|---------------|------------
 [cdefs](docs/stdlib/cdef.md)      | c             | Commonly used c type definitions
 [cstdlib](docs/stdlib/cstdlib.md) | c             | Bindings for ported functions of the c standard library
-cstarg        | c             | Bindings for the `stdarg.h` c library
-print         | io            | Extendable and safe frontend for `printf`/`fprintf`
+[cstarg](docs/stdlib/cstdarg.md)  | c             | Bindings for the `stdarg.h` c library
+[print](docs/stdlib/print.md)     | io            | Extendable and safe frontend for `printf`/`fprintf`
 read          | io            | Extendable and safe frontend for `scanf`/`fscanf`
 fio           | io            | A frontend for c file-related functions
 convert       | -             | Type conversion library
