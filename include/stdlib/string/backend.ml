@@ -1,6 +1,7 @@
 literal("#include <sds.h>")
 
-alias sds = int8*
+# alias sds = int8*
+extern struct sds
 extern struct va_list
 
 extern fun sdslen(s: sds): int64

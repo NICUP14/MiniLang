@@ -7,9 +7,18 @@ import stdlib.string.backend
 
 alias str = sds
 
+# Returns the underlying null terminated C string.
+fun c_str(s: str): int8*
+    ret cast("int8*", s)
+end
+
 # Create a new sds string starting from a null terminated C string.
 fun str(s: int8*): str
     ret sdsnew(s)
+end
+
+fun str(s: str): str
+    ret s.c_str.str
 end
 
 # Create a new sds string starting from a printf-alike format specifier.
@@ -42,7 +51,7 @@ end
 # Like sdscpylen() but 't' must be a null-terminated string 
 # so that the length of the string is obtained with strlen().
 fun copy(s: str, t: str): str
-    ret sdscpy(s, t)
+    ret sdscpy(s, c_str(t))
 end
 
 # Return the length of the sds string.
@@ -107,7 +116,7 @@ fun concat_from(s: str, fmt: int8*, ...): str
 end
 
 # Remove the part of the string from left and from right composed just of contiguous characters found in 'cset', that is a null terminated C string.
-# The problem of 'sdstrim' is now fixed using a temporary sacrifice string
+# The problemcurr
 #
 # From sdstrim:
 # After the call, the modified sds string is no longer valid and all the
@@ -138,6 +147,11 @@ end
 # the smaller one.
 fun compare(s: str, s2: str): int32
     ret sdscmp(s, s2)
+end
+
+# Returns whether two sds strings are equal.
+fun equals(s: str, s2: str): bool
+    ret sdscmp(s, s2) == 0
 end
 
 # Apply tolower() to every character of the sds string 's'.

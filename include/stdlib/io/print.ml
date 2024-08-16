@@ -18,6 +18,9 @@ end
 fun _print(st: c_stream, arg: int8): void
     fprintf(st, "%hhd", arg)
 end
+fun _print(st: c_stream, arg: str): void
+    fprintf(st, "%s", c_str(arg))
+end
 fun _print(st: c_stream, arg: int8*): void
     fprintf(st, "%s", arg)
 end

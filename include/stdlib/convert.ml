@@ -31,7 +31,7 @@ fun to_int64(arg: int64): int64
     ret arg
 end
 
-fun to_int64(s: cstr): int64
+fun to_int64(s: c_str): int64
     if s == null
         panic("String is null")
     end
@@ -41,7 +41,7 @@ fun to_int64(s: cstr): int64
     end
 
     # c_errno = 0;
-    let stop: cstr = null
+    let stop: c_str = null
     let l = strtoll(s, &stop, 0);
 
     if (l == 0 && c_errno == c_ERANGE)
@@ -58,7 +58,7 @@ fun to_bool(arg: int64): bool
     ret true if arg == cast("int64", true) else false
 end
 
-fun to_bool(s: cstr): bool
+fun to_bool(s: c_str): bool
     if strcmp(s, "true") == 0
         ret true
     elif strcmp(s, "false") == 0
@@ -72,7 +72,7 @@ fun to_int8(arg: int64): int8
     ret cast("int8", arg)
 end
 
-fun to_int8(s: cstr): int8
+fun to_int8(s: c_str): int8
     ret cast("int8", to_int64(s))
 end
 
@@ -80,7 +80,7 @@ fun to_int16(arg: int64): int16
     ret cast("int16", arg)
 end
 
-fun to_int16(s: cstr): int16
+fun to_int16(s: c_str): int16
     ret cast("int16", to_int64(s))
 end
 
@@ -88,6 +88,6 @@ fun to_int32(arg: int64): int32
     ret cast("int32", arg)
 end
 
-fun to_int32(s: cstr): int32
+fun to_int32(s: c_str): int32
     ret cast("int32", to_int64(s))
 end

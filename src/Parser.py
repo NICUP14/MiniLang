@@ -428,7 +428,7 @@ class Parser:
         left, right = list(
             map(lambda n: self.merge_fun_call(n), (node.left, node.right)))
 
-        if right.kind == NodeKind.GLUE:
+        if right is not None and right.kind == NodeKind.GLUE:
             arg_node = append_arg(right, left)
             return (Node(node.kind, node.ntype, node.value, arg_node.left, arg_node.right))
         else:
@@ -1040,15 +1040,18 @@ class Parser:
 
                 # Fixes bug in when the argumen gets the type thru an alias
                 if arg_type.ckind in (ptr_ckind, ref_ckind):
-                    elem_type = VariableType(arg_type.elem_ckind)
+                    elem_type = VariableType(
+                        arg_type.elem_ckind, name=arg_type.name)
 
                 if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()
-                    arg_type = VariableType(ref_ckind, arg_type.ckind)
+                    arg_type = VariableType(
+                        ref_ckind, arg_type.ckind, name=arg_type.name)
 
                 elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
                     self.next_token()
-                    arg_type = VariableType(ptr_ckind, arg_type.ckind)
+                    arg_type = VariableType(
+                        ptr_ckind, arg_type.ckind, name=arg_type.name)
 
                 elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
                     self.next_token()
@@ -1158,6 +1161,7 @@ class Parser:
                     arg_type, Def.var_off, True)
 
             elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+                elem_type.name = arg_type.name
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
                     full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
 
@@ -1298,9 +1302,11 @@ class Parser:
         if meta_kind == VariableMetaKind.PRIM:
             Def.type_map[name] = vtype
         if meta_kind == VariableMetaKind.PTR:
-            Def.type_map[name] = VariableType(ptr_ckind, vtype.ckind)
+            Def.type_map[name] = VariableType(
+                ptr_ckind, vtype.ckind, name=vtype.name)
         if meta_kind == VariableMetaKind.REF:
-            Def.type_map[name] = VariableType(ref_ckind, vtype.ckind)
+            Def.type_map[name] = VariableType(
+                ref_ckind, vtype.ckind, name=vtype.name)
 
     def defer_statement(self) -> None:
         if Def.macro_name != '':

@@ -1,10 +1,12 @@
+import stdlib.c.cdef
+
 # C standard library functions
 extern fun exit(status: int32): void
 extern fun getchar: int32
 extern fun printf(msg: int8*, ...): int32
-extern fun fprintf(stream: void*, msg: int8*, ...): int32
+extern fun fprintf(st: c_stream, msg: int8*, ...): int32
 extern fun scanf(format: int8*, ...): int32
-extern fun fscanf(stream: void*, format: int8*, ...): int32
+extern fun fscanf(st: c_stream, format: int8*, ...): int32
 extern fun puts(str: int8*): int32
 extern fun malloc(size: int64): void*
 extern fun realloc(ptr: void*, size: int64): void*
@@ -32,12 +34,12 @@ extern fun labs(number: int64): int64
 extern fun rand(): int32
 extern fun srand(seed: int32): void
 extern fun fopen(filename: int8*, mode: int8*): void*
-extern fun fclose(stream: void*): int32
-extern fun fgets(ptr: void*, size: int64, stream: void*): int8*
-extern fun fread(ptr: void*, size: int64, cnt: int64, stream: void*): int64
-extern fun fwrite(ptr: void*, size: int64, cnt: int64, stream: void*): int64
-extern fun fseek(stream: void*, offset: int64, origin: int32): int32
-extern fun ftell(stream: void*): int64
-extern fun rewind(stream: void*): void
+extern fun fclose(st: c_stream): int32
+extern fun fgets(ptr: void*, size: int64, st: c_stream): int8*
+extern fun fread(ptr: void*, size: int64, cnt: int64, st: c_stream): int64
+extern fun fwrite(ptr: void*, size: int64, cnt: int64, st: c_stream): int64
+extern fun fseek(st: c_stream, offset: int64, origin: int32): int32
+extern fun ftell(st: c_stream): int64
+extern fun rewind(st: c_stream): void
 extern fun remove(filename: int8*): int32
 extern fun rename(oldname: int8*, newname: int8*): int32

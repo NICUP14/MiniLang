@@ -20,6 +20,26 @@ struct match_info
     match_success: bool
 end
 
+fun empty(arg: match_info): bool
+    ret arg.match_success
+end
+
+fun get_len(arg: match_info): int64
+    if arg.match_success == false
+        panic("Attempt to grab index fom unsucesfull match")
+    end
+
+    ret arg.match_idx
+end
+
+fun get_idx(arg: match_info): int64
+    if arg.match_success == false
+        panic("Attempt to grab index fom unsucesfull match")
+    end
+
+    ret arg.match_idx
+end
+
 # Enables printing of 'match_info' struct
 fun _print(st: c_stream, arg: match_info): void
     print_to(st, "match_info(match_idx=", arg.match_idx, ", match_len=", arg.match_len, ", match_success=", arg.match_success, ")")
@@ -47,7 +67,7 @@ end
 
 # Not a performant solution!
 fun replace(pattern: c_str, from: c_str, to: c_str): str
-    let mlen = 0
+    let mlen: c_int = 0
     let idx = re_match(pattern, from, &mlen)
 
     let s = empty_str
@@ -60,28 +80,12 @@ fun replace(pattern: c_str, from: c_str, to: c_str): str
                concat(sep))
         
         curr = rest
-        idx = re_match(pattern, curr, &mlen)
+        idx = re_match(pattern, c_str(curr), &mlen)
     end
 
-    ret s
-end
-
-fun found(arg: match_info): bool
-    ret arg.match_success
-end
-
-fun get_len(arg: match_info): int64
-    if arg.match_success == false
-        panic("Attempt to grab index fom unsucesfull match")
+    if s.len == 0
+        ret s
+    else
+        ret curr
     end
-
-    ret arg.match_idx
-end
-
-fun get_idx(arg: match_info): int64
-    if arg.match_success == false
-        panic("Attempt to grab index fom unsucesfull match")
-    end
-
-    ret arg.match_idx
 end

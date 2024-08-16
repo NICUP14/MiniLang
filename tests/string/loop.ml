@@ -1,8 +1,8 @@
 alias int = int32
-alias cstr = int8*
+alias c_str = int8*
 extern fun exit(status: int32): void
-extern fun printf(fmt: cstr, ...): int
-extern fun strlen(s: cstr): int
+extern fun printf(fmt: c_str, ...): int
+extern fun strlen(s: c_str): int
 
 let nassert = 1
 fun assert(val: int8): void

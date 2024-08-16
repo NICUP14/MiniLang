@@ -1,9 +1,9 @@
 alias int = int32
-alias cstr = int8*
-extern fun printf(fmt: cstr, ...): int
+alias c_str = int8*
+extern fun printf(fmt: c_str, ...): int
 
 fun main(): int64
-    let my_str: cstr = <<-
+    let my_str: c_str = <<-
         \end
         HELLO end
         HELLO WORLD

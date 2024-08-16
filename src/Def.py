@@ -659,8 +659,9 @@ def type_of_ident(ident: str) -> VariableType:
         if ident not in ptr_map:
             print_error('type_of_ident', f'No such variable {ident}')
 
+        ptr = ptr_map.get(ident)
         ckind = ptr_ckind if meta_kind == VariableMetaKind.PTR else ref_ckind
-        return VariableType(ckind, ptr_map.get(ident).elem_type.ckind)
+        return VariableType(ckind, ptr.elem_type.ckind, ptr.elem_type.name)
 
     if meta_kind == VariableMetaKind.ARR:
         if ident not in arr_map:
@@ -762,7 +763,7 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
 
-    if ckind == struct_ckind:
+    if ckind == struct_ckind and ckind2 == struct_ckind:
         return True
 
     if ckind.meta_kind == ckind2.meta_kind:
@@ -1086,7 +1087,8 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
         if fun.is_variadic or len(arg_types) == signature.arg_cnt:
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
-                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind):
+                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or arg_type.name != fun_arg_type.name:
+                    print('DBG:', arg_type.name, '|', fun_arg_type.name)
                     compatible = False
                     break
 

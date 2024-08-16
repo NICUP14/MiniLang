@@ -81,7 +81,7 @@ fun custom_printf(format: int8*, ...): void
             # puts("percent")
         else
             if format[format_idx] == 's'
-                let buf = cstr(va_arg_voidptr(va_list))
+                let buf = c_str(va_arg_voidptr(va_list))
                 # printf("string: %s\n", buf)
                 strcpy(add(str, str_idx), buf) 
                 str_idx = str_idx + strlen(buf)
