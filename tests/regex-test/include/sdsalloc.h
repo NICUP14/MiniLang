@@ -37,9 +37,6 @@
  * the include of your alternate allocator if needed (not needed in order
  * to use the default libc allocator). */
 
-// Added by NICUP
-#include <mlalloc.h>
-
-#define s_malloc ml_malloc
-#define s_realloc ml_realloc
-#define s_free ml_free
+#define s_malloc malloc
+#define s_realloc realloc
+#define s_free free

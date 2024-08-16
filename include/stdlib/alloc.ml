@@ -1,6 +1,6 @@
-import src.alloc_backend
 import stdlib.c.cdef
 import stdlib.debug
+import stdlib.alloc.backend
 
 fun start(bos: void*): void
     gc_start(&ml_gc, bos)

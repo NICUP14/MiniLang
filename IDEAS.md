@@ -1,8 +1,9 @@
 # Ideas
 
-Implemented: 16/23
+Implemented: 16/24
 
 - [X] Structs
+- [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
 - [ ] stdlib.slice: [slice99](https://github.com/Hirrolot/slice99)
 - [ ] Unions
 - [ ] Enums

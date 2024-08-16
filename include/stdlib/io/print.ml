@@ -2,6 +2,9 @@ import stdlib.c.cdef
 import stdlib.debug
 import stdlib.c.cstdlib
 
+# Print flags
+let _print_sep: c_str = null
+
 # Print helper functions
 fun _print(st: c_stream, arg: int64): void
     fprintf(st, "%lld", arg)
@@ -37,6 +40,9 @@ macro print(_arg)
 end
 macro print(_arg, _other)
     print(_arg)
+    if _print_sep != null
+        printf("%s", _print_sep)
+    end
     print(_other)
 end
 macro println(_args)
@@ -49,6 +55,9 @@ macro print_to(_stream, _arg)
 end
 macro print_to(_stream2, _arg, _other)
     print_to(_stream2, _arg)
+    if _print_sep != null
+        fprintf(_stream2, "%s", _print_sep)
+    end
     print_to(_stream2, _other)
 end
 macro println_to(_stream3, _args)

@@ -1,7 +1,7 @@
 import stdlib.c.cstdlib
 import stdlib.io.print
 import stdlib.c.cdef
-import src.alloc
+import stdlib.alloc
 
 fun test: void
     let arr: int64[3]* = null
@@ -20,11 +20,10 @@ fun test: void
 end
 
 fun main: int32
-    let boss = 0
-    _gc_start(boss)
-
+    let bos = 0
+    ml_gc_start(&bos)
     test
-    _gc_stop
+    ml_gc_stop
 
     ret 0
 end

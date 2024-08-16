@@ -66,21 +66,26 @@ end
 # s = sdsnew("Hello World");
 # sdsrange(s,1,-1); => "ello World"
 fun substr(s: str, start: int64, send: int64): str
-    sdsrange(s, start, send)
-    ret s
+    let tmp = str(s)
+    sdsrange(tmp, start, send)
+    ret tmp
 end
 
 # Append the specified sds 't' to the existing sds 's'.
-# 
+# The problem of 'sdscatsds' is now fixed using a temporary sacrifice string
+#
+# From sdscatsds:
 # After the call, the modified sds string is no longer valid and all the
 # references must be substituted with the new pointer returned by the call.
 fun concat(s: str, t: str): str
-    ret sdscatsds(s, t)
+    let tmp = str(s)
+    ret sdscatsds(tmp, t)
 end
 
-# Append to the sds string 's' a string obtained using printf-alike format
-# specifier.
-# 
+# Append to the sds string 's' a string obtained using printf-alike format specifier.
+# The problem of 'sdscatvprintf' is now fixed using a temporary sacrifice string
+#
+# From sdscatvprintf:
 # After the call, the modified sds string is no longer valid and all the
 # references must be substituted with the new pointer returned by the call.
 # 
@@ -93,16 +98,18 @@ end
 # format. When this is the need, just use sdsempty() as the target string:
 # 
 # s = sdscatprintf(sdsempty(), "... your format ...", args);
-fun concat_printf(s: str, fmt: int8*, ...): str
+fun concat_from(s: str, fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 
-    ret sdscatvprintf(s, fmt, listx)
+    let tmp = str(s)
+    ret sdscatvprintf(tmp, fmt, listx)
 end
 
-# Remove the part of the string from left and from right composed just of
-# contiguous characters found in 'cset', that is a null terminated C string.
-# 
+# Remove the part of the string from left and from right composed just of contiguous characters found in 'cset', that is a null terminated C string.
+# The problem of 'sdstrim' is now fixed using a temporary sacrifice string
+#
+# From sdstrim:
 # After the call, the modified sds string is no longer valid and all the
 # references must be substituted with the new pointer returned by the call.
 # 
@@ -114,7 +121,8 @@ end
 # 
 # Output will be just "HelloWorld".
 fun trim(s: str, cset: int8*): str
-    ret sdstrim(s, cset)
+    let tmp = str(s)
+    ret sdstrim(tmp, cset)
 end
 
 # Compare two sds strings s1 and s2 with memcmp().

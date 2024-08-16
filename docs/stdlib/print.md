@@ -8,7 +8,7 @@ Extendable and safe frontend for `printf`/`fprintf`.
 
 Function   | Description
 -----------|------------
-`_print`   | `print` handlers that call `printf` based on the argument type
+`_print`   | `print` handlers that call `fprintf` based on the argument type
 
 ## Macro
 

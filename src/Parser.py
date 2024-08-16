@@ -647,7 +647,7 @@ class Parser:
                         print_error('to_tree',
                                     f'Cannot dereference the {node.value} pointer-to-void', self)
 
-                    if kind == NodeKind.REF and node.kind != NodeKind.IDENT:
+                    if kind == NodeKind.REF and node.kind not in (NodeKind.IDENT, NodeKind.ELEM_ACC):
                         print_error('to_tree',
                                     f'Can only reference identifiers, got {node.kind}', self)
 
@@ -1666,29 +1666,13 @@ class Parser:
             value = 0
             elem_type = VariableType(
                 VariableCompKind(elem_kind, elem_meta_kind))
-            if not is_local and not is_struct:
-                if self.curr_token().kind == TokenKind.BIT_AND:
-                    self.next_token()
-                    value = self.match_token(TokenKind.IDENT).value
-                    if is_local_ident(value):
-                        print_error('declaration',
-                                    'Global pointers can only point to global variables.', self)
 
-                elif self.curr_token().kind == TokenKind.INT_LIT:
-                    value = self.match_token(TokenKind.INT_LIT).value
-
-                else:
-                    print_error('declaration',
-                                'Can only assign integer literals and global addresses to pointer', self)
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
                 full_name, elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, is_local, value)
 
             if is_struct:
                 return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
-
-            if not is_local:
-                return Node(decl_kind, VariableType(ref_ckind, elem_kind), '=', Node(NodeKind.IDENT, VariableType(ref_ckind, elem_kind), full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = None
             if self.curr_token().kind == TokenKind.HEREDOC:

@@ -4,6 +4,9 @@ An overview of the ML standard library.
 
 ## Motivation
 
+> [!IMPORTANT]
+> Ported functions from the c library are regarded as unsafe in terms of type and memory safety, unlike their ML counterparts. Using c bindings should be avoided where safer ML libraries are available.
+
 The standard library permits the use of both unsafe c standard library functions (for embedded systems and nostalgic c programmers) and their safe ML counterparts, plus some other useful modern libraries, like `string` and `convert`.
 
 ## Modules
@@ -17,7 +20,7 @@ Module                            | Parent dir.   | Description
 [cstdlib](docs/stdlib/cstdlib.md) | c             | Bindings for ported functions of the c standard library
 [cstarg](docs/stdlib/cstdarg.md)  | c             | Bindings for the `stdarg.h` c library
 [print](docs/stdlib/print.md)     | io            | Extendable and safe frontend for `printf`/`fprintf`
-read          | io            | Extendable and safe frontend for `scanf`/`fscanf`
+[read](docs/stdlib/read.md)       | io            | Extendable and safe frontend for `scanf`/`fscanf`
 fio           | io            | A frontend for c file-related functions
 convert       | -             | Type conversion library
 debug         | -             | Rust-like assertables and panic macros

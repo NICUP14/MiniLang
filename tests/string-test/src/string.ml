@@ -99,7 +99,7 @@ end
 # format. When this is the need, just use sdsempty() as the target string:
 # 
 # s = sdscatprintf(sdsempty(), "... your format ...", args);
-fun concat_printf(s: str, fmt: int8*, ...): str
+fun concat_from(s: str, fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 
