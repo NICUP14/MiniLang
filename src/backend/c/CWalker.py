@@ -112,6 +112,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'{color_str(Color.BLUE, "else")} {"{"}\n {indent + left}{";" if add_left_semi else ""}'
     if node.kind == NodeKind.WHILE:
         return f'{color_str(Color.BLUE, "while")} {left} {"{"}\n{right}{";" if add_right_semi else ""}'
+    if node.kind == NodeKind.FOR:
+        return f'{color_str(Color.BLUE, "for")} (;{middle};{right}) {"{"}\n{left}{";" if add_right_semi else ""}'
     if node.kind == NodeKind.GLUE:
         empty_str = ''
         add_indent = parent is not None and parent.kind != NodeKind.GLUE

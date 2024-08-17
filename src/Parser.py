@@ -794,6 +794,10 @@ class Parser:
             elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
             self.match_token(TokenKind.RBRACE)
 
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
+                print_error('parse_type',
+                            'Fixed-size references are not allowed', parser=self)
+
         if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
             self.next_token()
             meta_kind = VariableMetaKind.REF
@@ -828,6 +832,9 @@ class Parser:
         if token.kind == TokenKind.KW_IF:
             self.next_token()
             return self.if_statement()
+        if token.kind == TokenKind.KW_FOR:
+            self.next_token()
+            return self.for_statement()
         if token.kind == TokenKind.KW_WHILE:
             self.next_token()
             return self.while_statement()
@@ -971,6 +978,82 @@ class Parser:
         node = Node(NodeKind.GLUE, void_type, '', Node(
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
         return node
+
+    def for_statement(self) -> Optional[Node]:
+        iter_name = full_name_of_var(self.match_token(
+            TokenKind.IDENT).value, force_local=True)
+        self.match_token(TokenKind.KW_IN)
+        range_name = full_name_of_var(self.match_token(TokenKind.IDENT).value)
+
+        if range_name not in Def.ident_map:
+            print_error('for_statement',
+                        f'No such identifier {range_name}', parser=self)
+
+        iter_ident = Node(NodeKind.IDENT, default_type, iter_name)
+        range_ident = Node(
+            NodeKind.IDENT, type_of_ident(range_name), range_name)
+
+        start_fun = Def.fun_map.get('start')
+        stop_fun = Def.fun_map.get('stop')
+        next_fun = Def.fun_map.get('next')
+
+        if start_fun is None or stop_fun is None or next_fun is None:
+            print_error('for_statement',
+                        'Missing required start/stop/next functions', parser=self)
+
+        start_arg_types = [range_ident.ntype]
+        other_arg_types = [range_ident.ntype, default_type]
+        start_sig = _find_signature(
+            start_fun, start_arg_types)
+        stop_sig = _find_signature(
+            stop_fun, other_arg_types)
+        next_sig = _find_signature(
+            next_fun, other_arg_types)
+
+        for sig, fun, arg_types, sig_name in zip([start_sig, stop_sig, next_sig], [start_fun, stop_fun, next_fun], [start_arg_types, other_arg_types, other_arg_types], ['start', 'stop', 'next']):
+            if sig is None:
+                print_error('for_statement',
+                            f'No signature of {sig_name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+
+        start_ret = start_sig.ret_type
+        stop_ret = stop_sig.ret_type
+        next_ret = next_sig.ret_type
+
+        if stop_ret != bool_type:
+            print_error('for_statement',
+                        f'Stop function should return bool, got {rev_type_of(stop_ret)}', parser=self)
+
+        # ? Needs refactoring, duplicated from struct_elem_declaration
+        meta_kind = start_ret.meta_kind()
+        Def.ident_map[iter_name] = meta_kind
+        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
+            Def.var_off += size_of(start_ret.ckind)
+            Def.var_map[iter_name] = Variable(start_ret, Def.var_off)
+
+        elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            Def.var_off += size_of(start_ret.elem_ckind)
+            Def.ptr_map[iter_name] = Pointer(
+                iter_name, 0, start_ret.elem_ckind, Def.var_off, meta_kind == VariableMetaKind.PTR)
+
+        self.next_line()
+        body = self.compound_statement()
+
+        start_stmt = Node(NodeKind.FUN_CALL, start_ret, 'start',
+                          range_ident)
+        stop_stmt = Node(NodeKind.FUN_CALL, bool_type, 'stop',
+                         glue_statements([range_ident, iter_ident], in_call=True))
+        next_stmt = Node(NodeKind.FUN_CALL, next_ret, 'next',
+                         glue_statements([range_ident, iter_ident], in_call=True))
+
+        pre_cond = Node(NodeKind.DECLARATION, start_ret,
+                        '=', iter_ident, start_stmt)
+        post_cond = Node(NodeKind.OP_ASSIGN, next_ret,
+                         '=', iter_ident, next_stmt)
+        cond = Node(NodeKind.OP_NEQ, bool_type, '!=', Node(
+            NodeKind.FALSE_LIT, bool_type, 'false'), stop_stmt)
+        end = Node(NodeKind.END, void_type, 'end')
+
+        return glue_statements([pre_cond, Node(NodeKind.FOR, void_type, '', body, post_cond, cond), end])
 
     # An if_statement helper to parse multiple elif statements
     def elif_statement(self) -> Optional[Node]:

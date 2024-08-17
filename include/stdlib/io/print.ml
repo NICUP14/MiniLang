@@ -1,6 +1,7 @@
 import stdlib.c.cdef
-import stdlib.debug
 import stdlib.c.cstdlib
+import stdlib.debug
+import stdlib.string
 
 # Print flags
 let _print_sep: c_str = null

@@ -5,7 +5,11 @@
 #ifndef ML_ALLOC_H
 #define ML_ALLOC_H
 
+#ifndef ML_ALLOC_GC
+GarbageCollector ml_gc;
+#else
 extern GarbageCollector ml_gc;
+#endif
 
 void *ml_malloc(size_t size);
 void *ml_calloc(size_t count, size_t size);

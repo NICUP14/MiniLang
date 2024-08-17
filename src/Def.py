@@ -175,7 +175,7 @@ class FunctionSignature:
     arg_cnt: int
     arg_names: List[str]
     arg_types: List[VariableType]
-    ret_type: VariableCompKind
+    ret_type: VariableType
     is_extern: bool
 
 
@@ -193,7 +193,7 @@ class Function:
     arg_cnt: int
     arg_names: List[str]
     arg_types: List[VariableType]
-    ret_type: VariableCompKind
+    ret_type: VariableType
     off: int
     is_variadic: bool
     is_extern: bool
@@ -249,6 +249,7 @@ class NodeKind(enum.Enum):
     IF = enum.auto()
     ELIF = enum.auto()
     ELSE = enum.auto()
+    FOR = enum.auto()
     WHILE = enum.auto()
     GLUE = enum.auto()
     FUN = enum.auto()
@@ -282,7 +283,7 @@ class Node:
     Represents a node of the AST (operation).
     """
 
-    def __init__(self, kind: NodeKind, ntype: VariableType, value: str, left: Node = None, right: Node = None, middle: Node = None):
+    def __init__(self, kind: NodeKind, ntype: VariableType, value: str, left: Optional[Node] = None, right: Optional[Node] = None, middle: Optional[Node] = None):
         self.kind = kind
         self.ntype = ntype
         self.value = value
@@ -997,6 +998,23 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     print_error('needs_widen', f'Invalid composite kinds ({ckind, ckind2})')
 
 
+def elem_count_of(ident: str) -> int:
+    if ident not in ident_map:
+        print_error('size_of_ident', f'No such identifier {ident}')
+
+    meta_kind = ident_map.get(ident)
+
+    if meta_kind == VariableMetaKind.ARR:
+        arr = arr_map.get(ident)
+        return arr.elem_cnt
+
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        ptr = ptr_map.get(ident)
+        return 1 if ptr.elem_cnt == 0 else ptr.elem_cnt
+
+    return 1
+
+
 def size_of(ckind: VariableCompKind) -> int:
     #! BUG: Should be corrected later
     if ckind == struct_ckind:
@@ -1132,7 +1150,7 @@ def check_signature(fun: Function, sig: FunctionSignature) -> bool:
     return False
 
 
-def glue_statements(node_list: List[Node]) -> Optional[Node]:
+def glue_statements(node_list: List[Node], in_call: bool = False) -> Optional[Node]:
     if len(node_list) == 0:
         return None
 
@@ -1141,7 +1159,11 @@ def glue_statements(node_list: List[Node]) -> Optional[Node]:
         if glue_node is None:
             glue_node = node
         else:
-            glue_node = Node(NodeKind.GLUE, void_type, '', glue_node, node)
+            if glue_node.kind != NodeKind.GLUE and in_call:
+                glue_node = Node(NodeKind.GLUE, void_type, '', Node(
+                    NodeKind.GLUE, void_type, '', None, glue_node), node)
+            else:
+                glue_node = Node(NodeKind.GLUE, void_type, '', glue_node, node)
 
     return glue_node
 

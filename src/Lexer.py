@@ -96,6 +96,8 @@ class TokenKind(enum.Enum):
     KW_ELSE = enum.auto()
     KW_ELIF = enum.auto()
     KW_WHILE = enum.auto()
+    KW_FOR = enum.auto()
+    KW_IN = enum.auto()
     KW_END = enum.auto()
     KW_FUN = enum.auto()
     KW_STRUCT = enum.auto()
@@ -168,6 +170,8 @@ TOKEN_KIND_MAP = {
     'else': TokenKind.KW_ELSE,
     'elif': TokenKind.KW_ELIF,
     'while': TokenKind.KW_WHILE,
+    'for': TokenKind.KW_FOR,
+    'in': TokenKind.KW_IN,
     'end': TokenKind.KW_END,
     'fun': TokenKind.KW_FUN,
     'struct': TokenKind.KW_STRUCT,

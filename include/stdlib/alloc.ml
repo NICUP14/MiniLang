@@ -2,6 +2,8 @@ import stdlib.c.cdef
 import stdlib.debug
 import stdlib.alloc.backend
 
+literal("#define ML_ALLOC_GC")
+
 macro alloc(_lit)
     _lit = _malloc(size_of(_lit))
     if _lit == null

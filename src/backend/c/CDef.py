@@ -160,7 +160,10 @@ def c_expand_builtin(node: Node) -> Node:
         if node.left.kind != NodeKind.IDENT:
             return Node(NodeKind.INT_LIT, default_type, 0)
 
-        return Node(NodeKind.INT_LIT, default_type, f'sizeof({node.left.value})')
+        elem_cnt = Def.elem_count_of(node.left.value)
+        size_str = f'(sizeof({node.left.value}) * {elem_cnt})' if elem_cnt > 1 else f'sizeof({node.left.value})'
+
+        return Node(NodeKind.INT_LIT, default_type, size_str)
 
     if node.kind == NodeKind.TYPE:
         return Node(NodeKind.STR_LIT, node.ntype, f'"{c_rev_type_of(node.left.ntype)}"')
