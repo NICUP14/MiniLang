@@ -8,7 +8,8 @@ Solved: 20/28
 - [X] Add namespace section to README
 - [X] Replace "minimal" by "easy to learn", "gentle curve" in README
 - [X] Add section at the start of README about lang-specific features
-- [ ] Add unsigned and floating point types.
+- [ ] Add multi-lever pointers/refs. (vtype: List[ckind])
+- [ ] Add const, unsigned and floating point types.
 - [X] `end` no longed needed at bottom of module.
 
 - [ ] Global arrays.

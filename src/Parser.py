@@ -61,7 +61,8 @@ from Def import node_is_cmp
 from Def import check_signature
 from Def import _find_signature
 from Def import glue_statements
-from Snippet import copy_of
+from Def import args_to_list
+from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
     TokenKind.KW_CAST: 26,
@@ -338,31 +339,31 @@ class Parser:
         return postfix_tokens
 
     def cast_builtin(self, node: Node) -> Node:
-        glue_node = node
         if node.left.kind != NodeKind.GLUE:
             print_error('cast_builtin',
                         'The cast builtin expects exactly 2 arguments, only one was provided', self)
 
-        arg_cnt = 0
-        args: list[Node] = []
-        while glue_node is not None:
-            arg_cnt += 1
-            args.append(glue_node.right)
-            glue_node = glue_node.left
-
-        if arg_cnt != 2:
+        args = args_to_list(node)
+        if len(args) != 2:
             print_error('cast_builtin',
-                        f'The cast builtin expects exactly 2 parameters, {arg_cnt} were provided', self)
+                        f'The cast builtin expects exactly 2 parameters, {len(args)} were provided', self)
 
-        str_node = args.pop()
+        var_type = default_type
         target_node = args.pop()
+        type_node = args.pop()
 
-        if str_node is None or str_node.kind != NodeKind.STR_LIT:
+        if type_node is not None and type_node.kind == NodeKind.TYPE:
+            var_type = type_node.left.ntype
+
+        elif type_node is None or type_node.kind == NodeKind.STR_LIT:
+            type_str = type_node.value.lstrip('\"').rstrip('\"')
+            var_type = type_of_cast(type_str)
+
+        else:
             print_error('cast_builtin',
-                        f'The first argument passed to the cast builtin is not a string literal, got {str_node.kind}', self)
+                        f'The first argument passed to the cast builtin is not a string literal/type_of, got {type_node.kind}', self)
 
-        type_str = str_node.value.lstrip('\"').rstrip('\"')
-        return Node(NodeKind.CAST, type_of_cast(type_str), 'cast', target_node)
+        return Node(NodeKind.CAST, var_type, 'cast', target_node)
 
     def fun_arg_cnt(self, node: Node) -> int:
         arg_cnt = 0
@@ -1522,6 +1523,8 @@ class Parser:
             # Fixes bug regarding complex types from Def.type_of
             if var_type.meta_kind() == VariableMetaKind.PRIM:
                 elem_kind, elem_meta_kind = kind, meta_kind
+            elif var_type.ckind == struct_ckind:
+                elem_kind, elem_meta_kind = var_type.ckind.kind, var_type.ckind.meta_kind
             else:
                 elem_kind, elem_meta_kind = var_type.elem_ckind.kind, var_type.elem_ckind.meta_kind
 
@@ -1582,9 +1585,11 @@ class Parser:
             if meta_kind == VariableMetaKind.BOOL:
                 var_type = VariableType(bool_ckind, elem_ckind)
             if meta_kind == VariableMetaKind.PTR:
-                var_type = VariableType(ptr_ckind, elem_ckind)
+                var_type = VariableType(
+                    ptr_ckind, elem_ckind, name=var_type.name)
             if meta_kind == VariableMetaKind.REF:
-                var_type = VariableType(ref_ckind, elem_ckind)
+                var_type = VariableType(
+                    ref_ckind, elem_ckind, name=var_type.name)
 
         is_local = Def.fun_name != ''
         var_name = full_name_of_var(
@@ -1596,7 +1601,6 @@ class Parser:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
         if is_struct:
-            # full_name = f'{Def.struct_name}_{full_name}'
             Def.struct_map[Def.struct_name].elem_names.append(full_name)
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
@@ -1670,8 +1674,9 @@ class Parser:
 
         if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
             value = 0
+            # print('DBG:', full_name, var_type)
             elem_type = VariableType(
-                VariableCompKind(elem_kind, elem_meta_kind))
+                VariableCompKind(elem_kind, elem_meta_kind), name=var_type.name)
 
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(

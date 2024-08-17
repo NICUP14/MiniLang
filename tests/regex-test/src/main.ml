@@ -3,11 +3,10 @@ import stdlib.io.print
 import src.regex
 
 fun main: int32
-    # let pattern = input()
-    # let from = input()
-    # let to = input()
-    # replace(pattern, from, to).println
-    print(str("hello"))
+    let pattern = input().c_str
+    let from = input().c_str
+    let to = input().c_str
+    replace(pattern, from, to).println
 
     # match(pattern, text).print
     # match(pattern, text).get_idx.print

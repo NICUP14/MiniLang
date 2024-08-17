@@ -25,12 +25,12 @@ extern fun gc_realloc(gc: GarbageCollector*, pointer: void*, size: int64): void*
 extern fun gc_free(gc: GarbageCollector*, pointer: void*): void*
 
 # Convenience macros
-fun ml_gc_start(bos: void*): void
-    gc_start(&ml_gc, bos)
-end
-fun ml_gc_stop: void
-    gc_stop(&ml_gc)
-end
+# fun ml_gc_start(bos: void*): void
+#     gc_start(&ml_gc, bos)
+# end
+# fun ml_gc_stop: void
+#     gc_stop(&ml_gc)
+# end
 macro _malloc(size)
     ml_malloc(size)
 end

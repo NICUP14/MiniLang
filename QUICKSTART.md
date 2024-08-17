@@ -89,6 +89,9 @@ false
 
 ## Builtins
 
+> [!TIP]
+> The `type_of` builtin can be used in combination with the `cast` builtin to cast a value using the inferred type of an expression:  `cast(type_of(expr), value)`.
+
 Builtin            | Return type          | Returns
 -------------------|----------------------|----------
 fun                | String literal       | Function name

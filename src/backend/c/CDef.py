@@ -104,7 +104,10 @@ def c_rev_type_of_ident(name: str) -> str:
             print_error('c_rev_type_of_ident', f'No such pointer {name}')
 
         ptr = Def.ptr_map.get(name)
-        return f'{rev_of(ptr.elem_type.ckind)}*'
+        if ptr.elem_type.ckind == struct_ckind:
+            return f'{ptr.elem_type.name}*'
+        else:
+            return f'{rev_of(ptr.elem_type.ckind)}*'
 
     print_error('c_rev_type_of_ident', f'No such meta kind {meta_kind}')
 
@@ -157,7 +160,7 @@ def c_expand_builtin(node: Node) -> Node:
         if node.left.kind != NodeKind.IDENT:
             return Node(NodeKind.INT_LIT, default_type, 0)
 
-        return Node(NodeKind.INT_LIT, default_type, str(size_of_ident(node.left.value)))
+        return Node(NodeKind.INT_LIT, default_type, f'sizeof({node.left.value})')
 
     if node.kind == NodeKind.TYPE:
         return Node(NodeKind.STR_LIT, node.ntype, f'"{c_rev_type_of(node.left.ntype)}"')

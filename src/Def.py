@@ -613,10 +613,16 @@ def rev_type_of(vtype: VariableType) -> str:
         return rev_of(vtype.ckind)
 
     if vtype.ckind == ref_ckind:
-        return f'{rev_of(vtype.elem_ckind)}&'
+        if vtype.elem_ckind == struct_ckind:
+            return f'{vtype.name}&'
+        else:
+            return f'{rev_of(vtype.elem_ckind)}&'
 
     if vtype.ckind == ptr_ckind:
-        return f'{rev_of(vtype.elem_ckind)}*'
+        if vtype.elem_ckind == struct_ckind:
+            return f'{vtype.name}*'
+        else:
+            return f'{rev_of(vtype.elem_ckind)}*'
 
     if vtype.ckind == arr_ckind:
         return f'{rev_of(vtype.elem_ckind)}[]'
@@ -702,9 +708,9 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
 
     if kind == NodeKind.REF:
         if prev_type.ckind == ref_ckind:
-            return VariableType(ptr_ckind, prev_type.elem_ckind)
+            return VariableType(ptr_ckind, prev_type.elem_ckind, name=prev_type.name)
         else:
-            return VariableType(ptr_ckind, prev_type.ckind)
+            return VariableType(ptr_ckind, prev_type.ckind, name=prev_type.name)
 
     if kind == NodeKind.DEREF:
         # Boolean fix
@@ -1088,7 +1094,6 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
                 if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or arg_type.name != fun_arg_type.name:
-                    print('DBG:', arg_type.name, '|', fun_arg_type.name)
                     compatible = False
                     break
 

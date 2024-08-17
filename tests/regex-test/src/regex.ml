@@ -83,9 +83,5 @@ fun replace(pattern: c_str, from: c_str, to: c_str): str
         idx = re_match(pattern, c_str(curr), &mlen)
     end
 
-    if s.len == 0
-        ret s
-    else
-        ret curr
-    end
+    ret s.concat(curr)
 end

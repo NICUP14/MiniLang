@@ -35,7 +35,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.IDENT:
         if Def.ident_map.get(node.value) == Def.VariableMetaKind.REF and (
                 parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
-            return f'*{node.value}'
+            return f'(*{node.value})'
         return node.value
     if node.kind == NodeKind.OP_ADD:
         return f'({left} + {right})'
