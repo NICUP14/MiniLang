@@ -110,6 +110,16 @@ class VariableType:
         return self.ckind.meta_kind
 
 
+@dataclass
+class ParsedType:
+    """
+    Used by the parser to store type information
+    """
+    var_type: VariableType
+    elem_type: VariableType
+    elem_cnt: int
+
+
 class Variable:
     """
     Contains the meta-data of a primitive type.

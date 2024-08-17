@@ -10,9 +10,9 @@ Implemented: 16/24
 - [ ] Generics
 - [X] Access operator (`.`)
 - [X] Function overloading (by args)
+- [ ] Function overloading (by return)
 - [ ] Default arguments for function
 - [ ] Named parameters in function call
-- [ ] Function overloading (by return)
 - [ ] Rethink assembly interface (regs as variables, ...)
 - [X] Deprecate `ma_cnt` (`count` builtin)
 - [X] Add `literal` builtin (pass arg directly to backend)

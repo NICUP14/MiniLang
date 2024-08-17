@@ -17,6 +17,15 @@ fun struct_ref(arg: exstruct&): void
 end
 
 fun main: int32
+    let arr: int64[100]
+    let arr_ptr: int64[100]* = null
+    let arr_ref: int64[100]& = null
+    let x = arr_ptr
+    let y = arr_ref
+    let test = arr
+    len_of(x)
+    size_of(x)
+
     let ex = exstruct(15, "Hello")
     let ex_ref: exstruct& = &ex
     # struct_ref(&ex)

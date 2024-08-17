@@ -23,6 +23,7 @@ from Def import VariableCompKind
 from Def import VariableType
 from Def import VariableKind
 from Def import VariableMetaKind
+from Def import ParsedType
 from Def import Function
 from Def import FunctionSignature
 from Def import Array
@@ -773,6 +774,52 @@ class Parser:
 
         return node
 
+    def parse_type(self) -> ParsedType:
+        meta_kind = VariableMetaKind.PRIM
+        type_str = self.curr_token().value
+        var_type = type_of(type_str)
+        elem_type = var_type
+        elem_cnt = 0
+        self.next_token()
+
+        # Fixes bug in when the argumen gets the type thru an alias
+        if var_type.ckind in (ptr_ckind, ref_ckind):
+            elem_type = VariableType(
+                var_type.elem_ckind, name=var_type.name)
+
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
+            self.next_token()
+            meta_kind = VariableMetaKind.ARR
+
+            elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
+            self.match_token(TokenKind.RBRACE)
+
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
+            self.next_token()
+            meta_kind = VariableMetaKind.REF
+
+        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+            self.next_token()
+            meta_kind = VariableMetaKind.PTR
+
+        # Type correction
+        elem_ckind = var_type.ckind
+        if meta_kind == VariableMetaKind.ARR:
+            var_type = VariableType(arr_ckind, elem_ckind)
+        if meta_kind == VariableMetaKind.BOOL:
+            var_type = VariableType(bool_ckind, elem_ckind)
+        if meta_kind == VariableMetaKind.PTR:
+            var_type = VariableType(
+                ptr_ckind, elem_ckind, name=var_type.name)
+        if meta_kind == VariableMetaKind.REF:
+            var_type = VariableType(
+                ref_ckind, elem_ckind, name=var_type.name)
+
+        return ParsedType(var_type, elem_type, elem_cnt)
+
+    def parse_type_list(self):
+        pass
+
     def statement(self) -> Optional[Node]:
         token = self.curr_token()
         if token.kind == TokenKind.KW_LET:
@@ -1508,49 +1555,22 @@ class Parser:
                         f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
 
         name = self.match_token(TokenKind.IDENT).value
-
-        type_name = ''
         is_implicit = self.curr_token().kind != TokenKind.COLON
-        kind, meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
-        elem_kind, elem_meta_kind = VariableKind.INT64, VariableMetaKind.PRIM
+
+        elem_cnt = 0
+        var_type = default_type
+        meta_kind = VariableMetaKind.PRIM
         if not is_implicit:
             self.match_token(TokenKind.COLON)
 
-            var_type = type_of(self.curr_token().value)
-            type_name = var_type.name
-            kind, meta_kind = var_type.kind(), var_type.meta_kind()
-
-            # Fixes bug regarding complex types from Def.type_of
-            if var_type.meta_kind() == VariableMetaKind.PRIM:
-                elem_kind, elem_meta_kind = kind, meta_kind
-            elif var_type.ckind == struct_ckind:
-                elem_kind, elem_meta_kind = var_type.ckind.kind, var_type.ckind.meta_kind
-            else:
-                elem_kind, elem_meta_kind = var_type.elem_ckind.kind, var_type.elem_ckind.meta_kind
-
-            self.next_token()
-
-        elem_cnt = 0
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
-            self.next_token()
-
-            meta_kind = VariableMetaKind.ARR
-            elem_cnt = int(self.match_token(TokenKind.INT_LIT).value)
-            self.match_token(TokenKind.RBRACE)
-
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
-            self.next_token()
-            meta_kind = VariableMetaKind.PTR
-
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
-            self.next_token()
-            meta_kind = VariableMetaKind.REF
+            parsed_type = self.parse_type()
+            var_type = parsed_type.var_type
+            elem_cnt = parsed_type.elem_cnt
+            meta_kind = var_type.meta_kind()
 
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
 
-        var_type = VariableType(VariableCompKind(
-            kind, meta_kind), VariableCompKind(elem_kind, elem_meta_kind), name=type_name)
         if is_implicit:
             if self.curr_token().kind == TokenKind.LBRACE:
                 print_error(
@@ -1559,11 +1579,11 @@ class Parser:
 
             node = self.token_list_to_tree()
             var_type = node.ntype
+            meta_kind = var_type.meta_kind()
+
             if var_type.ckind == void_ckind:
                 print_error('declaration',
                             'Declaration of implicit void primitive is not allowed.', self)
-
-            kind, meta_kind = var_type.kind(), var_type.meta_kind()
 
             # Decays array to pointer
             if meta_kind == VariableMetaKind.ARR:
@@ -1571,25 +1591,16 @@ class Parser:
                 elem_cnt = Def.arr_map.get(node.value).elem_cnt
 
             # Reference correction
-            if meta_kind == VariableMetaKind.REF:
-                meta_kind = var_type.elem_ckind.meta_kind
-                var_type = VariableType(var_type.elem_ckind)
+            elif meta_kind in (VariableMetaKind.REF, VariableMetaKind.PTR):
+                if node.value in Def.ptr_map:
+                    elem_cnt = Def.ptr_map.get(node.value).elem_cnt
 
-            if meta_kind == VariableMetaKind.PTR:
-                elem_kind = var_type.elem_ckind.kind
-                elem_meta_kind = var_type.elem_ckind.meta_kind
+        # Fixes bug regarding complex types from Def.type_of
+        elem_ckind = None
+        if var_type.meta_kind() == VariableMetaKind.PRIM or var_type.ckind == struct_ckind:
+            elem_ckind = var_type.ckind
         else:
-            elem_ckind = VariableCompKind(elem_kind, elem_meta_kind)
-            if meta_kind == VariableMetaKind.ARR:
-                var_type = VariableType(arr_ckind, elem_ckind)
-            if meta_kind == VariableMetaKind.BOOL:
-                var_type = VariableType(bool_ckind, elem_ckind)
-            if meta_kind == VariableMetaKind.PTR:
-                var_type = VariableType(
-                    ptr_ckind, elem_ckind, name=var_type.name)
-            if meta_kind == VariableMetaKind.REF:
-                var_type = VariableType(
-                    ref_ckind, elem_ckind, name=var_type.name)
+            elem_ckind = var_type.elem_ckind
 
         is_local = Def.fun_name != ''
         var_name = full_name_of_var(
@@ -1659,8 +1670,7 @@ class Parser:
             return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         if meta_kind == VariableMetaKind.ARR:
-            elem_type = VariableType(VariableCompKind(
-                kind, VariableMetaKind.PRIM))
+            elem_type = VariableType(elem_ckind, name=var_type.name)
             Def.var_off += size_of(elem_type.ckind) * elem_cnt
             Def.arr_map[full_name] = Array(
                 full_name, elem_cnt, elem_type, Def.var_off, is_local)
@@ -1674,9 +1684,7 @@ class Parser:
 
         if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
             value = 0
-            # print('DBG:', full_name, var_type)
-            elem_type = VariableType(
-                VariableCompKind(elem_kind, elem_meta_kind), name=var_type.name)
+            elem_type = VariableType(elem_ckind, name=var_type.name)
 
             Def.var_off += size_of(var_type.ckind)
             Def.ptr_map[full_name] = Pointer(
