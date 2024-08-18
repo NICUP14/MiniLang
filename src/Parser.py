@@ -60,7 +60,9 @@ from Def import is_local_ident
 from Def import rev_type_of
 from Def import node_is_cmp
 from Def import check_signature
+from Def import find_signature
 from Def import _find_signature
+from Def import find_signature
 from Def import glue_statements
 from Def import args_to_list
 from copy import deepcopy as copy_of
@@ -77,7 +79,7 @@ PRECEDENCE_MAP = {
     TokenKind.KW_ASM: 25,
     TokenKind.FUN_CALL: 25,
     TokenKind.MACRO_CALL: 26,
-    TokenKind.PERIOD: 24,
+    TokenKind.PERIOD: 27,
     TokenKind.PLUS: 10,
     TokenKind.MINUS: 10,
     TokenKind.MULT: 20,
@@ -87,7 +89,7 @@ PRECEDENCE_MAP = {
     TokenKind.BIT_AND: 7,
     TokenKind.OR: 5,
     TokenKind.AND: 5,
-    TokenKind.KW_AT: 27,
+    TokenKind.KW_AT: 26,
     TokenKind.KW_IF: 4,
     TokenKind.KW_ELSE: 4,
     TokenKind.ASSIGN: 3,
@@ -502,7 +504,12 @@ class Parser:
         kind = NodeKind.FUN_CALL
 
         if fun.arg_cnt == 0 and not fun.is_variadic:
-            node_stack.append(Node(kind, fun.ret_type, fun_name))
+            sig = _find_signature(fun, [])
+            if sig is None:
+                print_error('_fun_call',
+                            f'No signature of {fun.name} matches {[]} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+
+            node_stack.append(Node(kind, sig.ret_type, fun_name))
         else:
             if len(node_stack) == 0:
                 print_error('to_tree',
@@ -510,8 +517,22 @@ class Parser:
 
             node = self.merge_fun_call(node_stack.pop()) if len(
                 node_stack) > 0 else None
+
+            # Return type based on signature
+            def get_type(node: Node) -> VariableType:
+                if node is None:
+                    return None
+
+                return node.ntype
+
+            arg_types = list(map(get_type, args_to_list(node)))
+            sig = _find_signature(fun, arg_types)
+            if sig is None:
+                print_error('_fun_call',
+                            f'No signature of {fun.name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+
             node_stack.append(
-                Node(kind, fun.ret_type, fun_name, node))
+                Node(kind, sig.ret_type, fun_name, node))
 
         return node_stack
 
@@ -675,7 +696,7 @@ class Parser:
                             elem_cnt = Def.ptr_map.get(left.value).elem_cnt
                         elif Def.ident_map.get(left.value) == VariableMetaKind.ARR:
                             elem_cnt = Def.arr_map.get(left.value).elem_cnt
-                        else:
+                        elif left.kind != NodeKind.ELEM_ACC:
                             print_error('to_tree',
                                         f'Expected a pointer/array identifier, got {left.value}', self)
 
@@ -980,37 +1001,48 @@ class Parser:
         return node
 
     def for_statement(self) -> Optional[Node]:
-        iter_name = full_name_of_var(self.match_token(
-            TokenKind.IDENT).value, force_local=True)
+        iter_name = full_name_of_var(
+            self.match_token(TokenKind.IDENT).value, force_local=True)
         self.match_token(TokenKind.KW_IN)
-        range_name = full_name_of_var(self.match_token(TokenKind.IDENT).value)
-
-        if range_name not in Def.ident_map:
-            print_error('for_statement',
-                        f'No such identifier {range_name}', parser=self)
 
         iter_ident = Node(NodeKind.IDENT, default_type, iter_name)
-        range_ident = Node(
-            NodeKind.IDENT, type_of_ident(range_name), range_name)
+        target_node = self.token_list_to_tree()
 
+        target_name = full_name_of_var(f'for{self.lineno}_target')
+        target_ident = Node(NodeKind.IDENT, target_node.ntype, target_name)
+        self.next_line()
+
+        iter_fun = Def.fun_map.get('iter')
         start_fun = Def.fun_map.get('start')
         stop_fun = Def.fun_map.get('stop')
         next_fun = Def.fun_map.get('next')
 
-        if start_fun is None or stop_fun is None or next_fun is None:
+        if iter_fun is None or start_fun is None or stop_fun is None or next_fun is None:
             print_error('for_statement',
-                        'Missing required start/stop/next functions', parser=self)
+                        'Missing required iter/start/stop/next functions', parser=self)
 
-        start_arg_types = [range_ident.ntype]
-        other_arg_types = [range_ident.ntype, default_type]
+        # Fetches iterator information
+        iter_arg_types = [target_node.ntype]
+        iter_sig = _find_signature(
+            iter_fun, iter_arg_types)
+
+        if iter_sig is None:
+            print_error('for_statement',
+                        f'No signature of {iter_fun.name} matches {list(map(rev_type_of, iter_arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in iter_fun.signatures]}', parser=self)
+
+        iter_ret = iter_sig.ret_type
+        iter_ref_type = VariableType(
+            ref_ckind, iter_ret.ckind, name=iter_ret.name)
+
+        arg_types = [iter_ref_type]
         start_sig = _find_signature(
-            start_fun, start_arg_types)
+            start_fun, arg_types)
         stop_sig = _find_signature(
-            stop_fun, other_arg_types)
+            stop_fun, arg_types)
         next_sig = _find_signature(
-            next_fun, other_arg_types)
+            next_fun, arg_types)
 
-        for sig, fun, arg_types, sig_name in zip([start_sig, stop_sig, next_sig], [start_fun, stop_fun, next_fun], [start_arg_types, other_arg_types, other_arg_types], ['start', 'stop', 'next']):
+        for sig, fun, sig_name in zip([start_sig, stop_sig, next_sig], [start_fun, stop_fun, next_fun], ['start', 'stop', 'next']):
             if sig is None:
                 print_error('for_statement',
                             f'No signature of {sig_name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
@@ -1024,29 +1056,60 @@ class Parser:
                         f'Stop function should return bool, got {rev_type_of(stop_ret)}', parser=self)
 
         # ? Needs refactoring, duplicated from struct_elem_declaration
-        meta_kind = start_ret.meta_kind()
-        Def.ident_map[iter_name] = meta_kind
-        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
-            Def.var_off += size_of(start_ret.ckind)
-            Def.var_map[iter_name] = Variable(start_ret, Def.var_off)
+        for name, vtype in zip([iter_name, target_name], [start_ret, iter_ret]):
+            check_ident(name, use_mkind=True)
 
-        elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
-            Def.var_off += size_of(start_ret.elem_ckind)
-            Def.ptr_map[iter_name] = Pointer(
-                iter_name, 0, start_ret.elem_ckind, Def.var_off, meta_kind == VariableMetaKind.PTR)
+            meta_kind = vtype.meta_kind()
+            Def.ident_map[name] = meta_kind
+            if meta_kind == VariableMetaKind.STRUCT:
+                def add_prefix(elem_name: str, name: str = name) -> str:
+                    return f'{name}_{elem_name}'
 
-        self.next_line()
+                struct = Def.struct_map.get(vtype.name)
+                elem_names = struct.elem_names
+                elem_types = struct.elem_types
+                full_elem_names = list(map(add_prefix, elem_names))
+                self.struct_elem_declaration(name, struct)
+
+                Def.struct_map[name] = Structure(
+                    name, vtype, full_elem_names, elem_types)
+
+            elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
+                Def.var_off += size_of(vtype.ckind)
+                Def.var_map[name] = Variable(vtype, Def.var_off)
+
+            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+                Def.var_off += size_of(vtype.elem_ckind)
+                Def.ptr_map[name] = Pointer(
+                    name, 0, vtype.elem_ckind, Def.var_off, meta_kind == VariableMetaKind.PTR)
+
         body = self.compound_statement()
 
+        iter_ref = Node(
+            NodeKind.REF, iter_ref_type, '&', target_ident)
+        iter_stmt = Node(NodeKind.FUN_CALL, iter_ret, 'iter',
+                         target_node)
         start_stmt = Node(NodeKind.FUN_CALL, start_ret, 'start',
-                          range_ident)
+                          iter_ref)
         stop_stmt = Node(NodeKind.FUN_CALL, bool_type, 'stop',
-                         glue_statements([range_ident, iter_ident], in_call=True))
+                         iter_ref)
         next_stmt = Node(NodeKind.FUN_CALL, next_ret, 'next',
-                         glue_statements([range_ident, iter_ident], in_call=True))
+                         iter_ref)
 
-        pre_cond = Node(NodeKind.DECLARATION, start_ret,
-                        '=', iter_ident, start_stmt)
+        # Creates the pre-condition (declarations)
+        pre_cond = None
+        for node, init, vtype in zip([target_ident, iter_ident], [iter_stmt, start_stmt], [iter_ret, start_ret]):
+            decl_kind = NodeKind.STRUCT_DECL if vtype.meta_kind(
+            ) == VariableMetaKind.STRUCT else NodeKind.DECLARATION
+            decl = Node(decl_kind, vtype, '=', node, init)
+
+            if pre_cond is None:
+                pre_cond = decl
+            else:
+                pre_cond = glue_statements([pre_cond, decl])
+
+        # pre_cond = glue_statements([Node(NodeKind.DECLARATION, target_node.ntype, '=', target_ident, target_node), Node(
+        #    NodeKind.DECLARATION, start_ret, '=', iter_ident, start_stmt)])
         post_cond = Node(NodeKind.OP_ASSIGN, next_ret,
                          '=', iter_ident, next_stmt)
         cond = Node(NodeKind.OP_NEQ, bool_type, '!=', Node(
@@ -1135,7 +1198,7 @@ class Parser:
             node = self.token_list_to_tree()
             if not type_compatible(NodeKind.FUN_CALL, node.ntype.ckind, sig.ret_type.ckind):
                 print_error('ret_statement',
-                            'The return type differs from the function\'s', self)
+                            f'The return type differs from the function\'s ({rev_type_of(node.ntype)} != {rev_type_of(sig.ret_type)})', self)
 
             node = Node(NodeKind.GLUE, void_type, '', Def.deferred,
                         Node(NodeKind.RET, node.ntype, '', node))

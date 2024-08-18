@@ -12,7 +12,7 @@ ASM_OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.S, $(SOURCES))
 # C compiler parameters
 CC = gcc
 CFLAGS ?=
-CLAGS += -O2 -g
+CLAGS += -g
 
 # Compiler parameters
 ML = python ../../src/Main.py

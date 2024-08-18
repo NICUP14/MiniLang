@@ -18,7 +18,7 @@ fun str(s: int8*): str
 end
 
 fun str(s: str): str
-    ret s.c_str.str
+    ret str(c_str(s))
 end
 
 # Create a new sds string starting from a printf-alike format specifier.

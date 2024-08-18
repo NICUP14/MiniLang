@@ -376,14 +376,18 @@ def print_stdout(msg: str = ''):
     print(msg, file=stdout)
 
 
-def check_ident(name: str, meta_kind: VariableMetaKind = None, use_mkind: bool = False):
+def check_ident(name: str, meta_kind: Optional[VariableMetaKind] = None, use_mkind: bool = False):
     if name not in ident_map:
         return
 
     meta_kind2 = ident_map.get(name)
     if use_mkind and meta_kind != meta_kind2:
-        print_error('check_ident',
-                    f'Redefinition of identifier {name}, (meta_kind = {meta_kind}, meta_kind2 = {meta_kind2})')
+        if meta_kind is None:
+            print_error('check_ident',
+                        f'Redefinition of identifier {name}, (meta_kind = {meta_kind2})')
+        else:
+            print_error('check_ident',
+                        f'Redefinition of identifier {name}, (meta_kind = {meta_kind}, meta_kind2 = {meta_kind2})')
 
 
 def alloc_reg(reg: Register = Register.id_max, opd: Operand = None) -> Register:
@@ -777,6 +781,9 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
             NodeKind.IF):
         return True
 
+    if ckind == ckind2:
+        return True
+
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
 
@@ -1108,11 +1115,6 @@ def args_to_list(node: Node) -> List[Node]:
 def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[FunctionSignature]:
     # Looks for an exact match
     for signature in fun.signatures:
-        # if fun.name == '_print':
-        #     print('DBG:', rev_type_of(arg_types[0]), rev_type_of(
-        #         signature.arg_types[0]), signature.arg_types[0], arg_types[0], "comp =", arg_types[0] == signature.arg_types[0])
-        #     print('DBG:', rev_type_of(arg_types[1]), rev_type_of(
-        #         signature.arg_types[1]), signature.arg_types[1], arg_types[1], "comp =", arg_types[1] == signature.arg_types[1])
         if arg_types == signature.arg_types:
             return signature
 
@@ -1121,7 +1123,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
         if fun.is_variadic or len(arg_types) == signature.arg_cnt:
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
-                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or arg_type.name != fun_arg_type.name:
+                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
                     compatible = False
                     break
 
