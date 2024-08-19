@@ -1,7 +1,8 @@
 # Bugs
 
-Solved: 15/20
+Solved: 16/22
 
+- [ ] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function
 - [X] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
 - [ ] Struct elements pollute the global scope with non-existent variables.

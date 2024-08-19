@@ -4,9 +4,9 @@
 
 literal("#include <errno.h>")
 
-import stdlib.c.cstdlib
 import stdlib.debug
 import stdlib.c.cdef
+import stdlib.c.cstdlib
 
 macro c_errno
     cast("int64", literal("errno"))
@@ -40,14 +40,13 @@ fun to_int64(s: c_str): int64
         panicf("String '%s' is not a number (check #1)", s)
     end
 
-    # c_errno = 0;
-    let stop: c_str = null
-    let l = strtoll(s, &stop, 0);
+    let term: c_str = null
+    let l = strtoll(s, &term, 0);
 
     if (l == 0 && c_errno == c_ERANGE)
         panicf("String '%s' to integer causes a range error", s)
     end
-    if (*stop != '\0')
+    if (*term != '\0')
         panicf("String '%s' is not a number (check #2)", s)
     end
 

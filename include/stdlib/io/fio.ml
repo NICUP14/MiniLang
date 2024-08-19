@@ -36,21 +36,28 @@ fun open_file(filename: int8*): c_stream
     ret open_file(filename, "r")
 end
 
+fun read_line(st: c_stream, s: str, size: int64): bool
+    let ln: int8* = fgets(c_str(s), size, st)
+    ret ln != null
+end
+
 fun read_file(st: c_stream, size: int64): str
     let s = empty_str
     let cs: int8* = malloc(size)
 
     defer s = str(cs)
     defer free(cs)
-    fread(cs, 1, size - 1, st)
+    fread(cs, size, 1, st)
     cs[size] = 0
     ret s
 end
 
 fun read_file(st: c_stream): str
+
     fseek(st, 0, c_SEEK_END)
     let size = ftell(st)
-    fseek(st, 0, c_SEEK_SET)
+    rewind(st)
+    # fseek(st, 0, c_SEEK_SET)
 
     ret read_file(st, size)
 end

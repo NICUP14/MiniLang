@@ -33,6 +33,7 @@ extern fun abs(number: int32): int32
 extern fun labs(number: int64): int64
 extern fun rand(): int32
 extern fun srand(seed: int32): void
+extern fun dup(st: c_stream): c_stream
 extern fun fopen(filename: int8*, mode: int8*): void*
 extern fun fclose(st: c_stream): int32
 extern fun fgets(ptr: void*, size: int64, st: c_stream): int8*

@@ -1112,7 +1112,7 @@ def args_to_list(node: Node) -> List[Node]:
     return arg_list
 
 
-def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[FunctionSignature]:
+def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True) -> Optional[FunctionSignature]:
     # Looks for an exact match
     for signature in fun.signatures:
         if arg_types == signature.arg_types:
@@ -1120,7 +1120,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType]) -> Optional[Fu
 
     # Looks for compatible matches
     for signature in fun.signatures:
-        if fun.is_variadic or len(arg_types) == signature.arg_cnt:
+        if fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt:
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
                 if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):

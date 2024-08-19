@@ -496,7 +496,7 @@ class Parser:
                 del Def.macro_arg_map[name]
         return expand_helper(body)
 
-    def _fun_call(self, fun_name: str, node_stack: List[Node]) -> List[Node]:
+    def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True) -> List[Node]:
         if fun_name in Def.fun_sig_map:
             fun_name = Def.fun_sig_map.get(fun_name)
 
@@ -504,12 +504,13 @@ class Parser:
         kind = NodeKind.FUN_CALL
 
         if fun.arg_cnt == 0 and not fun.is_variadic:
-            sig = _find_signature(fun, [])
-            if sig is None:
-                print_error('_fun_call',
-                            f'No signature of {fun.name} matches {[]} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+            sig = _find_signature(fun, [], check_len=check_len)
+            # if sig is None:
+            #     print_error('_fun_call',
+            #                 f'No signature of {fun.name} matches {[]} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+            ret_type = sig.ret_type if sig else any_type
 
-            node_stack.append(Node(kind, sig.ret_type, fun_name))
+            node_stack.append(Node(kind, ret_type, fun_name))
         else:
             if len(node_stack) == 0:
                 print_error('to_tree',
@@ -526,13 +527,14 @@ class Parser:
                 return node.ntype
 
             arg_types = list(map(get_type, args_to_list(node)))
-            sig = _find_signature(fun, arg_types)
-            if sig is None:
-                print_error('_fun_call',
-                            f'No signature of {fun.name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+            sig = _find_signature(fun, arg_types, check_len=check_len)
+            # if sig is None:
+            #     print_error('_fun_call',
+            #                 f'No signature of {fun.name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
+            ret_type = sig.ret_type if sig else any_type
 
             node_stack.append(
-                Node(kind, sig.ret_type, fun_name, node))
+                Node(kind, ret_type, fun_name, node))
 
         return node_stack
 
@@ -597,7 +599,8 @@ class Parser:
                 if token_is_unary_op(token.kind):
                     # Function call fix
                     if token.kind == TokenKind.FUN_CALL:
-                        self._fun_call(token.value, node_stack)
+                        self._fun_call(token.value, node_stack,
+                                       check_len=False)
                         # fun_name = token.value
                         # if fun_name in Def.fun_sig_map:
                         #     fun_name = Def.fun_sig_map.get(fun_name)
@@ -696,7 +699,7 @@ class Parser:
                             elem_cnt = Def.ptr_map.get(left.value).elem_cnt
                         elif Def.ident_map.get(left.value) == VariableMetaKind.ARR:
                             elem_cnt = Def.arr_map.get(left.value).elem_cnt
-                        elif left.kind != NodeKind.ELEM_ACC:
+                        elif left.ntype.ckind not in (ptr_ckind, arr_ckind):
                             print_error('to_tree',
                                         f'Expected a pointer/array identifier, got {left.value}', self)
 
@@ -930,7 +933,13 @@ class Parser:
 
         module = ''
         while not self.no_more_tokens():
-            part = self.match_token(TokenKind.IDENT).value
+            tok = self.curr_token()
+            if tok.kind == TokenKind.PERIOD:
+                print_error('import_statement',
+                            'Invalid period in module name', parser=self)
+            self.next_token()
+
+            part = tok.value
             module = os.path.join(module, part)
 
             if not self.no_more_tokens():

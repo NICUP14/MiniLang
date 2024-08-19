@@ -35,6 +35,10 @@ fun empty_str: str
     ret sdsempty()
 end
 
+fun grow(s: str, size: int64): str
+    ret sdsgrowzero(s, size)
+end
+
 # Duplicate an sds string.
 fun clone(s: str): str
     ret sdsdup(s)
@@ -164,6 +168,51 @@ end
 fun to_upper(s: str): str
     sdstoupper(s)
     ret s
+end
+
+# Returns the index of the first occurence of sub in s
+fun find(s: str, sub: str): int64
+    let cs = c_str(s)
+    let ptr = strstr(cs, c_str(sub))
+    ret 0 - 1 if ptr == null else (cast("int64", ptr) - cast("int64", cs))
+end
+
+# Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.
+# 
+# On out of memory, zero length string, zero length
+# separator, NULL is returned.
+# 
+# Note that 'sep' is able to split a string using
+# a multi-character separator. For example
+# sdssplit("foo_-_bar","_-_"); will return two
+# elements "foo" and "bar". 
+fun split(cs: c_str, sep: c_str, cnt: c_int*): sds*
+    let arr: sds* = sdssplitlen(cs, strlen(cs), sep, strlen(sep), cnt)
+    if arr == null
+        panic("Cannot split string.")
+    end
+
+    ret arr
+end
+
+# Overload; Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.
+fun split(s: str, sep: str, cnt: c_int*): sds*
+    let arr: sds* = sdssplitlen(c_str(s), len(s), c_str(sep), len(sep), cnt)
+    if arr == null
+        panic("Cannot split string.")
+    end
+
+    ret arr
+end
+
+# Overload; Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.
+fun split(s: str, sep: c_str, cnt: c_int*): sds*
+    let arr: sds* = sdssplitlen(c_str(s), len(s), sep, strlen(sep), cnt)
+    if arr == null
+        panic("Cannot split string.")
+    end
+
+    ret arr
 end
 
 # Join an array of C strings using the specified separator (also a C string).

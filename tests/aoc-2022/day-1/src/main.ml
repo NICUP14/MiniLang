@@ -1,52 +1,73 @@
+import stdlib.for
+import stdlib.alloc
+import stdlib.string
 import stdlib.io.fio
-import stdlib.io.read
 import stdlib.io.print
 import stdlib.convert
-import stdlib.alloc
-import stdlib.c.cstdlib
 
-import stdlib.string.backend
+fun part_one(st: c_stream): void
+    let sum = 0
+    let max_sum = 0
+    let s: str = grow(empty_str, 256)
 
-fun is_num(s: str): bool
-    let idx = 0
-    while idx < len(s)
-        if isdigit((c_str(s))[idx]) == 0
-            ret false
+    while read_line(st, s, 256)
+        s = s.trim("\n")
+
+        if s.len == 0
+            max_sum = sum if sum > max_sum else max_sum
+            sum = 0
+        else
+            sum = sum + to_int64(c_str(s))
         end
     end
 
-    ret true
+    "Part one: ".print
+    max_sum.println
 end
 
-# fun read_line(st: c_stream): str
+fun part_two(st: c_stream): void
+    let sum = 0
+    let max_sum = 0
+    let max_sum2 = 0
+    let max_sum3 = 0
+    let s: str = grow(empty_str, 256)
+
+    while read_line(st, s, 256)
+        s = s.trim("\n")
+
+        if s.len == 0
+            if sum > max_sum
+                max_sum3 = max_sum2
+                max_sum2 = max_sum
+                max_sum = sum
+
+            elif sum > max_sum2
+                max_sum3 = max_sum2
+                max_sum2 = sum
+
+            elif sum > max_sum3
+                max_sum3 = sum
+            end
+
+            sum = 0
+        else
+            sum = sum + to_int64(c_str(s))
+        end
+    end
+
+    "Part two: ".print
+    (max_sum + max_sum2 + max_sum3).println
+end
+
 
 fun main: int32
     let bos = 0
     gc_start(&ml_gc, &bos)
 
     let in_file = open_file("input.txt")
-    let lines = in_file.read_file
-
-    let idx = 0
-    let cnt = 0
-    let toks: sds* = sdssplitlen(c_str(lines), len(lines), "\n", 1, &cnt)
-
-    let max_sum = 0
-    let sum = 0
-    while idx < cnt - 1
-        let tok: str = cast("str", toks[idx])
-        if is_num(tok)
-            if sum > max_sum
-                max_sum = sum
-            end
-        else
-            sum = sum + to_int64(c_str(tok))
-        end
-
-        idx = idx + 1
-    end
-
-    max_sum.println
+    part_one(in_file)
+    rewind(in_file)
+    part_two(in_file)
 
     gc_stop(&ml_gc)
     ret 0
