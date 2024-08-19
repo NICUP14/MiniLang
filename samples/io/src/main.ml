@@ -1,4 +1,4 @@
-import stdlib.io.fio
+import stdlib.io.file
 import stdlib.io.read
 import stdlib.io.print
 

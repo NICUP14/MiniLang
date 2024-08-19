@@ -1,6 +1,5 @@
 literal("#include <sds.h>")
 
-# alias sds = int8*
 extern struct sds
 extern struct va_list
 

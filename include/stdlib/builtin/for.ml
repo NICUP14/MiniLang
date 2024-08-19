@@ -1,4 +1,4 @@
-import stdlib.io.fio
+import stdlib.io.file
 import stdlib.string
 import stdlib.c.cdef
 import stdlib.c.cstdlib
@@ -86,6 +86,10 @@ struct c_str_range
     c_str_range_idx: int64
     c_str_range_start: int64
     c_str_range_stop: int64
+end
+
+fun iter(arg: str): c_str_range
+    ret c_str_range(c_str(arg), 0, 0, len(arg))
 end
 
 fun iter(arg: c_str): c_str_range

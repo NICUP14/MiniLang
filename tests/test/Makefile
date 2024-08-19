@@ -38,7 +38,7 @@ _c: $(SOURCES)
 	@mkdir -p $(BUILD_DIR)
 	# $(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
 	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES) -o $(BUILD_DIR)/$(PROJECT).c
-	$(CC) -g -I include include/*.c $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
+	$(CC) -g -O2 -I include include/*.c $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
 
 _cdebug: $(SOURCES)
 	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)

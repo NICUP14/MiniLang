@@ -152,6 +152,20 @@ at     | Binary | -        | Array access
 &      | Unary  | Prefix   | Address
 \*     | Unary  | Prefix   | Dereference
 
+Precedence | Operator | Description
+-----------|----------|------------
+Level 1   | `cast` `type_of` `len_of` `size_of` `count` `literal` `asm` `()` `.` | Builtins, function calls, macro calls and element access
+Level 2   | `*` `&`                     | Reference and dereference
+Level 3   | `at`                        | Array element access
+Level 4   | `*` `/`                     | Multiplication and division
+Level 5   | `+` `-`                     | Addition and subtraction
+Level 6   | `%` `&` `\|`                | Remainder, bitwise and, bitwise or
+Level 7   | `==` `!=` `>` `<` `>=` `<=` | Comparisons
+Level 8   | `&&` `\|\|`                 | Logical and, logical or
+Level 9   | `... if ... else ...`       | Ternary conditional
+Level 10  | `=`                         | Assignment
+Level 11  | `,`                         | Comma
+
 ## Inline assembly
 
 > [!WARNING]
@@ -452,6 +466,9 @@ end
 ```
 
 ### Uniform function call syntax (UFCS)
+
+> [!WARNING]
+> There is a bug regarding nested UFCS expressions in the same statement. (`str("Hello").concat("X".str)`)
 
 Uniform Function Call Syntax (UFCS) enables calling standalone functions using method call syntax on the objects they operate on. It behaves similar to the pipe operator found in other languages, enabling a more fluid and expressive way to chain function calls.
 

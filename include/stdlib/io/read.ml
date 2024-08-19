@@ -1,44 +1,10 @@
+# read.ml - io read library for ml.
+# Extendable and safe frontend for `scanf`/`fscanf`.
+
 import stdlib.c.cdef
 import stdlib.debug
 import stdlib.string
 import stdlib.c.cstdlib
-
-fun _read(st: c_stream, arg: int8*): void
-    fscanf(st, "%hhd", arg)
-end
-fun _read(st: c_stream, arg: int16*): void
-    fscanf(st, "%hd", arg)
-end
-fun _read(st: c_stream, arg: int32*): void
-    fscanf(st, "%d", arg)
-end
-fun _read(st: c_stream, arg: int64*): void
-    fscanf(st, "%Ld", arg)
-end
-fun _read(st: c_stream, arg: void*): void
-    panic("Cannot read void value")
-end
-fun _read(st: c_stream, arg: bool*): void
-    panic("Cannot read boolean value")
-end
-
-macro read(_arg)
-    _read(stdin, &_arg)
-end
-
-macro read(_arg, _other)
-    read(_arg)
-    read(_other)
-end
-
-macro read_from(_stream, _arg)
-    _read(_stream, &_arg)
-end
-
-macro read_from(_stream2, _arg, _other)
-    read_from(_stream2, _arg)
-    read_from(_stream2, _other)
-end
 
 # Read a string from standard input until a newline is encountered.
 fun input: str
@@ -69,4 +35,40 @@ fun input: str
 
     let s = str(buff)
     ret s
+end
+
+# Read helper functions
+fun _read(st: c_stream, arg: int8*): void
+    fscanf(st, "%hhd", arg)
+end
+fun _read(st: c_stream, arg: int16*): void
+    fscanf(st, "%hd", arg)
+end
+fun _read(st: c_stream, arg: int32*): void
+    fscanf(st, "%d", arg)
+end
+fun _read(st: c_stream, arg: int64*): void
+    fscanf(st, "%Ld", arg)
+end
+fun _read(st: c_stream, arg: void*): void
+    panic("Cannot read void value")
+end
+fun _read(st: c_stream, arg: bool*): void
+    panic("Cannot read boolean value")
+end
+
+# Convenience macros
+macro read(_arg)
+    _read(stdin, &_arg)
+end
+macro read(_arg, _other)
+    read(_arg)
+    read(_other)
+end
+macro read_from(_stream, _arg)
+    _read(_stream, &_arg)
+end
+macro read_from(_stream2, _arg, _other)
+    read_from(_stream2, _arg)
+    read_from(_stream2, _other)
 end

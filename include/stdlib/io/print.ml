@@ -1,3 +1,6 @@
+# print.ml - io print library for ml.
+# Extendable and safe frontend for `printf`/`fprintf`.
+
 import stdlib.c.cdef
 import stdlib.c.cstdlib
 import stdlib.debug
@@ -53,7 +56,6 @@ macro println(_args)
     print(_args)
     puts ""
 end
-#! BUG: print_to redirects to bool
 macro print_to(_stream, _arg)
     _print(_stream, _arg)
 end

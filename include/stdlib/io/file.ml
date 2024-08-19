@@ -1,5 +1,8 @@
-import stdlib.c.cstdlib
+# file.ml - io file library for ml.
+# Provides a frontend for c file-related functions.
+
 import stdlib.c.cdef
+import stdlib.c.cstdlib
 import stdlib.debug
 import stdlib.string
 import stdlib.string.backend
@@ -14,7 +17,7 @@ macro c_SEEK_SET
     cast("int32", literal("SEEK_SET"))
 end
 
-# Closes the given file stream. Any unwritten buffered data are flushed to the OS. Any unread buffered data are discarded.  
+# Closes the given file stream. Any unwritten buffered data are flushed to the OS. Any unread buffered data are discarded. Can be safely called on closed streams.
 macro close_file(_stream)
     if _stream != null
         fclose(_stream)
@@ -32,15 +35,18 @@ fun open_file(filename: int8*, mode: int8*): c_stream
     ret st
 end
 
+# Overload; Opens a file indicated by filename and returns a file stream associated with that file. mode is automatically set to read.
 fun open_file(filename: int8*): c_stream
     ret open_file(filename, "r")
 end
 
+# Reads a line from the given stream until a newline or end-of-file is encountered. Returns true on success, false on failure. (false end-of-file is reached)
 fun read_line(st: c_stream, s: str, size: int64): bool
     let ln: int8* = fgets(c_str(s), size, st)
     ret ln != null
 end
 
+# Reads 'size' bytes from the file associated with the given stream and returns it in string form.
 fun read_file(st: c_stream, size: int64): str
     let s = empty_str
     let cs: int8* = malloc(size)
@@ -52,6 +58,7 @@ fun read_file(st: c_stream, size: int64): str
     ret s
 end
 
+# Overload; Reads the whole file associated with the given stream and returns it in string form. (size is determined using 'ftell')
 fun read_file(st: c_stream): str
 
     fseek(st, 0, c_SEEK_END)

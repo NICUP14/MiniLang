@@ -1,25 +1,13 @@
-import stdlib.builtin.*
-import stdlib.string
+import stdlib.debug
+import stdlib.io.print
+import stdlib.c.cstdlib
 
-fun maybe(x: int64, y: int64)
-    if x == 5
-        ret 1 + 2
-    else
-        ret "15"
-    end
+macro panic_exit
+    print("Super custom panic message!")
+    exit(1)
 end
 
 fun main
-    for idx in "Hello"
-        printf("%c\n", idx)
-    end
-    # let bos = 0
-    # gc_start(&ml_gc, &bos)
-
-    # let s1 = str("Hello")
-    # let s2 = str("Hawleo")
-    # let a = s1.equals("Hello".str)
-
-    # gc_stop(&ml_gc)
+    panic("Oh no!")
     ret 0
 end

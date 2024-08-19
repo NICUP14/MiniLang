@@ -21,10 +21,10 @@ Module                            | Parent dir.   | Description
 [cstarg](docs/stdlib/cstdarg.md)  | c             | Bindings for the `stdarg.h` c library
 [print](docs/stdlib/print.md)     | io            | Extendable and safe frontend for `printf`/`fprintf`
 [read](docs/stdlib/read.md)       | io            | Extendable and safe frontend for `scanf`/`fscanf`
-fio           | io            | A frontend for c file-related functions
-convert       | -             | Type conversion library
-debug         | -             | Rust-like assertables and panic macros
-misc          | -             | Miscelaneous macros and functions (for macro)
+[file](docs/stdlib/file.md)       | io            | A frontend for c file-related functions
+[convert](docs/stdlib/convert.md) | -             | Type conversion library
+[debug](docs/stdlib/debug.ml)     | -             | Customizable rust-like assertables and panic macros
 [string](docs/stdlib/string.md)   | -             | Functional-like string library
-backend       | string        | Bindings for the `sds.h` library (Simple Dynamic Strings)
-va_utils      | legacy        | Simplistic `stdarg.h`-like implementation for the assembly backend
+backend                           | alloc         | Bindings for the `gc.h` c library (Garbage collector)
+backend                           | string        | Bindings for the `sds.h` c library (Simple Dynamic Strings)
+va_utils                          | legacy        | Simplistic `stdarg.h`-like implementation for the assembly backend (deprecated)

@@ -1,3 +1,6 @@
+# debug.ml - Debug library for ml.
+# Provides customizable rust-like assertables and panic macros.
+
 import stdlib.c.cstdlib
 
 # Debug standard library assertion macros

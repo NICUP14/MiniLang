@@ -1,5 +1,5 @@
 import stdlib.string
-import stdlib.io.fio
+import stdlib.io.file
 import stdlib.io.print
 
 fun score(ch: int8, ch2: int8): int64

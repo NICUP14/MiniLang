@@ -24,6 +24,3 @@ read_from | Reads values from the given stream and updates its arguments
 > To extend `read` or any of the macros, simply declare a new `_read` helper with a `c_stream` argument and a pointer to the custom type to extend.
 
 ## Warnings
-
-> [!WARNING]
-> There is a bug regarding pointers to structure types, they are represented in c as 'long long*' and will cause problems with dereferencing them.

@@ -1,6 +1,6 @@
 # Ideas
 
-Implemented: 16/24
+Implemented: 16/22
 
 - [X] Structs
 - [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
@@ -11,8 +11,6 @@ Implemented: 16/24
 - [X] Access operator (`.`)
 - [X] Function overloading (by args)
 - [ ] Function overloading (by return)
-- [ ] Default arguments for function
-- [ ] Named parameters in function call
 - [ ] Rethink assembly interface (regs as variables, ...)
 - [X] Deprecate `ma_cnt` (`count` builtin)
 - [X] Add `literal` builtin (pass arg directly to backend)

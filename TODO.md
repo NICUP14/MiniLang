@@ -2,6 +2,7 @@
 
 Solved: 20/28
 
+- [ ] Add for-loop documentation to QUICKSTART.
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)
 - [ ] Add block section to README
@@ -16,7 +17,6 @@ Solved: 20/28
 - [X] C generator backend (CWalker.py)
 - [X] ML generator backend (GenStr.py -> MLWalker.py)
 - [ ] ASM generator backend (Gen.py -> GenASM.py)
-- [ ] Differentiate between pointer types (type system).
 - [X] Fix type system.
 - [X] Widen during parsing.
 - [X] Static type analysis.

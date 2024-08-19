@@ -6,15 +6,15 @@
 > The language is still under development.
 Some features are missing.
 
-> [!IMPORTANT]
-> The language documentation is provided at [QuickStart](QUICKSTART.md).
-
-> [!IMPORTANT]
-> The standard library documentation is provided at [STDLIB](STDLIB.md).
-
 A type-safe C successor that compiles directly to various platforms.
 
 **Check out [acwj-git](https://github.com/DoctorWkt/acwj.git)**, DoctorWkt's tutorial is the main (best) source of inspiration of this project's structure.
+
+## QuickStart
+
+* [Language Documentation](QUICKSTART.md).
+* [Standard Library Documentation](STDLIB.md).
+* [Standard Library Usage Examples](docs/stdlib/examples.md).
 
 ## Design choices
 

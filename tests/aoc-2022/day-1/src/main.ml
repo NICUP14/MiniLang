@@ -1,5 +1,5 @@
 import stdlib.string
-import stdlib.io.fio
+import stdlib.io.file
 import stdlib.io.print
 import stdlib.convert
 

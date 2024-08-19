@@ -10,8 +10,8 @@ import stdlib.string.backend
 alias str = sds
 
 # Returns the underlying null terminated C string.
-fun c_str(s: str): int8*
-    ret cast("int8*", s)
+macro c_str(_s)
+    cast("int8*", _s)
 end
 
 # Create a new sds string starting from a null terminated C string.
@@ -37,6 +37,9 @@ fun empty_str: str
     ret sdsempty()
 end
 
+# Grow the sds to have the specified length. Bytes that were not part of the original length of the sds will be set to zero.
+# 
+# If the specified length is smaller than the current length, no operation is performed. 
 fun extend(s: str, size: int64): str
     ret sdsgrowzero(s, size)
 end
