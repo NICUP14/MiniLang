@@ -1246,9 +1246,22 @@ class Parser:
             return Node(NodeKind.RET, void_type, '')
         else:
             node = self.token_list_to_tree()
+
             if not type_compatible(NodeKind.FUN_CALL, node.ntype.ckind, sig.ret_type.ckind):
                 print_error('ret_statement',
                             f'The return type differs from the function\'s ({rev_type_of(node.ntype)} != {rev_type_of(sig.ret_type)})', self)
+
+            if Def.fun_has_ret and not type_compatible(NodeKind.FUN_CALL, node.ntype.ckind, Def.fun_ret_type.ckind):
+                print_error('ret_statement',
+                            f'Cannot deduce implicit return value of {fun_name} ({rev_type_of(Def.fun_ret_type)} != {rev_type_of(node.ntype)})', parser=self)
+
+            # Yanks implicit return type
+            Def.fun_has_ret = True
+            Def.fun_ret_type = node.ntype
+
+            # Widens implicit return type for primitives (int64)
+            if Def.fun_ret_type.meta_kind() == VariableMetaKind.PRIM:
+                Def.fun_ret_type = default_type
 
             node = Node(NodeKind.GLUE, void_type, '', Def.deferred,
                         Node(NodeKind.RET, node.ntype, '', node))
@@ -1318,23 +1331,30 @@ class Parser:
 
             if is_variadic:
                 self.match_token(TokenKind.RPAREN)
-        self.match_token(TokenKind.COLON)
 
         # Needed for extern
-        ret_type = type_of(self.curr_token().value)
-        self.next_token()
+        is_implicit = self.no_more_tokens()
+        ret_type = any_type
 
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+        if is_extern or not is_implicit:
+            self.match_token(TokenKind.COLON)
+
+            ret_type = type_of(self.curr_token().value)
             self.next_token()
-            ret_type = VariableType(ptr_ckind, ret_type.ckind)
 
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
-            self.next_token()
-            ret_type = VariableType(ref_ckind, ret_type.ckind)
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+                self.next_token()
+                ret_type = VariableType(
+                    ptr_ckind, ret_type.ckind, name=ret_type.name)
 
-        if not self.no_more_tokens():
-            print_error('fun_declaration',
-                        'Junk after function declaration', self)
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
+                self.next_token()
+                ret_type = VariableType(
+                    ref_ckind, ret_type.ckind, name=ret_type.name)
+
+            if not self.no_more_tokens():
+                print_error('fun_declaration',
+                            'Junk after function declaration', self)
 
         # Computes the signature name
         if is_extern:
@@ -1377,6 +1397,8 @@ class Parser:
 
         Def.block_cnt = 0
         Def.fun_name = sig_name
+        Def.fun_has_ret = False
+        Def.fun_ret_type = void_type
         Def.fun_name_list.append(sig_name)
         Def.var_off = 8
 
@@ -1417,7 +1439,13 @@ class Parser:
         body = self.compound_statement() if fun.ret_type != void_type else (
             Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
 
+        # Return type correction
+        if is_implicit:
+            signature.ret_type = Def.fun_ret_type
+
         Def.fun_name = ''
+        Def.fun_has_ret = False
+        Def.fun_ret_type = void_type
         Def.fun_name_list.pop()
         Def.deferred = None
 

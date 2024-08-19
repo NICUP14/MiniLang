@@ -21,7 +21,6 @@ def ml_preamble(module: str) -> Node:
     module_source = f'{module}.ml'
     for module_dir in Def.include_list:
         other_source = os.path.join(module_dir, module_source)
-        print('DBG:', other_source, exists(other_source))
         if exists(other_source):
             module_source = other_source
             break

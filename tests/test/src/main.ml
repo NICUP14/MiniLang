@@ -1,6 +1,15 @@
 import stdlib.builtin.*
+import stdlib.string
 
-fun main: int32
+fun maybe(x: int64, y: int64)
+    if x == 5
+        ret 1 + 2
+    else
+        ret "15"
+    end
+end
+
+fun main
     for idx in "Hello"
         printf("%c\n", idx)
     end
