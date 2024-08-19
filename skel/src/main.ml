@@ -1,4 +1,3 @@
-import stdlib.alloc
 import stdlib.io.print
 
 fun main: int32

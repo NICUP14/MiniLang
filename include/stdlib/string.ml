@@ -2,6 +2,8 @@
 # Provides a functional-like ML frontend of the sds c library.
 # WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
+import stdlib.debug
+import stdlib.c.cstdlib
 import stdlib.c.cstdarg
 import stdlib.string.backend
 
@@ -35,7 +37,7 @@ fun empty_str: str
     ret sdsempty()
 end
 
-fun grow(s: str, size: int64): str
+fun extend(s: str, size: int64): str
     ret sdsgrowzero(s, size)
 end
 

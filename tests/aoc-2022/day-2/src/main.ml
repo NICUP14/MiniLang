@@ -1,5 +1,3 @@
-import stdlib.for
-import stdlib.alloc
 import stdlib.string
 import stdlib.io.fio
 import stdlib.io.print

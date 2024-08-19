@@ -1,4 +1,3 @@
-import stdlib.alloc
 import stdlib.string
 import stdlib.io.fio
 import stdlib.io.print
@@ -9,7 +8,7 @@ import src.for
 fun part_one(st: c_stream): void
     let sum = 0
     let max_sum = 0
-    let s: str = grow(empty_str, 256)
+    let s: str = extend(empty_str, 256)
 
     while read_line(st, s, 256)
         s = s.trim("\n")
@@ -31,7 +30,7 @@ fun part_two(st: c_stream): void
     let max_sum = 0
     let max_sum2 = 0
     let max_sum3 = 0
-    let s: str = grow(empty_str, 256)
+    let s: str = extend(empty_str, 256)
 
     while read_line(st, s, 256)
         s = s.trim("\n")

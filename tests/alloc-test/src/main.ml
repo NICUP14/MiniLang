@@ -1,7 +1,6 @@
 import stdlib.c.cstdlib
 import stdlib.io.print
 import stdlib.c.cdef
-import stdlib.alloc
 
 fun test: void
     let arr: int64[3]* = null

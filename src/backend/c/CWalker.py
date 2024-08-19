@@ -213,4 +213,5 @@ def _c_walk(node):
 
 
 def c_walk(node):
+    node = Def.glue_statements([node])
     return f'{_c_preamble()}\n\n{_c_walk(node)}'

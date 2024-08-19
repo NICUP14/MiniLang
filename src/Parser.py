@@ -5,6 +5,8 @@ from typing import Optional
 from typing import List
 from typing import Tuple
 from os.path import exists
+from os.path import isfile
+from os import listdir
 from Lexer import Token
 from Lexer import TokenKind
 from Lexer import tokenize
@@ -850,6 +852,7 @@ class Parser:
 
     def statement(self) -> Optional[Node]:
         token = self.curr_token()
+
         if token.kind == TokenKind.KW_LET:
             self.next_token()
             return self.declaration()
@@ -949,6 +952,44 @@ class Parser:
                     print_error('import_statement',
                                 'Invalid trailing period in import', parser=self)
 
+        # Multi-file import
+        if module.endswith('*'):
+            module_roots = []
+            module = module[:-1]
+
+            module_source = module
+            if not exists(module_source):
+                for module_dir in Def.include_list:
+                    other_source = os.path.join(module_dir, module_source)
+                    if exists(other_source):
+                        module_source = other_source
+
+            def is_ml_source(f): return f.lower().endswith('.ml')
+            modules = list(filter(is_ml_source, [f for f in listdir(
+                module_source) if isfile(os.path.join(module_source, f))]))
+
+            for module in modules:
+                module = os.path.join(module_source, module)
+
+                if not exists(module):
+                    print_error('import_statement',
+                                f'Module \'{module}\' does not exist.', self)
+
+                if module in Def.included:
+                    continue
+                else:
+                    Def.included.add(module)
+
+                try:
+                    module_root = Parser().parse(module)
+                    module_roots.append(module_root)
+                except RecursionError:
+                    print_error('import_statement',
+                                f'Cannot import module "{module}" (circular import)', self)
+
+            return glue_statements(module_roots)
+
+        # Single-file import
         module_source = f'{module}.ml'
         if not exists(module_source):
             for module_dir in Def.include_list:

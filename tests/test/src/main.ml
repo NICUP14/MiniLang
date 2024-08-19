@@ -1,7 +1,4 @@
-import stdlib.io.print
-import src.for
-import stdlib.alloc
-import stdlib.string
+import stdlib.builtin.*
 
 fun main: int32
     for idx in "Hello"

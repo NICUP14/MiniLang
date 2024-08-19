@@ -1,18 +1,38 @@
 import Def
 import Gen
-import GenStr
 import Parser
-import optparse
+import os
 import sys
+import optparse
+from os.path import exists
+from Def import Node
 from Def import Color
 from Def import color_str
 from Def import print_error
-from os.path import exists
+from Def import glue_statements
 from backend.c.CWalker import c_walk
 from backend.ml.MLWalker import ml_walk
 
 ml_file_type = 'ml'
 default_in_file = f'main.{ml_file_type}'
+
+
+def ml_preamble(module: str) -> Node:
+    module_source = f'{module}.ml'
+    for module_dir in Def.include_list:
+        other_source = os.path.join(module_dir, module_source)
+        print('DBG:', other_source, exists(other_source))
+        if exists(other_source):
+            module_source = other_source
+            break
+
+    if not exists(module_source):
+        print_error('ml_preamble',
+                    f'Module \'{module_source}\' does not exist.')
+
+    Def.included.add(module_source)
+    return Parser.Parser().parse(module_source)
+
 
 if __name__ == '__main__':
     desc = ', '.join(['The mini language compiler',
@@ -59,7 +79,8 @@ if __name__ == '__main__':
 
     for in_file in in_files:
         parser = Parser.Parser()
-        root = parser.parse(in_file)
+        preamble = ml_preamble(os.path.join('stdlib', 'builtin'))
+        root = glue_statements([preamble, parser.parse(in_file)])
 
         if values_dict.get('debug'):
             Def.print_stdout(ml_walk(root))

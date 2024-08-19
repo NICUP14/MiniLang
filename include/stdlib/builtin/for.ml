@@ -3,8 +3,6 @@ import stdlib.string
 import stdlib.c.cdef
 import stdlib.c.cstdlib
 
-import stdlib.io.print
-
 # Integer range
 struct range
     range_idx: int64
@@ -46,7 +44,7 @@ end
 
 fun lines(arg: c_stream): file_range
     let s = empty_str
-    s = grow(s, 256)
+    s = extend(s, 256)
 
     let succ = read_line(arg, s, 256)
     ret file_range(arg, c_str(s), succ)
@@ -58,7 +56,7 @@ end
 
 fun next(arg: file_range&): str
     let s = empty_str
-    s = grow(s, 256)
+    s = extend(s, 256)
 
     let succ = read_line(arg.file_range_st, s, 256)
     arg.file_range_str = c_str(s)
