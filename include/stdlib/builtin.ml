@@ -3,3 +3,7 @@
 
 import stdlib.builtin.*
 import stdlib.alloc.backend
+
+macro default(_ident)
+    cast(type_of(_ident), 0)
+end

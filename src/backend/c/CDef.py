@@ -50,7 +50,6 @@ def c_rev_type_of(vtype: VariableType):
         if vtype.elem_ckind == struct_ckind:
             return f'{vtype.name}*'
         else:
-            #! BUG: Pointer to struct displayed as "long long*"
             return f'{rev_of(vtype.elem_ckind)}*'
 
     if vtype.ckind == arr_ckind:

@@ -749,9 +749,26 @@ class Parser:
                                 Node(NodeKind.TERN, right.ntype, '', left.left, right, left.right))
                             continue
 
+                        if kind == NodeKind.ELEM_ACC and Def.ident_map.get(right.value) == VariableMetaKind.NAMESPACE:
+                            print_error(
+                                'to_tree', f'Cannot use a qualified namespace function as a UFCS expression. TIP: Consider using an alias. (namespace={right.value})', parser=self)
+
                         if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.FUN_CALL:
-                            args = Node(NodeKind.GLUE, void_type, '', Node(
-                                NodeKind.GLUE, void_type, '', None, left), right.left)
+                            # Fix for single-arg UFCS expressions
+                            fun = Def.fun_map.get(right.value)
+                            sig = Def._find_signature(fun, [right.left.ntype])
+
+                            args = None
+                            if sig:
+                                args = right.left
+
+                                # sig is not None => fun is single arg => left is unneeded
+                                # The left node is pushed back onto the stack
+                                node_stack.append(left)
+                            else:
+                                args = Node(NodeKind.GLUE, void_type, '', Node(
+                                    NodeKind.GLUE, void_type, '', None, left), right.left)
+
                             new_args = self.merge_fun_call(args)
                             node_stack.append(
                                 Node(right.kind, right.ntype, right.value, new_args))

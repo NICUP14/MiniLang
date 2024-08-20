@@ -467,9 +467,6 @@ end
 
 ### Uniform function call syntax (UFCS)
 
-> [!WARNING]
-> There is a bug regarding nested UFCS expressions in the same statement. (`str("Hello").concat("X".str)`)
-
 Uniform Function Call Syntax (UFCS) enables calling standalone functions using method call syntax on the objects they operate on. It behaves similar to the pipe operator found in other languages, enabling a more fluid and expressive way to chain function calls.
 
 ```txt
