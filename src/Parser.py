@@ -46,6 +46,7 @@ from Def import bool_type
 from Def import default_type
 from Def import str_type
 from Def import print_error
+from Def import print_warning
 from Def import check_ident
 from Def import type_of
 from Def import type_of_op
@@ -70,6 +71,7 @@ from Def import args_to_list
 from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
+    TokenKind.KW_WARN: 26,
     TokenKind.KW_CAST: 26,
     TokenKind.KW_TYPE: 26,
     TokenKind.KW_LEN: 26,
@@ -137,6 +139,7 @@ NODE_KIND_MAP = {
     TokenKind.KW_LEN: NodeKind.LEN,
     TokenKind.KW_SIZE: NodeKind.SIZE,
     TokenKind.KW_COUNT: NodeKind.COUNT,
+    TokenKind.KW_WARN: NodeKind.WARN,
     TokenKind.KW_LIT: NodeKind.LIT,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
     TokenKind.FALSE_LIT: NodeKind.FALSE_LIT,
@@ -312,8 +315,8 @@ class Parser:
                     op_stack.pop()
 
             elif token_is_op(token.kind):
-                # Assembly, type, offset, size, len, cast builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST):
+                # Assembly, type, offset, size, len, cast, warn builtin pass-trough
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST, TokenKind.KW_WARN):
                     op_stack.append(token)
                     continue
 
@@ -444,8 +447,6 @@ class Parser:
         if Def.macro_name != '':
             return Node(NodeKind.IDENT, any_type, Def.macro_name)
 
-        #! BUG: Macro definitions with same name must have ascending argument counts
-        #! BUG: Due to assigning `signature = macro.signatures[0]`
         arg_cnt = self.fun_arg_cnt(node)
         signature = min(macro.signatures, key=lambda s: s.arg_cnt)
         for sig in macro.signatures:
@@ -469,6 +470,7 @@ class Parser:
         for name, node in zip(arg_names, arg_list):
             Def.macro_arg_map[name] = node
 
+        # ? Unused
         def expand_helper(node: Node) -> Optional[Node]:
             if node is None:
                 return None
@@ -603,24 +605,6 @@ class Parser:
                     if token.kind == TokenKind.FUN_CALL:
                         self._fun_call(token.value, node_stack,
                                        check_len=False)
-                        # fun_name = token.value
-                        # if fun_name in Def.fun_sig_map:
-                        #     fun_name = Def.fun_sig_map.get(fun_name)
-
-                        # fun = Def.fun_map.get(fun_name)
-                        # kind = self.node_kind_of(token.kind)
-
-                        # if fun.arg_cnt == 0 and not fun.is_variadic:
-                        #     node_stack.append(
-                        #         Node(kind, fun.ret_type, token.value))
-                        # else:
-                        #     if len(node_stack) == 0:
-                        #         print_error('to_tree',
-                        #                     f'Missing function operand of {token.value}', self)
-                        #     node = self.merge_fun_call(node_stack.pop()) if len(
-                        #         node_stack) > 0 else None
-                        #     node_stack.append(
-                        #         Node(kind, fun.ret_type, token.value, node))
                         continue
 
                     if token.kind == TokenKind.MACRO_CALL:
@@ -644,6 +628,22 @@ class Parser:
                     if len(node_stack) == 0:
                         print_error('to_tree', 'Missing operand', self)
                     node = node_stack.pop()
+
+                    if token.kind == TokenKind.KW_WARN:
+                        # ? Duplicated from c_expand_builtin
+                        def expand_lit(node: Node):
+                            if node.kind == NodeKind.STR_LIT:
+                                return node.value.lstrip('"').rstrip('"')
+
+                            return node.value
+
+                        nodes = args_to_list(node)
+                        lit = ' '.join(map(expand_lit, nodes))
+
+                        print_warning('to_tree', lit, parser=self)
+                        node_stack.append(Node(self.node_kind_of(
+                            token.kind), void_type, token.value, node))
+                        continue
 
                     if token.kind == TokenKind.KW_LIT:
                         node_stack.append(Node(self.node_kind_of(
@@ -1072,6 +1072,7 @@ class Parser:
             self.match_token(TokenKind.IDENT).value, force_local=True)
         self.match_token(TokenKind.KW_IN)
 
+        iter_exists = iter_name in Def.ident_map
         iter_ident = Node(NodeKind.IDENT, default_type, iter_name)
         target_node = self.token_list_to_tree()
 
@@ -1118,12 +1119,26 @@ class Parser:
         stop_ret = stop_sig.ret_type
         next_ret = next_sig.ret_type
 
+        if iter_exists and not type_compatible(NodeKind.FUN_CALL, type_of_ident(iter_name), start_ret):
+            print_error('for_statement',
+                        f'Previously-declared iterator {iter_name} has an incompatible type ({rev_type_of(type_of_ident(iter_name))} != {rev_type_of(start_ret)})', parser=self)
+
+        # Issues a warning if the iterator has been previously-defined
+        if iter_exists:
+            print_warning('for_statement',
+                          f'Previously-defined iterator {iter_name}is reused here.', parser=self)
+
         if stop_ret != bool_type:
             print_error('for_statement',
                         f'Stop function should return bool, got {rev_type_of(stop_ret)}', parser=self)
 
+        name_list = (
+            [target_name] if iter_exists else [iter_name, target_name])
+        type_list = (
+            [iter_ret] if iter_exists else [start_ret, iter_ret])
+
         # ? Needs refactoring, duplicated from struct_elem_declaration
-        for name, vtype in zip([iter_name, target_name], [start_ret, iter_ret]):
+        for name, vtype in zip(name_list, type_list):
             check_ident(name, use_mkind=True)
 
             meta_kind = vtype.meta_kind()
@@ -1170,13 +1185,15 @@ class Parser:
             ) == VariableMetaKind.STRUCT else NodeKind.DECLARATION
             decl = Node(decl_kind, vtype, '=', node, init)
 
+            # Falls back to assign if iterator already exists
+            if iter_exists and node.value == iter_name:
+                decl = Node(NodeKind.OP_ASSIGN, vtype, '=', node, init)
+
             if pre_cond is None:
                 pre_cond = decl
             else:
                 pre_cond = glue_statements([pre_cond, decl])
 
-        # pre_cond = glue_statements([Node(NodeKind.DECLARATION, target_node.ntype, '=', target_ident, target_node), Node(
-        #    NodeKind.DECLARATION, start_ret, '=', iter_ident, start_stmt)])
         post_cond = Node(NodeKind.OP_ASSIGN, next_ret,
                          '=', iter_ident, next_stmt)
         cond = Node(NodeKind.OP_NEQ, bool_type, '!=', Node(
@@ -1396,10 +1413,11 @@ class Parser:
         if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
             fun = Def.fun_map.get(full_name)
 
-            # Checks for conflicting signatures
-            if check_signature(fun, signature):
-                print_error('fun_declaration',
-                            f'New signature of {full_name} ({signature}) conflicts with {_find_signature(fun, signature.arg_types)}', parser=self)
+            if Def.macro_name != '':
+                # Checks for conflicting signatures
+                if check_signature(fun, signature):
+                    print_error('fun_declaration',
+                                f'New signature of {full_name} ({signature}) conflicts with {_find_signature(fun, signature.arg_types)}', parser=self)
 
             fun.signatures.append(signature)
         else:
@@ -1453,6 +1471,7 @@ class Parser:
                             f'Invalid argument meta kind {meta_kind}', parser=self)
 
         self.next_line()
+        #! BUG: Defer statement doesn't work for void functions
         body = self.compound_statement() if fun.ret_type != void_type else (
             Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
 
@@ -1464,15 +1483,19 @@ class Parser:
         Def.fun_has_ret = False
         Def.fun_ret_type = void_type
         Def.fun_name_list.pop()
-        Def.deferred = None
 
         # Patch the stack offset
         off = Def.var_off
         align_off = 0 if off % 16 == 0 else 16 - (off % 16)
         fun.off = off + align_off
 
+        fun_node = Node(NodeKind.FUN, default_ckind, sig_name, body)
+        if signature.ret_type == void_type:
+            fun_node = glue_statements([fun_node, Def.deferred])
+        Def.deferred = None
+
         node = Node(NodeKind.GLUE, void_type, '',
-                    Node(NodeKind.FUN, default_ckind, sig_name, body), Node(NodeKind.END, void_type, 'end'))
+                    fun_node, Node(NodeKind.END, void_type, 'end'))
         return node
 
     def struct_declaration(self, is_extern: bool = False) -> Optional[Node]:
@@ -1883,8 +1906,8 @@ class Parser:
             return Node(NodeKind.STRUCT_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
-            value = 0 if is_local or is_struct else self.match_token(
-                TokenKind.INT_LIT).value
+            value = 0
+            # value = 0 if is_local or is_struct else self.match_token(TokenKind.INT_LIT).value
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
@@ -1896,8 +1919,8 @@ class Parser:
 
                 return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
 
-            if not is_local:
-                return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
+            # if not is_local:
+            #     return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
 
             node = self.token_list_to_tree()
             if not type_compatible(decl_kind, var_type.ckind, node.ntype.ckind):

@@ -9,6 +9,7 @@ extern fun scanf(format: int8*, ...): int32
 extern fun fscanf(st: c_stream, format: int8*, ...): int32
 extern fun puts(str: int8*): int32
 extern fun malloc(size: int64): void*
+extern fun calloc(num: int64, size: int64): void*
 extern fun realloc(ptr: void*, size: int64): void*
 extern fun free(ptr: void*): void
 extern fun memset(ptr: void*, value: int32, num: int64): void*

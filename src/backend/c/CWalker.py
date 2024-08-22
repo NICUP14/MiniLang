@@ -153,14 +153,21 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             if signature.name == sig_name:
                 sig = signature
 
-        args_zip = zip(sig.arg_names, sig.arg_types)
-        args_map = map(
-            lambda t: f'{color_str(Color.BLUE, c_rev_type_of(t[1]))} {t[0]}', args_zip)
-        args_str = ", ".join(
-            list(args_map) + (['...'] if fun.is_variadic else []))
+        args_str = 'void'
+        if sig.arg_cnt > 0:
+            args_zip = zip(sig.arg_names, sig.arg_types)
+            args_map = map(
+                lambda t: f'{color_str(Color.BLUE, c_rev_type_of(t[1]))} {t[0]}', args_zip)
+            args_str = ", ".join(
+                list(args_map) + (['...'] if fun.is_variadic else []))
+
         return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} {node.value}({args_str}) {"{"} \n{left}{";" if add_left_semi else ""}'
+
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
+    # Prints the warning when parsing, node is unused
+    if node.kind == NodeKind.WARN:
+        return ''
     if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.LIT, NodeKind.SIZE, NodeKind.COUNT):
         return _c_walk(c_expand_builtin(node))
     if node.kind == NodeKind.RET:

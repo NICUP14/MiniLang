@@ -40,6 +40,9 @@
 // Added by NICUP
 #include <mlalloc.h>
 
-#define s_malloc ml_malloc
-#define s_realloc ml_realloc
-#define s_free ml_free
+// #define s_malloc ml_malloc
+// #define s_realloc ml_realloc
+// #define s_free ml_free
+#define s_malloc malloc
+#define s_realloc realloc
+#define s_free free

@@ -18,6 +18,7 @@ print      | Prints arguments to `stdout`
 println    | Prints arguments to `stdout`, followed by newline
 print_to   | Prints arguments to the specified stream
 println_to | Prints arguments to the specified stream, followed by newline
+delimit    | Splices a list of arguments using the given delimiter
 
 ## Extensibility
 

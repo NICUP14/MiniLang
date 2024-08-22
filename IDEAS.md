@@ -1,7 +1,8 @@
 # Ideas
 
-Implemented: 16/22
+Implemented: 16/23
 
+- [ ] RAII
 - [X] Structs
 - [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
 - [ ] stdlib.slice: [slice99](https://github.com/Hirrolot/slice99)

@@ -1,7 +1,8 @@
 # Bugs
 
-Solved: 17/22
+Solved: 17/23
 
+- [ ] Using an iterator `i` in a for loop does not compile correctly.
 - [X] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function
 - [X] Pointer to struct displayed as "long long*". (no name field in elem_ckind)

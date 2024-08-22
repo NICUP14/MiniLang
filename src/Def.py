@@ -14,7 +14,7 @@ class Color:
     BLUE = '\033[94m'
     CYAN = '\033[96m'
     GREEN = '\033[92m'
-    WARNING = '\033[93m'
+    WARNING = '\033[35m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
@@ -271,6 +271,7 @@ class NodeKind(enum.Enum):
     OFF = enum.auto()
     LEN = enum.auto()
     LIT = enum.auto()
+    WARN = enum.auto()
     SIZE = enum.auto()
     COUNT = enum.auto()
     BLOCK = enum.auto()
@@ -370,6 +371,22 @@ def print_error(loc: str, msg: str, parser=None, node=None):
               file=sys.stderr)
         print(f'ERROR: {desc}', file=sys.stderr)
     exit(1)
+
+
+def print_warning(loc: str, msg: str, parser=None, node=None):
+    line = ('' if parser is None or parser.no_more_lines() else '\"' +
+            parser.curr_line().lstrip('\t ').rstrip('\n') + '\"')
+    desc = color_str(Color.WARNING, f'WARNING: {loc}: {msg}')
+    if parser is not None:
+        print(f'location: {color_str(Color.WARNING, line)}', file=sys.stderr)
+        print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}',
+              file=sys.stderr)
+    else:
+        from GenStr import tree_str
+        print(f'location: {color_str(Color.FAIL, tree_str(node))}',
+              file=sys.stderr)
+        print(desc, file=sys.stderr)
+    print(file=sys.stderr)
 
 
 def print_stdout(msg: str = ''):
@@ -721,6 +738,9 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
     if kind in (NodeKind.ELEM_ACC, NodeKind.TERN_COND, NodeKind.TERN_BODY):
         return prev_type
 
+    if kind == NodeKind.ARR_ACC:
+        return VariableType(prev_type.elem_ckind, name=prev_type.name)
+
     if kind == NodeKind.REF:
         if prev_type.ckind == ref_ckind:
             return VariableType(ptr_ckind, prev_type.elem_ckind, name=prev_type.name)
@@ -732,7 +752,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         if prev_type.elem_ckind == bool_ckind:
             return bool_type
 
-        return VariableType(prev_type.elem_ckind)
+        return VariableType(prev_type.elem_ckind, name=prev_type.name)
 
     ckind_map = {
         NodeKind.CAST: default_ckind,
@@ -758,7 +778,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         NodeKind.ASM: void_ckind,
         # NodeKind.FUN_CALL: default_ckind,
         NodeKind.OP_ASSIGN: default_ckind,
-        NodeKind.ARR_ACC: default_ckind
+        # NodeKind.ARR_ACC: default_ckind
     }
 
     if kind not in ckind_map:

@@ -2,6 +2,7 @@
 
 Solved: 20/28
 
+- [ ] Separate macro (`add_sep(args, " ")`)
 - [ ] Add for-loop documentation to QUICKSTART.
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)
