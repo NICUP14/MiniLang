@@ -241,6 +241,16 @@ fun to_str(value: int64): str
     ret sdsfromlonglong(value)
 end
 
+# Create an sds string from a string using clone. 
+fun to_str(value: str): str
+    ret value.clone
+end
+
+# Create an sds string from a C string literal. 
+fun to_str(value: int8*): str
+    ret str(value)
+end
+
 # Create an sds string from a pointer value. 
 fun to_str(value: void*): str
     ret str_from("%p", value)

@@ -60,13 +60,12 @@ end
 
 fun main: int32
     let bos = 0
-    gc_start(&ml_gc, &bos)
+    alloc_start(bos)
 
     let in_file = open_file("input.txt")
     part_one(in_file)
     rewind(in_file)
     part_two(in_file)
 
-    gc_stop(&ml_gc)
     ret 0
 end

@@ -4,6 +4,7 @@
 literal("#include <errno.h>")
 
 import stdlib.debug
+import stdlib.string
 import stdlib.c.cdef
 import stdlib.c.cstdlib
 
@@ -140,4 +141,15 @@ end
 # Converts a string to an int32.
 fun to_int32(s: str): int32
     ret to_int32(c_str(s))
+end
+
+# "I don't care about types!" conversions
+macro boolean(_expr)
+    to_bool(_expr)
+end
+macro number(_expr)
+    to_int64(_expr)
+end
+macro string(_expr)
+    to_str(_expr)
 end

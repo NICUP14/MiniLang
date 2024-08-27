@@ -14,12 +14,9 @@ struct str_list
     str_list_arr: str*
 end
 
-fun _str_list(cnt: int64, ...)
+fun _str_listv(cnt: int64, listx: va_list)
     let arr: str* = null
     alloc(arr, cnt * 8)
-
-    let listx: va_list
-    va_start(listx, cnt)
 
     for it in range(cnt)
         let arg: int8* = va_arg_voidptr(listx)
@@ -27,6 +24,17 @@ fun _str_list(cnt: int64, ...)
     end
 
     ret str_list(cnt, arr)
+end
+
+fun _str_list(cnt: int64, ...)
+    let listx: va_list
+    va_start(listx, cnt)
+
+    ret _str_listv(cnt, listx)
+end
+
+fun str_list(cnt: int64, listx: va_list)
+    ret _str_listv(cnt, listx)
 end
 
 macro str_list_from(args)

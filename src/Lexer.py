@@ -128,7 +128,6 @@ class TokenKind(enum.Enum):
     FALSE_LIT = enum.auto()
     KW_BLOCK = enum.auto()
     KW_MACRO = enum.auto()
-    KW_WARN = enum.auto()
     MACRO_CALL = enum.auto()
 
 
@@ -202,7 +201,6 @@ TOKEN_KIND_MAP = {
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
-    'warn': TokenKind.KW_WARN,
 }
 
 
@@ -267,7 +265,6 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
         TokenKind.KW_CAST,
-        TokenKind.KW_WARN,
         TokenKind.KW_IF,
         TokenKind.KW_ELSE,
     )
@@ -346,7 +343,6 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
         TokenKind.KW_CAST,
-        TokenKind.KW_WARN,
         TokenKind.FUN_CALL,
         TokenKind.MACRO_CALL,
     ]

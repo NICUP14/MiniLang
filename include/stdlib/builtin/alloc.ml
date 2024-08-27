@@ -5,10 +5,18 @@ import stdlib.alloc.backend
 
 literal("#define ML_ALLOC_GC")
 
-# GC flags
+# Indicates whether the gc is active
 let _gc_running = false
 
+macro alloc_warn
+    printf("Allocation defaults to malloc in %s:%s. Consider starting the gc by using alloc_start.\n", fun, file)
+end
+
 macro alloc_stop
+    if _gc_running == false
+        panic("Cannot stop an already stopped gc.")
+    end
+
     literal("#undef s_malloc")
     literal("#undef s_realloc")
     literal("#undef s_free")
@@ -21,6 +29,10 @@ macro alloc_stop
 end
 
 macro alloc_start(_lit)
+    if _gc_running
+        panic("Cannot start an already running gc.")
+    end
+
     literal("#undef s_malloc")
     literal("#undef s_realloc")
     literal("#undef s_free")
@@ -34,21 +46,36 @@ macro alloc_start(_lit)
 end
 
 macro alloc(_lit)
-    _lit = _malloc(size_of(_lit)) if _gc_running else malloc(size_of(_lit))
+    if _gc_running
+        _lit = _malloc(size_of(_lit))
+    else
+        _lit = malloc(size_of(_lit))
+        alloc_warn
+    end
     if _lit == null
         panic("Allocation failed.")
     end
 end
 
 macro alloc(_lit, _size)
-    _lit = _malloc(_size) if _gc_running else malloc(_size)
+    if _gc_running
+        _lit = _malloc(_size)
+    else
+        _lit = malloc(_size)
+        alloc_warn
+    end
     if _lit == null
         panic("Allocation failed.")
     end
 end
 
 macro alloc_zeroed(_lit)
-    _lit = _calloc(size_of(_lit)) if _gc_running else calloc(size_of(_lit))
+    if _gc_running
+        _lit = _calloc(1, size_of(_lit))
+    else
+        _lit = calloc(1, size_of(_lit))
+        alloc_warn
+    end
     if _lit == null
         panic("Allocation failed.")
     end

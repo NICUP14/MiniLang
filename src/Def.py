@@ -271,7 +271,6 @@ class NodeKind(enum.Enum):
     OFF = enum.auto()
     LEN = enum.auto()
     LIT = enum.auto()
-    WARN = enum.auto()
     SIZE = enum.auto()
     COUNT = enum.auto()
     BLOCK = enum.auto()

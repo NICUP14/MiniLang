@@ -199,6 +199,7 @@ Options:
 * [Fib](https://github.com/NICUP14/MiniLang/tree/main/samples/fib)
 * [FizzBuzz](https://github.com/NICUP14/MiniLang/tree/main/samples/fizzbuzz)
 * [Str-ufcs](https://github.com/NICUP14/MiniLang/tree/main/samples/str-ufcs)
+* [Task-mgr](https://github.com/NICUP14/MiniLang/tree/main/samples/task-mgr)
 * [Printf](https://github.com/NICUP14/MiniLang/tree/main/samples/printf)
 
 > [!NOTE]

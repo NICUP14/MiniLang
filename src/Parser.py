@@ -71,7 +71,6 @@ from Def import args_to_list
 from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
-    TokenKind.KW_WARN: 26,
     TokenKind.KW_CAST: 26,
     TokenKind.KW_TYPE: 26,
     TokenKind.KW_LEN: 26,
@@ -139,7 +138,6 @@ NODE_KIND_MAP = {
     TokenKind.KW_LEN: NodeKind.LEN,
     TokenKind.KW_SIZE: NodeKind.SIZE,
     TokenKind.KW_COUNT: NodeKind.COUNT,
-    TokenKind.KW_WARN: NodeKind.WARN,
     TokenKind.KW_LIT: NodeKind.LIT,
     TokenKind.TRUE_LIT: NodeKind.TRUE_LIT,
     TokenKind.FALSE_LIT: NodeKind.FALSE_LIT,
@@ -316,7 +314,7 @@ class Parser:
 
             elif token_is_op(token.kind):
                 # Assembly, type, offset, size, len, cast, warn builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST, TokenKind.KW_WARN):
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST):
                     op_stack.append(token)
                     continue
 
@@ -629,22 +627,6 @@ class Parser:
                         print_error('to_tree', 'Missing operand', self)
                     node = node_stack.pop()
 
-                    if token.kind == TokenKind.KW_WARN:
-                        # ? Duplicated from c_expand_builtin
-                        def expand_lit(node: Node):
-                            if node.kind == NodeKind.STR_LIT:
-                                return node.value.lstrip('"').rstrip('"')
-
-                            return node.value
-
-                        nodes = args_to_list(node)
-                        lit = ' '.join(map(expand_lit, nodes))
-
-                        print_warning('to_tree', lit, parser=self)
-                        node_stack.append(Node(self.node_kind_of(
-                            token.kind), void_type, token.value, node))
-                        continue
-
                     if token.kind == TokenKind.KW_LIT:
                         node_stack.append(Node(self.node_kind_of(
                             token.kind), void_type, token.value, node))
@@ -759,8 +741,10 @@ class Parser:
                             sig = Def._find_signature(fun, [right.left.ntype])
 
                             args = None
+                            ret_type = fun.ret_type
                             if sig:
                                 args = right.left
+                                ret_type = sig.ret_type
 
                                 # sig is not None => fun is single arg => left is unneeded
                                 # The left node is pushed back onto the stack
@@ -771,7 +755,7 @@ class Parser:
 
                             new_args = self.merge_fun_call(args)
                             node_stack.append(
-                                Node(right.kind, right.ntype, right.value, new_args))
+                                Node(right.kind, ret_type, right.value, new_args))
                             continue
 
                         if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type or not type_compatible(kind, left.ntype.ckind, right.ntype.ckind)):
@@ -1151,7 +1135,7 @@ class Parser:
                 elem_names = struct.elem_names
                 elem_types = struct.elem_types
                 full_elem_names = list(map(add_prefix, elem_names))
-                self.struct_elem_declaration(name, struct)
+                self.struct_elem_declaration(full_elem_names, struct)
 
                 Def.struct_map[name] = Structure(
                     name, vtype, full_elem_names, elem_types)
@@ -1405,8 +1389,8 @@ class Parser:
                 arg_name, exhaustive_match=False))
         Def.fun_name_list.pop()
 
-        signature = FunctionSignature(sig_name, len(arg_types), full_arg_names,
-                                      arg_types, ret_type, is_extern)
+        signature = FunctionSignature(sig_name, len(
+            arg_types), full_arg_names, arg_types, ret_type, is_extern)
         Def.fun_sig_map[sig_name] = full_name
 
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
@@ -1785,14 +1769,20 @@ class Parser:
             self.next_line()
 
         value = ''.join(parts).rstrip('\n')
-        return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), value)
+        return Node(NodeKind.STR_LIT, type_of_lit(NodeKind.STR_LIT), f'"{value}"')
 
     def struct_elem_declaration(self, names: List[str], og_struct: Structure) -> Optional[Node]:
         for new_name, og_name, var_type in zip(names, og_struct.elem_names, og_struct.elem_types):
             meta_kind = var_type.meta_kind()
             Def.ident_map[new_name] = meta_kind
 
-            if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
+            if meta_kind == VariableMetaKind.STRUCT:
+                Def.var_off += size_of(var_type.ckind)
+
+                struct = Def.struct_map.get(var_type.name)
+                self.struct_elem_declaration(struct.elem_names, struct)
+
+            elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
                 Def.var_off += size_of(var_type.ckind)
                 Def.var_map[new_name] = Def.var_map[og_name]
                 Def.var_map[new_name].off = Def.var_off
@@ -1811,7 +1801,7 @@ class Parser:
 
             else:
                 print_error('struct_elem_declaration',
-                            f'Unknown meta kind {new_name} ({og_name}) {meta_kind}', self)
+                            f'Unknown meta kind {meta_kind} (type="{rev_type_of(var_type)}", new_name="{new_name}", og_name="{og_name}")', self)
 
     def declaration(self, is_struct: bool = False) -> Optional[Node]:
         if Def.macro_name != '':
@@ -1876,24 +1866,24 @@ class Parser:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
         if is_struct:
-            Def.struct_map[Def.struct_name].elem_names.append(full_name)
+            Def.struct_map[Def.struct_name].elem_names.append(name)
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
         check_ident(full_name)
         Def.ident_map[full_name] = meta_kind
 
         if meta_kind == VariableMetaKind.STRUCT:
-            def add_prefix(name: str) -> str:
-                return f'{full_name}_{name}'
+            # def add_prefix(name: str) -> str:
+            #     return f'{full_name}_{name}'
 
             struct = Def.struct_map.get(var_type.name)
             elem_names = struct.elem_names
             elem_types = struct.elem_types
-            full_elem_names = list(map(add_prefix, elem_names))
-            self.struct_elem_declaration(full_name, struct)
+            # full_elem_names = list(map(add_prefix, elem_names))
+            self.struct_elem_declaration(elem_names, struct)
 
             Def.struct_map[full_name] = Structure(
-                full_name, var_type, full_elem_names, elem_types)
+                full_name, var_type, elem_names, elem_types)
 
             if self.no_more_tokens():
                 return Node(NodeKind.STRUCT_DECL, var_type, full_name)

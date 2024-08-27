@@ -22,3 +22,17 @@ end
 macro reverse(_arg1, _arg2, _arg3)
     reverse(_arg2, _arg3), _arg1
 end
+
+# Miscellaneous
+macro not(_arg)
+    false if _arg else true
+end
+macro neg(_arg)
+    _arg = not(_arg)
+end
+macro incr(_arg)
+    _arg = _arg + 1
+end
+macro decr(_arg)
+    _arg = _arg - 1
+end                                                  

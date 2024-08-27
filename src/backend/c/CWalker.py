@@ -165,9 +165,6 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
-    # Prints the warning when parsing, node is unused
-    if node.kind == NodeKind.WARN:
-        return ''
     if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.LIT, NodeKind.SIZE, NodeKind.COUNT):
         return _c_walk(c_expand_builtin(node))
     if node.kind == NodeKind.RET:
