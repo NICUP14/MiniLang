@@ -62,6 +62,7 @@ class VariableMetaKind(enum.Enum):
     MACRO = enum.auto()
     ALIAS = enum.auto()
     NAMESPACE = enum.auto()
+    GENERIC = enum.auto()
 
 
 class VariableKind(enum.Enum):
@@ -177,6 +178,8 @@ class FunctionSignature:
     arg_types: List[VariableType]
     ret_type: VariableType
     is_extern: bool
+    is_generic: bool
+    parser: Any
 
 
 @dataclass
@@ -583,6 +586,9 @@ def rev_type_of_ident(name: str) -> str:
         print_error('rev_type_of_ident', f'No such identifier {name}')
 
     meta_kind = ident_map.get(name)
+    if meta_kind == VariableMetaKind.GENERIC:
+        return rev_type_of(any_type)
+
     if meta_kind == VariableMetaKind.ANY:
         return rev_type_of(any_type)
 
@@ -682,6 +688,9 @@ def type_of_ident(ident: str) -> VariableType:
 
     if meta_kind == VariableMetaKind.NAMESPACE:
         return void_type
+
+    if meta_kind == VariableMetaKind.GENERIC:
+        return any_type
 
     if meta_kind == VariableMetaKind.ANY:
         return any_type
@@ -1049,7 +1058,7 @@ def size_of(ckind: VariableCompKind) -> int:
     if ckind == bool_ckind:
         return 1
 
-    if ckind in (any_ckind, ptr_ckind, ref_ckind, arr_ckind):
+    if ckind in (gen_ckind, any_ckind, ptr_ckind, ref_ckind, arr_ckind):
         return 8
 
     if ckind.meta_kind == VariableMetaKind.PRIM:
@@ -1131,15 +1140,39 @@ def args_to_list(node: Node) -> List[Node]:
     return arg_list
 
 
+def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
+    gen_map = dict()
+    for arg_type, sig_arg_type in zip(arg_types, sig.arg_types):
+        if sig_arg_type.ckind == gen_ckind:
+            gen_name = sig.name
+            gen_type = gen_map.get(gen_name)
+
+            if gen_type and gen_type != arg_type:
+                return True
+
+            gen_map[gen_name] = arg_type
+
+    return True
+
+
 def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True) -> Optional[FunctionSignature]:
+    def is_generic(sig: FunctionSignature):
+        return sig.is_generic
+
     # Looks for an exact match
     for signature in fun.signatures:
-        if arg_types == signature.arg_types:
+        if not is_generic(signature) and arg_types == signature.arg_types:
+            return signature
+
+    # Looks for a generic match
+    for signature in fun.signatures:
+        if is_generic(signature) and gen_compatible(signature, arg_types):
+            print('DBG: generic match:', fun.name)
             return signature
 
     # Looks for compatible matches
     for signature in fun.signatures:
-        if fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt:
+        if not is_generic(signature) and (fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt):
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
                 if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
@@ -1169,6 +1202,11 @@ def check_signature(fun: Function, sig: FunctionSignature) -> bool:
             return True
 
     return False
+
+
+def compute_signature(name: str, arg_types: List[VariableType]):
+    return '_'.join([name] + list(map(rev_type_of, arg_types))).replace(
+        '*', 'ptr').replace('&', 'ref')
 
 
 def glue_statements(node_list: List[Node], in_call: bool = False) -> Optional[Node]:
@@ -1296,6 +1334,7 @@ default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
 any_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ANY)
 struct_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.STRUCT)
+gen_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.GENERIC)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
@@ -1311,8 +1350,10 @@ fun_ret_type = void_type
 included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0
+fun_gen_map: Dict[str, VariableType] = dict()
 macro_arg_map: Dict[str, Node] = dict()
 deferred: Optional[Node] = None
+hoisted: Optional[Node] = None
 
 type_map = {
     'bool': bool_type,

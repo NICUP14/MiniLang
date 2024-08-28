@@ -40,6 +40,7 @@ from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
 from Def import struct_ckind
+from Def import gen_ckind
 from Def import any_type
 from Def import void_type
 from Def import bool_type
@@ -66,6 +67,7 @@ from Def import check_signature
 from Def import find_signature
 from Def import _find_signature
 from Def import find_signature
+from Def import compute_signature
 from Def import glue_statements
 from Def import args_to_list
 from copy import deepcopy as copy_of
@@ -498,6 +500,55 @@ class Parser:
                 del Def.macro_arg_map[name]
         return expand_helper(body)
 
+    def _infer_gen_types(self, sig: FunctionSignature, node: Node):
+        def get_type(node: Node) -> VariableType:
+            return node.ntype
+
+        arg_types = list(map(get_type, args_to_list(node)))
+        if len(arg_types) != len(sig.arg_types):
+            print('Mismatch in argument counts.', self)
+
+        for arg_type, sig_arg_type in zip(arg_types, sig.arg_types):
+            if sig_arg_type.ckind == gen_ckind:
+                gen_name = sig_arg_type.name
+                gen_type = Def.fun_gen_map.get(gen_name)
+
+                if gen_type and gen_type != arg_type:
+                    print_error('_infer_gen_types',
+                                f'Cannot infer generic type parameter. {rev_type_of(arg_type)} conflicts whith{rev_type_of(gen_type)}.', self)
+                Def.fun_gen_map[gen_name] = arg_type
+
+    def _gen_fun_call(self, sig: FunctionSignature):
+        gen_names = Def.fun_gen_map.keys()
+
+        # Stores a copy of the generic type params
+        prev_gen_types = dict()
+        for gen_name in gen_names:
+            prev_gen_types[gen_name] = Def.type_map.get(gen_name)
+
+        for gen_name in gen_names:
+            gen_type = Def.fun_gen_map.get(gen_name)
+            Def.type_map[gen_name] = gen_type
+
+        fun_name = Def.fun_name
+        fun_name_list = Def.fun_name_list
+
+        parser = Parser(sig.parser)
+        fun_node = parser.fun_declaration(in_generic=True)
+
+        # Restores a copy of the generic type params
+        for gen_name in gen_names:
+            Def.type_map[gen_name] = prev_gen_types.get(gen_name)
+
+        Def.fun_name = fun_name
+        Def.fun_name_list = fun_name_list
+        Def.fun_gen_map.clear()
+
+        if Def.hoisted is None:
+            Def.hoisted = fun_node
+        else:
+            Def.hoisted = glue_statements([Def.hoisted, fun_node])
+
     def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True) -> List[Node]:
         if fun_name in Def.fun_sig_map:
             fun_name = Def.fun_sig_map.get(fun_name)
@@ -507,9 +558,6 @@ class Parser:
 
         if fun.arg_cnt == 0 and not fun.is_variadic:
             sig = _find_signature(fun, [], check_len=check_len)
-            # if sig is None:
-            #     print_error('_fun_call',
-            #                 f'No signature of {fun.name} matches {[]} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
             ret_type = sig.ret_type if sig else any_type
 
             node_stack.append(Node(kind, ret_type, fun_name))
@@ -522,7 +570,7 @@ class Parser:
                 node_stack) > 0 else None
 
             # Return type based on signature
-            def get_type(node: Node) -> VariableType:
+            def get_type(node: Node) -> Optional[VariableType]:
                 if node is None:
                     return None
 
@@ -530,10 +578,11 @@ class Parser:
 
             arg_types = list(map(get_type, args_to_list(node)))
             sig = _find_signature(fun, arg_types, check_len=check_len)
-            # if sig is None:
-            #     print_error('_fun_call',
-            #                 f'No signature of {fun.name} matches {list(map(rev_type_of, arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in fun.signatures]}', parser=self)
             ret_type = sig.ret_type if sig else any_type
+
+            if sig is not None and sig.is_generic:
+                self._infer_gen_types(sig, node)
+                self._gen_fun_call(sig)
 
             node_stack.append(
                 Node(kind, ret_type, fun_name, node))
@@ -1285,21 +1334,52 @@ class Parser:
                         Node(NodeKind.RET, node.ntype, '', node))
             return node
 
-    def fun_declaration(self, is_extern: bool = False) -> Optional[Node]:
-        if Def.fun_name != '':
-            print_error('fun_declaration',
-                        'Local functions are not allowed', self)
+    def fun_declaration(self, is_extern: bool = False, in_generic: bool = False) -> Optional[Node]:
+        # Needed for generics
+        parser = Parser(self)
 
         # Needed for extern
         name = self.match_token(TokenKind.IDENT).value
         full_name = full_name_of_fun(name, force_global=True)
 
         # Needed for extern
+        is_generic = False
         is_variadic = False
         arg_names: list[str] = []
         arg_types: list[VariableType] = []
         elem_types: list[VariableType] = []
         elem_cnts: list[int] = []
+
+        # Generic type parser
+        gen_names = []
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
+            is_generic = True
+
+            self.match_token(TokenKind.LBRACE)
+            while not self.no_more_tokens() and self.curr_token().kind != TokenKind.RBRACE:
+                gen_name = self.match_token(TokenKind.IDENT).value
+                gen_names.append(gen_name)
+
+                if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RBRACE:
+                    self.match_token(TokenKind.COMMA)
+            self.match_token(TokenKind.RBRACE)
+
+        if not is_generic and Def.fun_name != '':
+            print_error('fun_declaration',
+                        'Local functions are not allowed', self)
+
+        # Defines the generic type params as aliases of a generic type
+        if in_generic:
+            is_generic = False
+        else:
+            for gen_name in gen_names:
+                # if gen_name in Def.type_map:
+                #     print_error('fun_declaration',
+                #                 f'Generic type parameter {gen_name} shadows a same-name type ({rev_type_of(Def.type_map.get(gen_name))})')
+
+                gen_type = VariableType(gen_ckind, name=gen_name)
+                Def.type_map[gen_name] = gen_type
+
         has_args = not self.no_more_tokens() and self.curr_token().kind == TokenKind.LPAREN
         if has_args:
             self.match_token(TokenKind.LPAREN)
@@ -1378,8 +1458,7 @@ class Parser:
         if is_extern:
             sig_name = full_name
         else:
-            sig_name = '_'.join([full_name] + list(map(rev_type_of, arg_types))).replace(
-                '*', 'ptr').replace('&', 'ref')
+            sig_name = compute_signature(full_name, arg_types)
 
         # ? Temporary
         full_arg_names = []
@@ -1390,7 +1469,7 @@ class Parser:
         Def.fun_name_list.pop()
 
         signature = FunctionSignature(sig_name, len(
-            arg_types), full_arg_names, arg_types, ret_type, is_extern)
+            arg_types), full_arg_names, arg_types, ret_type, is_extern, is_generic, parser if is_generic else None)
         Def.fun_sig_map[sig_name] = full_name
 
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
@@ -1450,12 +1529,11 @@ class Parser:
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
                     full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
 
-            else:
+            elif meta_kind != VariableMetaKind.GENERIC:
                 print_error('fun_declaration',
                             f'Invalid argument meta kind {meta_kind}', parser=self)
 
         self.next_line()
-        #! BUG: Defer statement doesn't work for void functions
         body = self.compound_statement() if fun.ret_type != void_type else (
             Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
 
@@ -1480,7 +1558,11 @@ class Parser:
 
         node = Node(NodeKind.GLUE, void_type, '',
                     fun_node, Node(NodeKind.END, void_type, 'end'))
-        return node
+        if Def.hoisted is not None:
+            node = glue_statements([Def.hoisted, node])
+            Def.hoisted = None
+
+        return node if not is_generic else None
 
     def struct_declaration(self, is_extern: bool = False) -> Optional[Node]:
         #! BUG: Nested structures
@@ -1524,8 +1606,8 @@ class Parser:
                 arg_name, exhaustive_match=False))
         Def.fun_name_list.pop()
 
-        signature = FunctionSignature(sig_name, len(struct.elem_names), full_arg_names,
-                                      struct.elem_types, struct.vtype, is_extern)
+        signature = FunctionSignature(sig_name, len(
+            struct.elem_names), full_arg_names, struct.elem_types, struct.vtype, is_extern, False, None)
         Def.fun_sig_map[sig_name] = fun_name
 
         Def.ident_map[fun_name] = VariableMetaKind.FUN
