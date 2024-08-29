@@ -1,8 +1,9 @@
 # TODO
 
-Solved: 20/28
+Solved: 20/29
 
-- [ ] Separate macro (`add_sep(args, " ")`)
+- [X] Separate macro (`add_sep(args, " ")`)
+- [ ] Function pointer (`&my_fun`)
 - [ ] Add for-loop documentation to QUICKSTART.
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)

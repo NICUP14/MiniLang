@@ -40,6 +40,7 @@ from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
 from Def import struct_ckind
+from Def import fun_ckind
 from Def import gen_ckind
 from Def import any_type
 from Def import void_type
@@ -288,7 +289,11 @@ class Parser:
                         op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
 
                     elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
-                        op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
+                        if prev_token and prev_token.kind == TokenKind.BIT_AND:
+                            op_stack.append(token)
+                        else:
+                            op_stack.append(
+                                Token(TokenKind.FUN_CALL, fun_name))
 
                     else:
                         if prev_token is not None and prev_token.kind == TokenKind.PERIOD:
@@ -506,7 +511,8 @@ class Parser:
 
         arg_types = list(map(get_type, args_to_list(node)))
         if len(arg_types) != len(sig.arg_types):
-            print('Mismatch in argument counts.', self)
+            print_error('_infer_gen_types',
+                        f'Generic function {sig.name} expects {len(sig.arg_types)} arguments, but {len(arg_types)} were provided.', parser=self)
 
         for arg_type, sig_arg_type in zip(arg_types, sig.arg_types):
             if sig_arg_type.ckind == gen_ckind:
@@ -531,7 +537,9 @@ class Parser:
             Def.type_map[gen_name] = gen_type
 
         fun_name = Def.fun_name
-        fun_name_list = Def.fun_name_list
+        Def.fun_name = ''
+        if len(Def.fun_name_list) > 0:
+            Def.fun_name_list.pop()
 
         parser = Parser(sig.parser)
         fun_node = parser.fun_declaration(in_generic=True)
@@ -541,7 +549,8 @@ class Parser:
             Def.type_map[gen_name] = prev_gen_types.get(gen_name)
 
         Def.fun_name = fun_name
-        Def.fun_name_list = fun_name_list
+        if fun_name != '':
+            Def.fun_name_list.append(fun_name)
         Def.fun_gen_map.clear()
 
         if Def.hoisted is None:
@@ -580,7 +589,8 @@ class Parser:
             sig = _find_signature(fun, arg_types, check_len=check_len)
             ret_type = sig.ret_type if sig else any_type
 
-            if sig is not None and sig.is_generic:
+            if sig is not None and (
+                    sig.is_generic and Def.macro_name == ''):
                 self._infer_gen_types(sig, node)
                 self._gen_fun_call(sig)
 
@@ -635,6 +645,11 @@ class Parser:
                     else:
                         name = token.value
                         ntype = type_of_ident(name)
+
+                        # if ntype.ckind == fun_ckind:
+                        #     self._fun_call(
+                        #         token.value, node_stack, check_len=False)
+
                         if Def.ident_map.get(name) == VariableMetaKind.REF:
                             ntype = Def.ptr_map.get(name).elem_type
 
@@ -849,6 +864,21 @@ class Parser:
                         'Missing else clause in ternary condition', parser=self)
 
         return node
+
+    def parse_gen(self) -> List[str]:
+        gen_names = []
+
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.LBRACE:
+            self.match_token(TokenKind.LBRACE)
+            while not self.no_more_tokens() and self.curr_token().kind != TokenKind.RBRACE:
+                gen_name = self.match_token(TokenKind.IDENT).value
+                gen_names.append(gen_name)
+
+                if not self.no_more_tokens() and self.curr_token().kind != TokenKind.RBRACE:
+                    self.match_token(TokenKind.COMMA)
+            self.match_token(TokenKind.RBRACE)
+
+        return gen_names
 
     def parse_type(self) -> ParsedType:
         meta_kind = VariableMetaKind.PRIM
@@ -1330,6 +1360,10 @@ class Parser:
             if Def.fun_ret_type.meta_kind() == VariableMetaKind.PRIM:
                 Def.fun_ret_type = default_type
 
+            # Only structs can have destructors
+            if node and node.kind == NodeKind.IDENT and node.ntype.ckind == struct_ckind:
+                Def.returned.append(node.value)
+
             node = Node(NodeKind.GLUE, void_type, '', Def.deferred,
                         Node(NodeKind.RET, node.ntype, '', node))
             return node
@@ -1455,7 +1489,7 @@ class Parser:
                             'Junk after function declaration', self)
 
         # Computes the signature name
-        if is_extern:
+        if is_extern or is_generic:
             sig_name = full_name
         else:
             sig_name = compute_signature(full_name, arg_types)
@@ -1502,6 +1536,9 @@ class Parser:
 
         # ? Temporary
         for (arg_name, arg_type, elem_type, elem_cnt) in zip(arg_names, arg_types, elem_types, elem_cnts):
+            if arg_type == void_type:
+                print_error(
+                    'fun_declaration', 'Declaration of void function arguments is not allowed.', self)
             meta_kind = arg_type.meta_kind()
             Def.ident_map[full_name_of_var(
                 arg_name, exhaustive_match=False)] = meta_kind
@@ -1529,7 +1566,8 @@ class Parser:
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
                     full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
 
-            elif meta_kind != VariableMetaKind.GENERIC:
+            elif (is_generic and meta_kind not in (
+                    VariableMetaKind.GENERIC, VariableMetaKind.ANY)):
                 print_error('fun_declaration',
                             f'Invalid argument meta kind {meta_kind}', parser=self)
 
@@ -1541,7 +1579,37 @@ class Parser:
         if is_implicit:
             signature.ret_type = Def.fun_ret_type
 
+        def needs_destr(ident: str, fun_name: str = full_name, is_destr=full_name == 'destruct'):
+            is_local = ident != full_name and ident.startswith(
+                full_name)
+
+            if is_local and is_destr and ident not in fun.arg_names:
+                print_warning(
+                    'needs_destr', f'Allocation {ident} detected in destructor. Resource is not cleaned up.', self)
+
+            return is_local and not is_destr
+
+        def destr(sig: FunctionSignature, fun_name: str, ident: str) -> Node:
+            var_type = type_of_ident(ident)
+            return Node(NodeKind.FUN_CALL, sig.ret_type, fun_name, Node(NodeKind.IDENT, var_type, ident))
+
+        # Cleanup (RAII)
+        destr_stmts = None
+        destr_fun = Def.fun_map.get('destruct')
+        fun_locals = list(filter(needs_destr, Def.ident_map.keys()))
+        for ident in fun_locals:
+            if ident not in Def.returned and destr_fun is not None:
+                sig = _find_signature(destr_fun, [type_of_ident(ident)])
+
+                if sig is not None:
+                    if destr_stmts is None:
+                        destr_stmts = destr(sig, destr_fun.name, ident)
+                    else:
+                        destr_stmts = glue_statements(
+                            [destr_stmts, destr(sig, destr_fun.name, ident)])
+
         Def.fun_name = ''
+        Def.returned = []
         Def.fun_has_ret = False
         Def.fun_ret_type = void_type
         Def.fun_name_list.pop()
@@ -1554,6 +1622,8 @@ class Parser:
         fun_node = Node(NodeKind.FUN, default_ckind, sig_name, body)
         if signature.ret_type == void_type:
             fun_node = glue_statements([fun_node, Def.deferred])
+        if destr_stmts is not None:
+            fun_node = glue_statements([fun_node, destr_stmts])
         Def.deferred = None
 
         node = Node(NodeKind.GLUE, void_type, '',

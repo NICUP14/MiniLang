@@ -1,9 +1,10 @@
 # Ideas
 
-Implemented: 16/23
+Implemented: 16/24
 
 - [ ] RAII
 - [X] Structs
+- [ ] Operator overloading
 - [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
 - [ ] stdlib.slice: [slice99](https://github.com/Hirrolot/slice99)
 - [ ] Unions

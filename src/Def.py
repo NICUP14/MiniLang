@@ -686,6 +686,9 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
+    if meta_kind == VariableMetaKind.FUN:
+        return VariableType(VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN), name=ident)
+
     if meta_kind == VariableMetaKind.NAMESPACE:
         return void_type
 
@@ -998,6 +1001,14 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.REF
         ]
 
+    if ckind == fun_ckind:
+        return [
+            NodeKind.TERN_COND,
+            NodeKind.TERN_BODY,
+            NodeKind.OP_ASSIGN,
+            NodeKind.REF
+        ]
+
     print_error('allowed_op', f'Invalid type: {ckind}')
 
 
@@ -1156,6 +1167,9 @@ def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
 
 
 def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True) -> Optional[FunctionSignature]:
+    cnt = 0
+    sig = None
+
     def is_generic(sig: FunctionSignature):
         return sig.is_generic
 
@@ -1167,8 +1181,15 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
     # Looks for a generic match
     for signature in fun.signatures:
         if is_generic(signature) and gen_compatible(signature, arg_types):
-            print('DBG: generic match:', fun.name)
-            return signature
+            cnt = cnt + 1
+            sig = signature
+
+    # Ensures that only one generic match is valid
+    if cnt == 1:
+        return sig
+    elif cnt > 0:
+        print_error("_find_signature",
+                    f"Multiple matches found for function {fun.name}")
 
     # Looks for compatible matches
     for signature in fun.signatures:
@@ -1347,6 +1368,7 @@ macro_name = ''
 struct_name = ''
 fun_has_ret = False
 fun_ret_type = void_type
+returned: list[str] = []
 included: set[str] = set()
 include_list: list[str] = []
 macro_arg_cnt = 0

@@ -3,6 +3,7 @@ import enum
 from typing import List
 from typing import Optional
 from dataclasses import dataclass
+from itertools import zip_longest
 from Def import print_error
 
 
@@ -58,6 +59,7 @@ PATTERN = to_pattern([
 
 
 class TokenKind(enum.Enum):
+    TYPE_LIT = enum.auto()
     INT_LIT = enum.auto()
     CHAR_LIT = enum.auto()
     STR_LIT = enum.auto()
@@ -201,6 +203,13 @@ TOKEN_KIND_MAP = {
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
+
+    'int64': TokenKind.TYPE_LIT,
+    'int32': TokenKind.TYPE_LIT,
+    'int16': TokenKind.TYPE_LIT,
+    'int8': TokenKind.TYPE_LIT,
+    'bool': TokenKind.TYPE_LIT,
+    'void': TokenKind.TYPE_LIT,
 }
 
 
@@ -357,17 +366,21 @@ def tokenize(line: str):
 
 
 def post_process(tokens: List[Token]):
-    def process(token: Token):
+    def process(params):
+        token, next_token = params
+        # TODO: Add fixed-length pointer support
+        if token.kind == TokenKind.TYPE_LIT and next_token and next_token.kind in (TokenKind.MULT, TokenKind.BIT_AND):
+            return (Token(TokenKind.TYPE_LIT, token.value + next_token.value),)
         if token.kind == TokenKind.RBRACE:
             return (Token(TokenKind.RPAREN, ')'),)
         if token.kind == TokenKind.LBRACE:
             return (Token(TokenKind.KW_AT, 'at'), Token(TokenKind.LPAREN, '('))
-        return (token,)
+        return (token, )
 
-    def flat_map(f, xs):
-        return [y for ys in xs for y in f(ys)]
+    def flat_map(f, xs, zs):
+        return [y for ys in zip_longest(xs, zs) for y in f(ys)]
 
     if tokens.count(Token(TokenKind.LBRACE, '[')) != tokens.count(Token(TokenKind.RBRACE, ']')):
         print_error('post_process', 'Expression contains unclosed braces')
 
-    return flat_map(process, tokens)
+    return flat_map(process, tokens, tokens[1:])
