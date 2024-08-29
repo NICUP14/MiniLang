@@ -1,4 +1,3 @@
-import stdlib.c.cstdlib
 import stdlib.io.read
 import stdlib.io.print
 
@@ -12,7 +11,7 @@ macro create_ex
 end
 
 fun destruct(arg: ex_str)
-    # let ex_in_destr = create_ex
+    let ex_in_destr = create_ex
     free(arg.ex_cs)
 end
 

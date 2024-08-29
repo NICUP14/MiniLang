@@ -500,6 +500,9 @@ def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bo
 
 
 def full_name_of_var(name: str, force_local: bool = False, exhaustive_match: bool = True):
+    # def exists(name: str):
+    #     return name in ident_map and ident_map.get(name) != VariableMetaKind.STRUCT
+
     # Local match (forced)
     if force_local:
         return "_".join(module_name_list + fun_name_list + [name])
@@ -1206,7 +1209,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
     return None
 
 
-def find_signature(fun: Function, node: Node) -> Optional[Node]:
+def find_signature(fun: Function, node: Node) -> Optional[FunctionSignature]:
     def get_type(node: Node) -> VariableType:
         return node.ntype
 

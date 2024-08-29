@@ -6,7 +6,7 @@ Solved: 17/23
 - [X] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function
 - [X] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
-- [ ] Struct elements pollute the global scope with non-existent variables.
+- [X] Struct elements pollute the global scope with non-existent variables.
 - [X] Cannot call function as struct method with only one arg.
 - [ ] Function declarations do not work inside macros (fails signature check).
 - [X] Macro-related bug (check `expand_macro`).

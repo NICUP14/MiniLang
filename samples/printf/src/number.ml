@@ -2,11 +2,11 @@ import stdlib.c.cstdlib
 import stdlib.c.cdef
 
 macro add(_aptr, _aoff)
-    ptr(int(_aptr) + _aoff)
+    cast("void*", cast("int64", _aptr) + _aoff)
 end
 
 macro sub(_sptr, _soff)
-    ptr(int(_sptr) - _soff)
+    cast("void*", cast("int64", _sptr) + _soff)
 end
 
 let mzf_mask: int8 = 12
@@ -15,7 +15,7 @@ let zero_flag: int8 = 4
 let plus_flag: int8 = 2
 let space_flag: int8 = 1
 
-fun U64ToStrLen(nr: int64): int64
+fun U64ToStrlength(nr: int64): int64
     let cnt = 0
     while nr > 0
         nr = nr / 10
@@ -26,8 +26,8 @@ fun U64ToStrLen(nr: int64): int64
 end
 
 fun U64ToStr(nr: int64, buff: int8*): int64
-    let len = U64ToStrLen(nr)
-    let idx = len - 1
+    let length = U64ToStrlength(nr)
+    let idx = length - 1
 
     while nr != 0
         buff[idx] = (nr % 10) + 48
@@ -35,13 +35,13 @@ fun U64ToStr(nr: int64, buff: int8*): int64
         nr = nr / 10
     end
 
-    ret len
+    ret length
 end
 
-fun strnToU64(str: int8*, len: int64): int64
+fun strnToU64(str: int8*, length: int64): int64
     let nr = 0
-    let idx = len
-    while idx < len
+    let idx = length
+    while idx < length
         nr = nr * 10 + (str[idx] - '0')
         idx = idx + 1
     end
@@ -84,8 +84,8 @@ fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): int64
 
     # puts("number before width")
 
-    let len = U64ToStrLen(num)
-    width = width - U64ToStrLen(num)
+    let length = U64ToStrlength(num)
+    width = width - U64ToStrlength(num)
     if width < 0
         width = 0
     end

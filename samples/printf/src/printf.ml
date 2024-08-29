@@ -7,7 +7,7 @@ fun custom_printf(format: int8*, ...): void
     va_start(va_list, format)
 
     # DBG
-    # asm "lea str_13(%rip), %rdi"
+    # asm "lea string_13(%rip), %rdi"
     # asm "mov %rsp, %rsi"
     # asm "xor %rax, %rax"
     # asm "call printf"
@@ -15,21 +15,21 @@ fun custom_printf(format: int8*, ...): void
     let flag: int8 = 0
     let repeat: int8 = 0
     let arr: int8[500]
-    let str: int8* = arr
-    let str_idx = 0
+    let string: int8* = arr
+    let string_idx = 0
     let format_idx = 0
 
     while format[format_idx] != 0 
         while format[format_idx] != '%'
             # printf("char: '%c'\n", format[format_idx])
-            str[str_idx] = format[format_idx]
+            string[string_idx] = format[format_idx]
 
             if format[format_idx] == 0
                 puts(arr)
                 ret
             end
 
-            str_idx = str_idx + 1
+            string_idx = string_idx + 1
             format_idx = format_idx + 1
         end
 
@@ -76,29 +76,29 @@ fun custom_printf(format: int8*, ...): void
         end
 
         if format[format_idx] == '%' 
-            str[str_idx] = '%' 
-            str_idx = str_idx + 1
+            string[string_idx] = '%' 
+            string_idx = string_idx + 1
             # puts("percent")
         else
             if format[format_idx] == 's'
                 let buf = c_str(va_arg_voidptr(va_list))
-                # printf("string: %s\n", buf)
-                strcpy(add(str, str_idx), buf) 
-                str_idx = str_idx + strlen(buf)
+                # printf("stringing: %s\n", buf)
+                strcpy(add(string, string_idx), buf) 
+                string_idx = string_idx + strlen(buf)
             else
                 if format[format_idx] == 'd'
-                    let repr = char((format[format_idx] == 'd'))
+                    let repr = cast("c_char", (format[format_idx] == 'd'))
                     let num = va_arg_int64(va_list)
-                    let off = number(add(str, str_idx), num, repr, flag, width) 
-                    str_idx = str_idx + off
+                    let off = number(add(string, string_idx), num, repr, flag, width) 
+                    string_idx = string_idx + off
                     # puts("signed iteger")
                 else
                     if format[format_idx] == 'u'
                         # puts("unsigned iteger")
-                        let repr = char((format[format_idx] == 'd'))
+                        let repr = cast("c_char", (format[format_idx] == 'd'))
                         let num: int64 = va_arg_int64(va_list) 
-                        let off = number(add(str, str_idx), num, repr, flag, width) 
-                        str_idx = str_idx + off
+                        let off = number(add(string, string_idx), num, repr, flag, width) 
+                        string_idx = string_idx + off
                     end
                 end
             end

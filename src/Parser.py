@@ -805,7 +805,6 @@ class Parser:
                             sig = Def._find_signature(fun, [right.left.ntype])
 
                             args = None
-                            ret_type = fun.ret_type
                             if sig:
                                 args = right.left
                                 ret_type = sig.ret_type
@@ -818,9 +817,19 @@ class Parser:
                                     NodeKind.GLUE, void_type, '', None, left), right.left)
 
                             new_args = self.merge_fun_call(args)
+
+                            sig = Def.find_signature(fun, new_args)
+                            if sig:
+                                ret_type = sig.ret_type
+
                             node_stack.append(
                                 Node(right.kind, ret_type, right.value, new_args))
                             continue
+
+                        # Fixes struct element scoping issues
+                        if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.IDENT:
+                            right.value = f'{left.ntype.name}_elem_{right.value}'
+                            right.ntype = type_of_ident(right.value)
 
                         if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type or not type_compatible(kind, left.ntype.ckind, right.ntype.ckind)):
                             print_error('to_tree',
@@ -1585,7 +1594,7 @@ class Parser:
 
             if is_local and is_destr and ident not in fun.arg_names:
                 print_warning(
-                    'needs_destr', f'Allocation {ident} detected in destructor. Resource is not cleaned up.', self)
+                    'needs_destr', f'Allocation of {ident} detected in destructor. Resource is not cleaned up.', self)
 
             return is_local and not is_destr
 
@@ -1663,7 +1672,6 @@ class Parser:
         struct = Def.struct_map.get(name)
         tmp_name = f'{struct.name}_tmp'
         fun_name = name
-        # fun_name = f'{name}_new'
 
         sig_name = '_'.join([fun_name] + list(map(rev_type_of, struct.elem_types))).replace(
             '*', 'ptr').replace('&', 'ref')
@@ -2018,6 +2026,8 @@ class Parser:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
         if is_struct:
+            name = f'{Def.struct_name}_elem_{name}'
+            full_name = var_name if is_local else full_name_of_var(name, True)
             Def.struct_map[Def.struct_name].elem_names.append(name)
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
@@ -2025,13 +2035,9 @@ class Parser:
         Def.ident_map[full_name] = meta_kind
 
         if meta_kind == VariableMetaKind.STRUCT:
-            # def add_prefix(name: str) -> str:
-            #     return f'{full_name}_{name}'
-
             struct = Def.struct_map.get(var_type.name)
             elem_names = struct.elem_names
             elem_types = struct.elem_types
-            # full_elem_names = list(map(add_prefix, elem_names))
             self.struct_elem_declaration(elem_names, struct)
 
             Def.struct_map[full_name] = Structure(
