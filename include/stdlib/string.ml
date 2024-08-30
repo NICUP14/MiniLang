@@ -14,6 +14,16 @@ macro c_str(_s)
     cast("int8*", _s)
 end
 
+# Duplicate an sds string (RAII).
+fun copy(s: str&): str
+    ret sdsdup(s)
+end
+
+# Frees the resources onwed by the string (RAII).
+fun destruct(s: str&)
+    sdsfree(s)
+end
+
 # Create a new sds string starting from a null terminated C string.
 fun str(s: int8*): str
     ret sdsnew(s)
@@ -28,7 +38,8 @@ fun str_from(fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 
-    ret sdscatvprintf(sdsempty, fmt, listx)
+    let tmp = sdsempty
+    ret sdscatvprintf(tmp, fmt, move(listx))
 end
 
 # Create an empty (zero length) sds string. 
@@ -45,7 +56,7 @@ fun extend(s: str, size: int64): str
 end
 
 # Duplicate an sds string.
-fun clone(s: str): str
+fun copy(s: str): str
     ret sdsdup(s)
 end
 
@@ -121,7 +132,7 @@ fun concat_from(s: str, fmt: int8*, ...): str
     va_start(listx, fmt)
 
     let tmp = str(s)
-    ret sdscatvprintf(tmp, fmt, listx)
+    ret sdscatvprintf(tmp, fmt, move(listx))
 end
 
 # Remove the part of the string from left and from right composed just of contiguous characters found in 'cset', that is a null terminated C string.
@@ -243,7 +254,7 @@ end
 
 # Create an sds string from a string using clone. 
 fun to_str(value: str): str
-    ret value.clone
+    ret value.copy
 end
 
 # Create an sds string from a C string literal. 

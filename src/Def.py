@@ -56,6 +56,7 @@ class VariableMetaKind(enum.Enum):
     PRIM = enum.auto()
     PTR = enum.auto()
     REF = enum.auto()
+    RV_REF = enum.auto()
     ARR = enum.auto()
     FUN = enum.auto()
     STRUCT = enum.auto()
@@ -134,17 +135,23 @@ class Variable:
         self.value = value
 
 
+class PointerType(enum.Enum):
+    PTR = enum.auto()
+    REF = enum.auto()
+    RV_REF = enum.auto()
+
+
 class Pointer:
     """
     Contains the meta-data of a pointer type.
     """
 
-    def __init__(self, name: str, elem_cnt: int, elem_type: VariableType, off: int, ref: bool, is_local: bool = False, value: int = 0):
+    def __init__(self, name: str, elem_cnt: int, elem_type: VariableType, off: int, ptr_type: PointerType, is_local: bool = False, value: int = 0):
         self.name = name
         self.elem_cnt = elem_cnt
         self.elem_type = elem_type
         self.off = off
-        self.ref = ref
+        self.ptr_type = ptr_type
         self.is_local = is_local
         self.value = value
 
@@ -270,6 +277,8 @@ class NodeKind(enum.Enum):
     DEFER = enum.auto()
     ASM = enum.auto()
     CAST = enum.auto()
+    STRFY = enum.auto()
+    MOVE = enum.auto()
     TYPE = enum.auto()
     OFF = enum.auto()
     LEN = enum.auto()
@@ -545,7 +554,7 @@ def off_of(ident: str) -> int:
     if meta_kind == VariableMetaKind.ARR:
         return arr_map.get(ident).off
 
-    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
         return ptr_map.get(ident).off
 
     print_error(
@@ -609,14 +618,16 @@ def rev_type_of_ident(name: str) -> str:
         arr = arr_map.get(name)
         return f'{rev_of(arr.elem_type.ckind)}[{arr.elem_cnt}]'
 
-    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
         if name not in ptr_map:
             print_error('rev_type_of_ident', f'No such pointer {name}')
 
         ptr = ptr_map.get(name)
         specifier = ''
-        if ptr.ref:
+        if ptr.ptr_type == PointerType.REF:
             specifier = '&'
+        elif ptr.ptr_type == PointerType.RV_REF:
+            specifier = '&&'
         elif ptr.elem_cnt == 0:
             specifier = '*'
         else:
@@ -651,6 +662,12 @@ def rev_type_of(vtype: VariableType) -> str:
 
     if vtype in (any_type, bool_type):
         return rev_of(vtype.ckind)
+
+    if vtype.ckind == rv_ref_ckind:
+        if vtype.elem_ckind == struct_ckind:
+            return f'{vtype.name}&&'
+        else:
+            return f'{rev_of(vtype.elem_ckind)}&&'
 
     if vtype.ckind == ref_ckind:
         if vtype.elem_ckind == struct_ckind:
@@ -707,12 +724,13 @@ def type_of_ident(ident: str) -> VariableType:
 
         return struct_map.get(ident).vtype
 
-    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+    if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
         if ident not in ptr_map:
             print_error('type_of_ident', f'No such variable {ident}')
 
         ptr = ptr_map.get(ident)
-        ckind = ptr_ckind if meta_kind == VariableMetaKind.PTR else ref_ckind
+        ckind = ptr_ckind if meta_kind == VariableMetaKind.PTR else (
+            ref_ckind if meta_kind == VariableMetaKind.REF else rv_ref_ckind)
         return VariableType(ckind, ptr.elem_type.ckind, ptr.elem_type.name)
 
     if meta_kind == VariableMetaKind.ARR:
@@ -820,9 +838,6 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
 
     if kind != NodeKind.GLUE and (ckind == void_ckind or ckind2 == void_ckind):
         return False
-
-    if ckind == struct_ckind and ckind2 == struct_ckind:
-        return True
 
     if ckind.meta_kind == ckind2.meta_kind:
         return True
@@ -974,7 +989,7 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.REF
         ]
 
-    if ckind == ref_ckind:
+    if ckind in (ref_ckind, rv_ref_ckind):
         return [
             NodeKind.TERN_COND,
             NodeKind.TERN_BODY,
@@ -1017,6 +1032,9 @@ def allowed_op(ckind: VariableCompKind):
 
 def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == ckind2:
+        return 0
+
+    if ckind == struct_ckind or ckind2 == struct_ckind:
         return 0
 
     if ckind == struct_ckind or ckind2 == struct_ckind:
@@ -1072,7 +1090,7 @@ def size_of(ckind: VariableCompKind) -> int:
     if ckind == bool_ckind:
         return 1
 
-    if ckind in (gen_ckind, any_ckind, ptr_ckind, ref_ckind, arr_ckind):
+    if ckind in (gen_ckind, any_ckind, ptr_ckind, ref_ckind, rv_ref_ckind, arr_ckind):
         return 8
 
     if ckind.meta_kind == VariableMetaKind.PRIM:
@@ -1162,7 +1180,7 @@ def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
             gen_type = gen_map.get(gen_name)
 
             if gen_type and gen_type != arg_type:
-                return True
+                return False
 
             gen_map[gen_name] = arg_type
 
@@ -1214,8 +1232,12 @@ def find_signature(fun: Function, node: Node) -> Optional[FunctionSignature]:
         return node.ntype
 
     args = args_to_list(node)
-    arg_types = list(map(get_type, args))
+    if None in args:
+        print('DBG: ', fun.name, end='')
+        for arg in args:
+            print(rev_type_of(arg.ntype) if arg else 'None', end=' ')
 
+    arg_types = list(map(get_type, args))
     return _find_signature(fun, arg_types)
 
 
@@ -1228,8 +1250,31 @@ def check_signature(fun: Function, sig: FunctionSignature) -> bool:
     return False
 
 
+def ref_of(vtype: VariableType) -> VariableType:
+    return VariableType(ref_ckind, vtype.ckind, vtype.name)
+
+
+def rv_ref_of(vtype: VariableType) -> VariableType:
+    return VariableType(rv_ref_ckind, vtype.ckind, vtype.name)
+
+
+def ptr_type_of(meta_kind: VariableMetaKind):
+    if meta_kind == VariableMetaKind.PTR:
+        return PointerType.PTR
+    if meta_kind == VariableMetaKind.REF:
+        return PointerType.REF
+    if meta_kind == VariableMetaKind.RV_REF:
+        return PointerType.RV_REF
+
+    print_error('ptr_type_of', f'Invalid meta kind {meta_kind}')
+
+
+def ref_node(node: Node) -> Node:
+    return Node(NodeKind.REF, ref_of(node.ntype), '&', node)
+
+
 def compute_signature(name: str, arg_types: List[VariableType]):
-    return '_'.join([name] + list(map(rev_type_of, arg_types))).replace(
+    return '_'.join([name] + list(map(rev_type_of, arg_types)) + ([str(len(arg_types))] if len(arg_types) > 0 else [])).replace(
         '*', 'ptr').replace('&', 'ref')
 
 
@@ -1351,6 +1396,7 @@ fun_name_list: List[str] = []
 module_name_list: List[str] = []
 ptr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PTR)
 ref_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.REF)
+rv_ref_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.RV_REF)
 arr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ARR)
 void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL)

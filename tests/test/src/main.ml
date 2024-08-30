@@ -7,7 +7,12 @@ struct ex_str
 end
 
 macro create_ex
-    ex_str(0, malloc(50))
+    ex_str(15, malloc(50))
+end
+
+fun print_move(arg: ex_str&&): ex_str
+    print(arg.ex_cnt)
+    ret arg
 end
 
 fun destruct(arg: ex_str)
@@ -15,12 +20,19 @@ fun destruct(arg: ex_str)
     free(arg.ex_cs)
 end
 
+fun copy(arg: ex_str)
+    ret create_ex
+end
+
 fun test(arg: ex_str)
     let ex = create_ex
 end
 
 fun main
-    test(create_ex)
-    print("Hello world")
+    let x = create_ex
+    move(x).ex_cnt.print
+    # test(x)
+    # print(strfy(create_ex))
+    # print("Hello world")
     ret 0
 end

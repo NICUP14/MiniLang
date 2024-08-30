@@ -122,6 +122,8 @@ class TokenKind(enum.Enum):
     KW_TYPE = enum.auto()
     KW_SIZE = enum.auto()
     KW_COUNT = enum.auto()
+    KW_STRFY = enum.auto()
+    KW_MOVE = enum.auto()
     KW_LEN = enum.auto()
     KW_LIT = enum.auto()
     KW_CAST = enum.auto()
@@ -177,11 +179,6 @@ TOKEN_KIND_MAP = {
     'end': TokenKind.KW_END,
     'fun': TokenKind.KW_FUN,
     'struct': TokenKind.KW_STRUCT,
-    'void': TokenKind.KW_VOID,
-    'int64': TokenKind.KW_INT64,
-    'int32': TokenKind.KW_INT32,
-    'int16': TokenKind.KW_INT16,
-    'int8': TokenKind.KW_INT8,
     'ret': TokenKind.KW_RET,
     'extern': TokenKind.KW_EXTERN,
     'alias': TokenKind.KW_ALIAS,
@@ -197,13 +194,13 @@ TOKEN_KIND_MAP = {
     'size_of': TokenKind.KW_SIZE,
     'len_of': TokenKind.KW_LEN,
     'literal': TokenKind.KW_LIT,
+    'move': TokenKind.KW_MOVE,
+    'strfy': TokenKind.KW_STRFY,
     'cast': TokenKind.KW_CAST,
-    'bool': TokenKind.KW_BOOL,
     'true': TokenKind.TRUE_LIT,
     'false': TokenKind.FALSE_LIT,
     'block': TokenKind.KW_BLOCK,
     'macro': TokenKind.KW_MACRO,
-
     'int64': TokenKind.TYPE_LIT,
     'int32': TokenKind.TYPE_LIT,
     'int16': TokenKind.TYPE_LIT,
@@ -273,6 +270,8 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_COUNT,
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
+        TokenKind.KW_STRFY,
+        TokenKind.KW_MOVE,
         TokenKind.KW_CAST,
         TokenKind.KW_IF,
         TokenKind.KW_ELSE,
@@ -351,6 +350,8 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_COUNT,
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
+        TokenKind.KW_MOVE,
+        TokenKind.KW_STRFY,
         TokenKind.KW_CAST,
         TokenKind.FUN_CALL,
         TokenKind.MACRO_CALL,

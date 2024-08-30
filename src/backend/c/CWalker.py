@@ -33,7 +33,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             '\t', '\\t').replace('\\end', 'end')
         return string
     if node.kind == NodeKind.IDENT:
-        if Def.ident_map.get(node.value) == Def.VariableMetaKind.REF and (
+        if Def.ident_map.get(node.value) in (Def.VariableMetaKind.REF, Def.VariableMetaKind.RV_REF) and (
                 parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
             return f'(*{node.value})'
 
@@ -123,6 +123,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}'
         else:
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}\n{indent + right}{";" if add_right_semi else empty_str}'
+    if node.kind == NodeKind.MOVE:
+        return left
     if node.kind == NodeKind.FUN_CALL:
         fun = Def.fun_map.get(node.value)
         sig: Def.FunctionSignature = find_signature(fun, node.left)
@@ -165,6 +167,11 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
+    if node.kind == NodeKind.STRFY:
+        if node.left.kind == NodeKind.STRFY:
+            return _c_walk(node.left)
+        else:
+            return f"\"{_c_walk(node.left)}\""
     if node.kind in (NodeKind.TYPE, NodeKind.OFF, NodeKind.LEN, NodeKind.LIT, NodeKind.SIZE, NodeKind.COUNT):
         return _c_walk(c_expand_builtin(node))
     if node.kind == NodeKind.RET:

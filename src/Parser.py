@@ -30,12 +30,14 @@ from Def import Function
 from Def import FunctionSignature
 from Def import Array
 from Def import Structure
+from Def import PointerType
 from Def import Pointer
 from Def import Macro
 from Def import MacroSignature
 from Def import bool_ckind
 from Def import ptr_ckind
 from Def import ref_ckind
+from Def import rv_ref_ckind
 from Def import arr_ckind
 from Def import void_ckind
 from Def import default_ckind
@@ -50,7 +52,10 @@ from Def import str_type
 from Def import print_error
 from Def import print_warning
 from Def import check_ident
+from Def import ref_of
+from Def import rv_ref_of
 from Def import type_of
+from Def import ptr_type_of
 from Def import type_of_op
 from Def import type_of_ident
 from Def import type_of_lit
@@ -70,10 +75,13 @@ from Def import _find_signature
 from Def import find_signature
 from Def import compute_signature
 from Def import glue_statements
+from Def import ref_node
 from Def import args_to_list
 from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
+    TokenKind.KW_MOVE: 26,
+    TokenKind.KW_STRFY: 26,
     TokenKind.KW_CAST: 26,
     TokenKind.KW_TYPE: 26,
     TokenKind.KW_LEN: 26,
@@ -137,6 +145,8 @@ NODE_KIND_MAP = {
     TokenKind.STR_LIT: NodeKind.STR_LIT,
     TokenKind.KW_ASM: NodeKind.ASM,
     TokenKind.KW_CAST: NodeKind.CAST,
+    TokenKind.KW_STRFY: NodeKind.STRFY,
+    TokenKind.KW_MOVE: NodeKind.MOVE,
     TokenKind.KW_TYPE: NodeKind.TYPE,
     TokenKind.KW_LEN: NodeKind.LEN,
     TokenKind.KW_SIZE: NodeKind.SIZE,
@@ -321,7 +331,7 @@ class Parser:
 
             elif token_is_op(token.kind):
                 # Assembly, type, offset, size, len, cast, warn builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST):
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST, TokenKind.KW_STRFY, TokenKind.KW_MOVE):
                     op_stack.append(token)
                     continue
 
@@ -558,6 +568,63 @@ class Parser:
         else:
             Def.hoisted = glue_statements([Def.hoisted, fun_node])
 
+    def inject_copy(self, fun_name: str, node: Node) -> Node:
+        arg_types = []
+        fun = Def.fun_map.get(fun_name)
+
+        def is_in_sig(arg_type: VariableType):
+            new_arg_types = arg_types + [arg_type]
+            sig = _find_signature(fun, new_arg_types, check_len=False)
+
+            return sig is not None
+
+        def try_cast_rv_ref(node: Node):
+            var_type = None
+            is_rv_ref = False
+
+            if node.kind == NodeKind.MOVE:
+                if is_in_sig(rv_ref_of(node.ntype)):
+                    is_rv_ref = True
+                    var_type = node.ntype
+
+            if node.kind == NodeKind.IDENT:
+                if Def.ident_map.get(node.value) == VariableMetaKind.RV_REF and is_in_sig(type_of_ident(node.value)):
+                    is_rv_ref = True
+                    var_type = type_of_ident(node.value)
+
+            if is_rv_ref:
+                return Node(NodeKind.REF, rv_ref_of(var_type), '&', node)
+
+            return node
+
+        def inject_copy_arg(node: Node):
+            node = try_cast_rv_ref(node)
+            if node.kind == NodeKind.MOVE:
+                return node
+
+            if node.ntype.ckind == rv_ref_ckind:
+                return node
+
+            if node.ntype.ckind != struct_ckind:
+                return node
+
+            copy_fun = Def.fun_map.get('copy')
+
+            copy_sig = None
+            if copy_fun:
+                copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
+
+            if not copy_fun or not copy_sig:
+                print_warning('inject_copy',
+                              f'Function "{fun_name}" claims ownership of argument "{node.value}" of type "{node.ntype.name}". Consider defining a copy function or pass the argument as a reference type.', self)
+
+                return node
+            else:
+                return Node(NodeKind.FUN_CALL, copy_sig.ret_type, copy_fun.name, ref_node(node))
+
+        nodes = list(map(inject_copy_arg, args_to_list(node)))
+        return glue_statements(nodes, in_call=True)
+
     def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True) -> List[Node]:
         if fun_name in Def.fun_sig_map:
             fun_name = Def.fun_sig_map.get(fun_name)
@@ -595,7 +662,7 @@ class Parser:
                 self._gen_fun_call(sig)
 
             node_stack.append(
-                Node(kind, ret_type, fun_name, node))
+                Node(kind, ret_type, fun_name, self.inject_copy(fun_name, node)))
 
         return node_stack
 
@@ -646,11 +713,7 @@ class Parser:
                         name = token.value
                         ntype = type_of_ident(name)
 
-                        # if ntype.ckind == fun_ckind:
-                        #     self._fun_call(
-                        #         token.value, node_stack, check_len=False)
-
-                        if Def.ident_map.get(name) == VariableMetaKind.REF:
+                        if Def.ident_map.get(name) in (VariableMetaKind.REF, VariableMetaKind.RV_REF):
                             ntype = Def.ptr_map.get(name).elem_type
 
                         node_stack.append(
@@ -691,12 +754,17 @@ class Parser:
                         print_error('to_tree', 'Missing operand', self)
                     node = node_stack.pop()
 
+                    if token.kind == TokenKind.KW_MOVE:
+                        node_stack.append(
+                            Node(NodeKind.MOVE, node.ntype, 'move', node))
+                        continue
+
                     if token.kind == TokenKind.KW_LIT:
                         node_stack.append(Node(self.node_kind_of(
                             token.kind), void_type, token.value, node))
                         continue
 
-                    if token.kind == TokenKind.KW_TYPE:
+                    if token.kind in (TokenKind.KW_TYPE, TokenKind.KW_STRFY):
                         node_stack.append(
                             Node(self.node_kind_of(token.kind), type_of_lit(NodeKind.STR_LIT), token.value, node))
                         continue
@@ -839,6 +907,11 @@ class Parser:
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #2)', self)
 
+                        # Disallows string literal modification
+                        if kind == NodeKind.OP_ASSIGN and left.kind == NodeKind.ARR_ACC and left.left.kind == NodeKind.STR_LIT:
+                            print_error('to_tree',
+                                        f'Cannot modify the read-only string literal {left.left.value}.', self)
+
                         # Widens the operands if necessary
                         code = needs_widen(left.ntype.ckind, right.ntype.ckind)
                         if code == 1 and kind not in (NodeKind.GLUE, NodeKind.OP_ASSIGN, NodeKind.TERN_COND):
@@ -913,7 +986,11 @@ class Parser:
                 print_error('parse_type',
                             'Fixed-size references are not allowed', parser=self)
 
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+            self.next_token()
+            meta_kind = VariableMetaKind.RV_REF
+
+        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
             self.next_token()
             meta_kind = VariableMetaKind.REF
 
@@ -933,6 +1010,9 @@ class Parser:
         if meta_kind == VariableMetaKind.REF:
             var_type = VariableType(
                 ref_ckind, elem_ckind, name=var_type.name)
+        if meta_kind == VariableMetaKind.RV_REF:
+            var_type = VariableType(
+                rv_ref_ckind, elem_ckind, name=var_type.name)
 
         return ParsedType(var_type, elem_type, elem_cnt)
 
@@ -1232,10 +1312,10 @@ class Parser:
                 Def.var_off += size_of(vtype.ckind)
                 Def.var_map[name] = Variable(vtype, Def.var_off)
 
-            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
                 Def.var_off += size_of(vtype.elem_ckind)
                 Def.ptr_map[name] = Pointer(
-                    name, 0, vtype.elem_ckind, Def.var_off, meta_kind == VariableMetaKind.PTR)
+                    name, 0, vtype.elem_ckind, Def.var_off, ptr_type_of(meta_kind))
 
         body = self.compound_statement()
 
@@ -1441,7 +1521,12 @@ class Parser:
                     elem_type = VariableType(
                         arg_type.elem_ckind, name=arg_type.name)
 
-                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
+                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                    self.next_token()
+                    arg_type = VariableType(
+                        rv_ref_ckind, arg_type.ckind, name=arg_type.name)
+
+                elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.BIT_AND:
                     self.next_token()
                     arg_type = VariableType(
                         ref_ckind, arg_type.ckind, name=arg_type.name)
@@ -1482,6 +1567,11 @@ class Parser:
 
             ret_type = type_of(self.curr_token().value)
             self.next_token()
+
+            if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+                self.next_token()
+                ret_type = VariableType(
+                    rv_ref_ckind, ret_type.ckind, name=ret_type.name)
 
             if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
                 self.next_token()
@@ -1548,6 +1638,7 @@ class Parser:
             if arg_type == void_type:
                 print_error(
                     'fun_declaration', 'Declaration of void function arguments is not allowed.', self)
+
             meta_kind = arg_type.meta_kind()
             Def.ident_map[full_name_of_var(
                 arg_name, exhaustive_match=False)] = meta_kind
@@ -1570,10 +1661,10 @@ class Parser:
                 Def.var_map[full_name_of_var(arg_name)] = Variable(
                     arg_type, Def.var_off, True)
 
-            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+            elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
                 elem_type.name = arg_type.name
                 Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
-                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, meta_kind == VariableMetaKind.REF, True)
+                    full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, ptr_type_of(meta_kind), True)
 
             elif (is_generic and meta_kind not in (
                     VariableMetaKind.GENERIC, VariableMetaKind.ANY)):
@@ -1588,19 +1679,31 @@ class Parser:
         if is_implicit:
             signature.ret_type = Def.fun_ret_type
 
-        def needs_destr(ident: str, fun_name: str = full_name, is_destr=full_name == 'destruct'):
-            is_local = ident != full_name and ident.startswith(
-                full_name)
+        # !BUG: Destructors deffered after return
+        # !Move this to a reusable
+        def needs_destr(ident: str, fun_name: str = sig_name, is_destr=full_name == 'destruct'):
+            is_local = ident != fun_name and ident.startswith(
+                fun_name) and Def.ident_map.get(ident) == VariableMetaKind.STRUCT
+            if not is_local:
+                return False
 
-            if is_local and is_destr and ident not in fun.arg_names:
-                print_warning(
-                    'needs_destr', f'Allocation of {ident} detected in destructor. Resource is not cleaned up.', self)
+            same_type = False
+            if is_destr:
+                if ident in full_arg_names:
+                    return False
+                else:
+                    var_type = type_of_ident(ident)
+                    if var_type in arg_types:
+                        same_type = True
 
-            return is_local and not is_destr
+                        print_warning(
+                            'needs_destr', f'Allocation of "{ident}" of same type "{rev_type_of(var_type)}" detected in destructor. Resource is not cleaned up.', self)
+
+            return not is_destr or (is_destr and not same_type)
 
         def destr(sig: FunctionSignature, fun_name: str, ident: str) -> Node:
             var_type = type_of_ident(ident)
-            return Node(NodeKind.FUN_CALL, sig.ret_type, fun_name, Node(NodeKind.IDENT, var_type, ident))
+            return Node(NodeKind.FUN_CALL, sig.ret_type, fun_name, ref_node(Node(NodeKind.IDENT, var_type, ident)))
 
         # Cleanup (RAII)
         destr_stmts = None
@@ -1608,7 +1711,8 @@ class Parser:
         fun_locals = list(filter(needs_destr, Def.ident_map.keys()))
         for ident in fun_locals:
             if ident not in Def.returned and destr_fun is not None:
-                sig = _find_signature(destr_fun, [type_of_ident(ident)])
+                sig = _find_signature(
+                    destr_fun, [ref_of(type_of_ident(ident))])
 
                 if sig is not None:
                     if destr_stmts is None:
@@ -1673,8 +1777,7 @@ class Parser:
         tmp_name = f'{struct.name}_tmp'
         fun_name = name
 
-        sig_name = '_'.join([fun_name] + list(map(rev_type_of, struct.elem_types))).replace(
-            '*', 'ptr').replace('&', 'ref')
+        sig_name = compute_signature(fun_name, struct.elem_types)
 
         # ? Temporary
         full_arg_names = []
@@ -1742,7 +1845,11 @@ class Parser:
             return
 
         meta_kind = VariableMetaKind.PRIM
-        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
+        if not self.no_more_tokens() and self.curr_token().kind == TokenKind.AND:
+            self.next_token()
+            meta_kind = VariableMetaKind.RV_REF
+
+        elif not self.no_more_tokens() and self.curr_token().kind == TokenKind.MULT:
             self.next_token()
             meta_kind = VariableMetaKind.PTR
 
@@ -2094,7 +2201,7 @@ class Parser:
 
             return Node(NodeKind.GLUE, void_ckind, '', Node(decl_kind, void_type, full_name), self.array_declaration(full_name))
 
-        if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF):
+        if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
             value = 0
             elem_type = VariableType(elem_ckind, name=var_type.name)
 

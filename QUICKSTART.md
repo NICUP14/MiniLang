@@ -66,9 +66,6 @@ Pointers are often used for tasks involving dynamic memory allocation and low-le
 
 ## Literals
 
-> [!WARNING]
-> There is no safety measure regarding string literal manipulation. Doing this results in undefined behavior.
-
 ```txt
 # Integer literal (int64)
 0
@@ -82,9 +79,6 @@ false
 
 # Character literal (int8)
 'c'
-
-# Undefined behavior
-"abc" at 0 = 'd'
 ```
 
 ## Builtins
@@ -103,6 +97,7 @@ off_of(ident)      | Integer literal      | Variable stack offset
 len_of(ident)      | Integer literal      | Element count of the array
 size_of(ident)     | Integer literal      | Variable size
 type_of(expr)      | String literal       | Expression type
+strfy(expr)        | String literal       | String representation of expr
 cast("type", expr) | Any                  | The expression cast to type
 literal(lit, ...)  | Void                 | The arguments merged as a literal
 asm("statement")   | Void                 | -
