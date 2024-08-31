@@ -1007,6 +1007,7 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_GTE,
             NodeKind.OP_EQ,
             NodeKind.OP_NEQ,
+            NodeKind.ELEM_ACC,
             NodeKind.REF
         ]
 

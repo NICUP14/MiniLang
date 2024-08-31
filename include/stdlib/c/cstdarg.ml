@@ -7,10 +7,6 @@ extern fun va_end(list: va_list): void
 extern fun c_va_start(list: va_list, arg: int64): void
 extern fun c_va_arg(list: va_list, arg: void): void*
 
-# fun copy(arg: va_list&)
-#     ret arg
-# end
-
 fun destruct(arg: va_list&)
     va_end(move(arg))
 end
@@ -33,7 +29,7 @@ fun va_arg(list: va_list, argx: void*): void*
 end
 
 fun va_arg(list: va_list, argx: int64): int64
-    ret cast("int64", c_va_arg(move list, literal("long long")))
+    ret cast("int64", c_va_arg(move(list), literal("long long")))
 end
 
 # Convenience aliases

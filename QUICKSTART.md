@@ -164,7 +164,7 @@ Level 11  | `,`                         | Comma
 ## Inline assembly
 
 > [!WARNING]
-> The `asm` builtin does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack  leads to undefined behavior.
+> The `asm` builtin does not validate any inline assembly code passed as a parameter (by design). Thus, manually shrinking or growing the function stack leads to undefined behavior.
 
 ```txt
 asm ".macro stack_snapshot"
@@ -214,7 +214,7 @@ alias size_t = int64
 ```txt
 # Declaration syntax
 # Recommended naming convention: snake_case
-# The type for non-array variables is optional (type inference)
+# The type for non-array and non-heredoc variables is optional (type inference)
 let variable: type = value
 let pointer: type* = address
 let inferred = &variable
@@ -238,7 +238,15 @@ array[i] = 15
 
 ```txt
 # If statement syntax
-# if expression1 sign expression2
+#
+# if <condition>
+#    <if_body>
+# elif <condition2>
+#    <elif_body>
+# ...
+# else
+#    <else_body>
+# end
 
 if a + 5 > 20
     a = 30
@@ -253,10 +261,29 @@ end
 
 ```txt
 # While loop syntax
-# while expression sign expression2
+#
+# while <condition>
+#    <while_body>
+# end
 
 while a >= 10
     a = a / 10
+end
+```
+
+## For loops
+
+For loops are used to iterate over a sequence using iterators. To extend for loops for custom types, declare the required `start`, `stop` and `next` functions.
+
+```txt
+# For loop syntax
+#
+# for <iter> in <target>
+#    <for_body>
+# end
+
+for it in range(15)
+    println(it)
 end
 ```
 

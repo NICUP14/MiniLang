@@ -1,8 +1,8 @@
 # Bugs
 
-Solved: 17/23
+Solved: 19/23
 
-- [ ] Using an iterator `i` in a for loop does not compile correctly.
+- [X] Using an iterator `i` in a for loop does not compile correctly.
 - [X] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function
 - [X] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
@@ -14,7 +14,7 @@ Solved: 17/23
 - [ ] Div/Mod bug for asm backend (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
 - [X] Passing arguments from variadic macro to fun doesn't work.
-- [ ] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
+- [X] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).
 - [X] Cannot call function as a function param.
 - [X] No type checking for reference and dereference (`*bool = int64`).
 - [X] Faulty load before an assignment (div).

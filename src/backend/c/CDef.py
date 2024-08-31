@@ -110,7 +110,8 @@ def c_rev_type_of_ident(name: str) -> str:
         else:
             return f'{rev_of(ptr.elem_type.ckind)}*'
 
-    print_error('c_rev_type_of_ident', f'No such meta kind {meta_kind}')
+    print_error('c_rev_type_of_ident',
+                f'No such meta kind (name = {name}, meta_kind = {meta_kind})')
 
 
 def is_helper_glue(parent_kind: NodeKind, kind: NodeKind):

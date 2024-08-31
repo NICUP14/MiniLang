@@ -16,12 +16,12 @@ end
 
 # Duplicate an sds string (RAII).
 fun copy(s: str&): str
-    ret sdsdup(s)
+    ret sdsdup(move(s))
 end
 
 # Frees the resources onwed by the string (RAII).
 fun destruct(s: str&)
-    sdsfree(s)
+    sdsfree(move(s))
 end
 
 # Create a new sds string starting from a null terminated C string.
@@ -57,20 +57,20 @@ end
 
 # Duplicate an sds string.
 fun copy(s: str): str
-    ret sdsdup(s)
+    ret sdsdup(move(s))
 end
 
 # Modify an sds string in-place to make it empty (zero length).
 # However all the existing buffer is not discarded but set as free space
 # so that next append operations will not require allocations up to the
 # number of bytes previously available.
-fun clear(s: str): void
-    sdsclear(s)
+fun clear(s: str&): void
+    sdsclear(move(s))
 end
 
 # Like sdscpylen() but 't' must be a null-terminated string 
 # so that the length of the string is obtained with strlen().
-fun copy(s: str, t: str): str
+fun copy(s: str&, t: str&): str
     ret sdscpy(s, c_str(t))
 end
 
@@ -94,7 +94,7 @@ end
 # 
 # s = sdsnew("Hello World");
 # sdsrange(s,1,-1); => "ello World"
-fun substr(s: str, start: int64, send: int64): str
+fun substr(s: str&, start: int64, send: int64): str
     let tmp = str(s)
     sdsrange(tmp, start, send)
     ret tmp
@@ -106,7 +106,7 @@ end
 # From sdscatsds:
 # After the call, the modified sds string is no longer valid and all the
 # references must be substituted with the new pointer returned by the call.
-fun concat(s: str, t: str): str
+fun concat(s: str&, t: str&): str
     let tmp = str(s)
     ret sdscatsds(tmp, t)
 end
@@ -127,7 +127,7 @@ end
 # format. When this is the need, just use sdsempty() as the target string:
 # 
 # s = sdscatprintf(sdsempty(), "... your format ...", args);
-fun concat_from(s: str, fmt: int8*, ...): str
+fun concat_from(s: str&, fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 
@@ -165,7 +165,7 @@ end
 # If two strings share exactly the same prefix, but one of the two has
 # additional characters, the longer string is considered to be greater than
 # the smaller one.
-fun compare(s: str, s2: str): int32
+fun compare(s: str&, s2: str&): int32
     ret sdscmp(s, s2)
 end
 
@@ -174,20 +174,25 @@ fun equals(s: str, s2: str): bool
     ret sdscmp(s, s2) == 0
 end
 
+fun equals(s: str, cs2: c_str): bool
+    let s2 = str(cs2)
+    ret sdscmp(s, s2) == 0
+end
+
 # Apply tolower() to every character of the sds string 's'.
-fun to_lower(s: str): str
+fun to_lower(s: str&): str
     sdstolower(s)
     ret s
 end
 
 # Apply toupper() to every character of the sds string 's'.
-fun to_upper(s: str): str
+fun to_upper(s: str&): str
     sdstoupper(s)
     ret s
 end
 
 # Returns the index of the first occurence of sub in s
-fun find(s: str, sub: str): int64
+fun find(s: str&, sub: str&): int64
     let cs = c_str(s)
     let ptr = strstr(cs, c_str(sub))
     ret 0 - 1 if ptr == null else (cast("int64", ptr) - cast("int64", cs))
@@ -253,7 +258,7 @@ fun to_str(value: int64): str
 end
 
 # Create an sds string from a string using clone. 
-fun to_str(value: str): str
+fun to_str(value: str&): str
     ret value.copy
 end
 

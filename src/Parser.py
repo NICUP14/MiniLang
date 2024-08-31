@@ -817,7 +817,7 @@ class Parser:
                             elem_cnt = Def.arr_map.get(left.value).elem_cnt
                         elif left.ntype.ckind not in (ptr_ckind, arr_ckind):
                             print_error('to_tree',
-                                        f'Expected a pointer/array identifier, got {left.value}', self)
+                                        f'Expected a pointer/array identifier, got {left.value} (type={rev_type_of(left.ntype)})', self)
 
                         # Validates fixed-index array acesses
                         if right.kind == NodeKind.INT_LIT:
@@ -873,6 +873,7 @@ class Parser:
                             sig = Def._find_signature(fun, [right.left.ntype])
 
                             args = None
+                            ret_type = any_type
                             if sig:
                                 args = right.left
                                 ret_type = sig.ret_type
@@ -921,8 +922,8 @@ class Parser:
                             right = Node(NodeKind.OP_WIDEN, left.ntype,
                                          right.value, right)
 
-                        prev_type = left.ntype if left.ntype.meta_kind(
-                        ) != VariableMetaKind.STRUCT else right.ntype
+                        # ? Needs refactor
+                        prev_type = left.ntype if kind != NodeKind.ELEM_ACC else right.ntype
                         node_stack.append(
                             Node(kind, type_of_op(kind, prev_type), token.value, left, right))
                 else:
@@ -1242,7 +1243,8 @@ class Parser:
                         'Missing required iter/start/stop/next functions', parser=self)
 
         # Fetches iterator information
-        iter_arg_types = [target_node.ntype]
+        target_ref_type = ref_of(target_node.ntype)
+        iter_arg_types = [target_ref_type]
         iter_sig = _find_signature(
             iter_fun, iter_arg_types)
 
@@ -1251,8 +1253,7 @@ class Parser:
                         f'No signature of {iter_fun.name} matches {list(map(rev_type_of, iter_arg_types))} out of {[list(map(rev_type_of, sig.arg_types)) for sig in iter_fun.signatures]}', parser=self)
 
         iter_ret = iter_sig.ret_type
-        iter_ref_type = VariableType(
-            ref_ckind, iter_ret.ckind, name=iter_ret.name)
+        iter_ref_type = ref_of(iter_ret)
 
         arg_types = [iter_ref_type]
         start_sig = _find_signature(
@@ -1319,10 +1320,12 @@ class Parser:
 
         body = self.compound_statement()
 
+        target_ref = Node(
+            NodeKind.REF, target_ref_type, '&', target_node)
         iter_ref = Node(
             NodeKind.REF, iter_ref_type, '&', target_ident)
         iter_stmt = Node(NodeKind.FUN_CALL, iter_ret, 'iter',
-                         target_node)
+                         target_ref)
         start_stmt = Node(NodeKind.FUN_CALL, start_ret, 'start',
                           iter_ref)
         stop_stmt = Node(NodeKind.FUN_CALL, bool_type, 'stop',
@@ -1424,12 +1427,19 @@ class Parser:
             if signature.name == sig_name:
                 sig = signature
 
+        destr_stmts = self.inject_destr(
+            fun_name, sig_name, sig.arg_names, sig.arg_types)
+
         if sig.ret_type == Def.void_type:
             if not self.no_more_tokens():
                 print_error('ret_statement',
                             'Cannot return a non-void value from a void function', self)
 
-            return Node(NodeKind.RET, void_type, '')
+            node = Node(NodeKind.RET, void_type, '')
+            if destr_stmts:
+                node = glue_statements([destr_stmts, node])
+
+            return node
         else:
             node = self.token_list_to_tree()
 
@@ -1453,9 +1463,67 @@ class Parser:
             if node and node.kind == NodeKind.IDENT and node.ntype.ckind == struct_ckind:
                 Def.returned.append(node.value)
 
-            node = Node(NodeKind.GLUE, void_type, '', Def.deferred,
-                        Node(NodeKind.RET, node.ntype, '', node))
+            # TODO: Create a unified method to declare variables (declare_statement -> declare)
+            # ? Dirty fix which issues gcc warnings
+            # Stores the return in a temp (store -> destr -> ret)
+            full_name = full_name_of_var(
+                f'ret_{self.lineno}', force_local=True)
+            Def.ident_map[full_name] = node.ntype.meta_kind()
+            Def.returned.append(full_name)
+
+            node = self.declare(
+                full_name, node.ntype, node.ntype.elem_ckind, init_node=node)
+            ident = Node(NodeKind.IDENT, node.ntype, full_name)
+            ret_node = Node(NodeKind.RET, node.ntype, '', ident)
+
+            if destr_stmts:
+                node = glue_statements([node, destr_stmts])
+            node = glue_statements([node, ret_node, Def.deferred])
+
             return node
+
+    def inject_destr(self, full_name: str, sig_name: str, full_arg_names: List[str], arg_types: List[VariableType]):
+        def needs_destr(ident: str, fun_name: str = sig_name, is_destr=full_name == 'destruct'):
+            is_local = ident != fun_name and ident.startswith(
+                fun_name) and Def.ident_map.get(ident) == VariableMetaKind.STRUCT
+            if not is_local:
+                return False
+
+            same_type = False
+            if is_destr:
+                if ident in full_arg_names:
+                    return False
+                else:
+                    var_type = type_of_ident(ident)
+                    if var_type in arg_types:
+                        same_type = True
+
+                        print_warning(
+                            'needs_destr', f'Allocation of "{ident}" of same type "{rev_type_of(var_type)}" detected in destructor. Resource is not cleaned up.', self)
+
+            return not is_destr or (is_destr and not same_type)
+
+        def destr(sig: FunctionSignature, fun_name: str, ident: str) -> Node:
+            var_type = type_of_ident(ident)
+            return Node(NodeKind.FUN_CALL, sig.ret_type, fun_name, ref_node(Node(NodeKind.IDENT, var_type, ident)))
+
+        # Cleanup (RAII)
+        destr_stmts = None
+        destr_fun = Def.fun_map.get('destruct')
+        fun_locals = list(filter(needs_destr, Def.ident_map.keys()))
+        for ident in fun_locals:
+            if ident not in Def.returned and destr_fun is not None:
+                sig = _find_signature(
+                    destr_fun, [ref_of(type_of_ident(ident))])
+
+                if sig is not None:
+                    if destr_stmts is None:
+                        destr_stmts = destr(sig, destr_fun.name, ident)
+                    else:
+                        destr_stmts = glue_statements(
+                            [destr_stmts, destr(sig, destr_fun.name, ident)])
+
+        return destr_stmts
 
     def fun_declaration(self, is_extern: bool = False, in_generic: bool = False) -> Optional[Node]:
         # Needed for generics
@@ -1679,47 +1747,10 @@ class Parser:
         if is_implicit:
             signature.ret_type = Def.fun_ret_type
 
-        # !BUG: Destructors deffered after return
-        # !Move this to a reusable
-        def needs_destr(ident: str, fun_name: str = sig_name, is_destr=full_name == 'destruct'):
-            is_local = ident != fun_name and ident.startswith(
-                fun_name) and Def.ident_map.get(ident) == VariableMetaKind.STRUCT
-            if not is_local:
-                return False
-
-            same_type = False
-            if is_destr:
-                if ident in full_arg_names:
-                    return False
-                else:
-                    var_type = type_of_ident(ident)
-                    if var_type in arg_types:
-                        same_type = True
-
-                        print_warning(
-                            'needs_destr', f'Allocation of "{ident}" of same type "{rev_type_of(var_type)}" detected in destructor. Resource is not cleaned up.', self)
-
-            return not is_destr or (is_destr and not same_type)
-
-        def destr(sig: FunctionSignature, fun_name: str, ident: str) -> Node:
-            var_type = type_of_ident(ident)
-            return Node(NodeKind.FUN_CALL, sig.ret_type, fun_name, ref_node(Node(NodeKind.IDENT, var_type, ident)))
-
-        # Cleanup (RAII)
         destr_stmts = None
-        destr_fun = Def.fun_map.get('destruct')
-        fun_locals = list(filter(needs_destr, Def.ident_map.keys()))
-        for ident in fun_locals:
-            if ident not in Def.returned and destr_fun is not None:
-                sig = _find_signature(
-                    destr_fun, [ref_of(type_of_ident(ident))])
-
-                if sig is not None:
-                    if destr_stmts is None:
-                        destr_stmts = destr(sig, destr_fun.name, ident)
-                    else:
-                        destr_stmts = glue_statements(
-                            [destr_stmts, destr(sig, destr_fun.name, ident)])
+        if ret_type == void_type:
+            destr_stmts = self.inject_destr(
+                full_name, sig_name, full_arg_names, arg_types)
 
         Def.fun_name = ''
         Def.returned = []
@@ -1801,8 +1832,14 @@ class Parser:
             elem_acc = Node(NodeKind.ELEM_ACC, struct.vtype, '', Node(
                 NodeKind.IDENT, struct.vtype, tmp_name), Node(NodeKind.IDENT, var_type, new_name))
 
+            node = Node(NodeKind.IDENT, var_type, og_name)
+
+            if var_type.ckind == ref_ckind:
+                node = Node(NodeKind.REF, ref_of(var_type), '&', node)
+
+            # Fixes bug regarding ref in ctor
             return Node(NodeKind.OP_ASSIGN, var_type, '=',
-                        elem_acc, Node(NodeKind.IDENT, var_type, og_name))
+                        elem_acc, node)
 
         decl = Node(NodeKind.STRUCT_DECL, struct.vtype, tmp_name)
         ret = Node(NodeKind.RET, struct.vtype, '', Node(
@@ -2070,76 +2107,11 @@ class Parser:
                 print_error('struct_elem_declaration',
                             f'Unknown meta kind {meta_kind} (type="{rev_type_of(var_type)}", new_name="{new_name}", og_name="{og_name}")', self)
 
-    def declaration(self, is_struct: bool = False) -> Optional[Node]:
-        if Def.macro_name != '':
-            print_error('declaration',
-                        f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
-
-        name = self.match_token(TokenKind.IDENT).value
-        is_implicit = self.curr_token().kind != TokenKind.COLON
-
-        elem_cnt = 0
-        var_type = default_type
-        meta_kind = VariableMetaKind.PRIM
-        if not is_implicit:
-            self.match_token(TokenKind.COLON)
-
-            parsed_type = self.parse_type()
-            var_type = parsed_type.var_type
-            elem_cnt = parsed_type.elem_cnt
-            meta_kind = var_type.meta_kind()
-
-        if not self.no_more_tokens():
-            self.match_token(TokenKind.ASSIGN)
-
-        if is_implicit:
-            if self.curr_token().kind == TokenKind.LBRACE:
-                print_error(
-                    'declaration',
-                    'Implicit array declaration is not permitted.', self)
-
-            node = self.token_list_to_tree()
-            var_type = node.ntype
-            meta_kind = var_type.meta_kind()
-
-            if var_type.ckind == void_ckind:
-                print_error('declaration',
-                            'Declaration of implicit void primitive is not allowed.', self)
-
-            # Decays array to pointer
-            if meta_kind == VariableMetaKind.ARR:
-                meta_kind = VariableMetaKind.PTR
-                elem_cnt = Def.arr_map.get(node.value).elem_cnt
-
-            # Reference correction
-            elif meta_kind in (VariableMetaKind.REF, VariableMetaKind.PTR):
-                if node.value in Def.ptr_map:
-                    elem_cnt = Def.ptr_map.get(node.value).elem_cnt
-
-        # Fixes bug regarding complex types from Def.type_of
-        elem_ckind = None
-        if var_type.meta_kind() == VariableMetaKind.PRIM or var_type.ckind == struct_ckind:
-            elem_ckind = var_type.ckind
-        else:
-            elem_ckind = var_type.elem_ckind
-
-        is_local = Def.fun_name != ''
-        var_name = full_name_of_var(
-            name, force_local=True, exhaustive_match=False)
-        full_name = var_name if is_local else full_name_of_var(name, True)
-
+    def declare(self, full_name: str, var_type: VariableType, elem_ckind: VariableCompKind = default_ckind, elem_cnt: int = 0, is_local: bool = True, is_struct: bool = False, init_node: Optional[Node] = None):
+        meta_kind = var_type.meta_kind()
         decl_kind = NodeKind.ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.DECLARATION
         if is_struct:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
-
-        if is_struct:
-            name = f'{Def.struct_name}_elem_{name}'
-            full_name = var_name if is_local else full_name_of_var(name, True)
-            Def.struct_map[Def.struct_name].elem_names.append(name)
-            Def.struct_map[Def.struct_name].elem_types.append(var_type)
-
-        check_ident(full_name)
-        Def.ident_map[full_name] = meta_kind
 
         if meta_kind == VariableMetaKind.STRUCT:
             struct = Def.struct_map.get(var_type.name)
@@ -2150,10 +2122,10 @@ class Parser:
             Def.struct_map[full_name] = Structure(
                 full_name, var_type, elem_names, elem_types)
 
-            if self.no_more_tokens():
+            if not init_node and self.no_more_tokens():
                 return Node(NodeKind.STRUCT_DECL, var_type, full_name)
 
-            node = self.token_list_to_tree()
+            node = init_node if init_node else self.token_list_to_tree()
             if var_type != node.ntype:
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
@@ -2162,7 +2134,6 @@ class Parser:
 
         if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
             value = 0
-            # value = 0 if is_local or is_struct else self.match_token(TokenKind.INT_LIT).value
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
                 var_type, Def.var_off, is_local, value)
@@ -2174,10 +2145,7 @@ class Parser:
 
                 return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
 
-            # if not is_local:
-            #     return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), Node(NodeKind.INT_LIT, var_type, value))
-
-            node = self.token_list_to_tree()
+            node = init_node if init_node else self.token_list_to_tree()
             if not type_compatible(decl_kind, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
                             f'Incompatible assignment between types {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
@@ -2217,7 +2185,7 @@ class Parser:
                 self.next_token()
                 node = self.heredoc_declaration()
             else:
-                node = self.token_list_to_tree()
+                node = init_node if init_node else self.token_list_to_tree()
 
             if not type_compatible(decl_kind, var_type.ckind, node.ntype.ckind):
                 print_error('declaration',
@@ -2225,5 +2193,82 @@ class Parser:
 
             return Node(decl_kind, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-        print_error('declaration',
+        print_error('declare',
                     f'Unknown meta kind {meta_kind}', self)
+
+    def declaration(self, is_struct: bool = False) -> Optional[Node]:
+        if Def.macro_name != '':
+            print_error('declaration',
+                        f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
+
+        name = self.match_token(TokenKind.IDENT).value
+        is_implicit = self.curr_token().kind != TokenKind.COLON
+
+        elem_cnt = 0
+        var_type = default_type
+        meta_kind = VariableMetaKind.PRIM
+        if not is_implicit:
+            self.match_token(TokenKind.COLON)
+
+            parsed_type = self.parse_type()
+            var_type = parsed_type.var_type
+            elem_cnt = parsed_type.elem_cnt
+            meta_kind = var_type.meta_kind()
+
+        if not self.no_more_tokens():
+            self.match_token(TokenKind.ASSIGN)
+
+        if is_implicit:
+            if self.curr_token().kind == TokenKind.LBRACE:
+                print_error(
+                    'declaration',
+                    'Implicit array declaration is not permitted.', self)
+
+            node = self.token_list_to_tree()
+            var_type = node.ntype
+            meta_kind = var_type.meta_kind()
+
+            if var_type.ckind == void_ckind:
+                print_error('declaration',
+                            'Declaration of implicit void primitive is not allowed.', self)
+
+            # Rvalue reference correction
+            if node.kind == NodeKind.MOVE:
+                meta_kind = VariableMetaKind.RV_REF
+                node.ntype = rv_ref_of(var_type)
+                var_type = rv_ref_of(var_type)
+
+            # Decays array to pointer
+            if meta_kind == VariableMetaKind.ARR:
+                meta_kind = VariableMetaKind.PTR
+                elem_cnt = Def.arr_map.get(node.value).elem_cnt
+
+            # Reference correction
+            elif meta_kind in (VariableMetaKind.REF, VariableMetaKind.PTR):
+                if node.value in Def.ptr_map:
+                    elem_cnt = Def.ptr_map.get(node.value).elem_cnt
+
+        # Fixes bug regarding complex types from Def.type_of
+        elem_ckind = None
+        if var_type.meta_kind() == VariableMetaKind.PRIM or var_type.ckind == struct_ckind:
+            elem_ckind = var_type.ckind
+        else:
+            elem_ckind = var_type.elem_ckind
+
+        is_local = Def.fun_name != ''
+        var_name = full_name_of_var(
+            name, force_local=True, exhaustive_match=False)
+        full_name = var_name if is_local else full_name_of_var(name, True)
+
+        if is_struct:
+            name = f'{Def.struct_name}_elem_{name}'
+            full_name = var_name if is_local else full_name_of_var(name, True)
+
+            check_ident(full_name)
+            Def.struct_map[Def.struct_name].elem_names.append(name)
+            Def.struct_map[Def.struct_name].elem_types.append(var_type)
+
+        check_ident(full_name)
+        Def.ident_map[full_name] = meta_kind
+
+        return self.declare(full_name, var_type, elem_ckind, elem_cnt, is_local, is_struct)

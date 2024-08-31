@@ -18,7 +18,7 @@ fun range(range_stop: int64): range
     ret range(0, 0, range_stop)
 end
 
-fun iter(arg: range): range
+fun iter(arg: range&): range
     ret arg
 end
 
@@ -50,7 +50,7 @@ fun lines(arg: c_stream): file_range
     ret file_range(arg, c_str(s), succ)
 end
 
-fun iter(arg: file_range): file_range
+fun iter(arg: file_range&): file_range
     ret arg
 end
 
@@ -88,7 +88,7 @@ struct c_str_range
     c_str_range_stop: int64
 end
 
-fun iter(arg: str): c_str_range
+fun iter(arg: str&): c_str_range
     ret c_str_range(c_str(arg), 0, 0, len(arg))
 end
 

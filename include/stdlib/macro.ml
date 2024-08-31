@@ -33,6 +33,12 @@ end
 macro incr(_arg)
     _arg = _arg + 1
 end
+macro incr(_arg, _val)
+    _arg = _arg + _val
+end
 macro decr(_arg)
     _arg = _arg - 1
 end                                                  
+macro decr(_arg, _val)
+    _arg = _arg - _val
+end

@@ -1,10 +1,12 @@
 # TODO
 
-Solved: 20/29
+Solved: 20/31
 
-- [X] Separate macro (`add_sep(args, " ")`)
+- [ ] Fix references causing errors in c backend (`&fun(...)`)
+- [ ] Suggestive errors for non-existent members
+- [X] Separate macro (`delimit(" " , args)`)
 - [ ] Function pointer (`&my_fun`)
-- [ ] Add for-loop documentation to QUICKSTART.
+- [ ] Add for-loop & RAII documentation to QUICKSTART.
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)
 - [ ] Add block section to README

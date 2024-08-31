@@ -18,7 +18,8 @@ fun _str_listv(cnt: int64, listx: va_list)
     let arr: str* = null
     alloc(arr, cnt * 8)
 
-    for it in range(cnt)
+    let r = range(cnt)
+    for it in r
         let arg: int8* = va_arg_voidptr(listx)
         arr at it = str(arg)
     end
@@ -30,11 +31,11 @@ fun _str_list(cnt: int64, ...)
     let listx: va_list
     va_start(listx, cnt)
 
-    ret _str_listv(cnt, listx)
+    ret _str_listv(cnt, move(listx))
 end
 
 fun str_list(cnt: int64, listx: va_list)
-    ret _str_listv(cnt, listx)
+    ret _str_listv(cnt, move(listx))
 end
 
 macro str_list_from(args)
@@ -49,7 +50,7 @@ struct str_list_range
     str_list_range_arr: str*
 end
 
-fun iter(arg: str_list): str_list_range
+fun iter(arg: str_list&): str_list_range
     ret str_list_range(0, arg.str_list_cnt, arg.str_list_arr)
 end
 
@@ -63,5 +64,9 @@ end
 
 fun next(arg: str_list_range&)
     arg.str_list_range_idx = arg.str_list_range_idx + 1
-    ret arg.str_list_range_arr at arg.str_list_range_idx
+    if stop(&arg) == true
+        ret arg.str_list_range_arr at arg.str_list_range_idx
+    else
+        ret empty_str
+    end
 end

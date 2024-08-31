@@ -34,11 +34,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return string
     if node.kind == NodeKind.IDENT:
         if Def.ident_map.get(node.value) in (Def.VariableMetaKind.REF, Def.VariableMetaKind.RV_REF) and (
-                parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
-            return f'(*{node.value})'
-
-        if Def.ident_map.get(node.value) == Def.VariableMetaKind.REF and (
-                parent is not None and parent.kind == NodeKind.DECLARATION and parent.right == node):
+                parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION, NodeKind.ELEM_ACC, NodeKind.STRUCT_ELEM_DECL, NodeKind.STRUCT_ARR_DECL)):
             return f'(*{node.value})'
 
         return node.value
@@ -98,7 +94,11 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.ARR_ACC:
         return f'{left}[{right}]'
     if node.kind == NodeKind.ELEM_ACC:
-        return f'{left}.{right}'
+        # print('DBG:', node.left.value, Def.rev_type_of(node.left.ntype))
+        if Def.ident_map.get(node.left.value) == Def.VariableMetaKind.REF or node.left.ntype.ckind == Def.ref_ckind:
+            return f'{left}->{right}'
+        else:
+            return f'{left}.{right}'
     if node.kind == NodeKind.TERN:
         return f'({middle} ? {left} : {right})'
     if node.kind == NodeKind.IF:
@@ -133,7 +133,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
                 return node.ntype
 
             print_error('c_walker_step',
-                        f'No signature of {fun.name} matches {list(map(c_rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(c_rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
+                        f'No signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
         # ? For easy debugging of signatures
         # def get_type(node: Node):
@@ -184,7 +184,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         if Def.ident_map.get(node.left.value) in (Def.VariableMetaKind.REF, Def.VariableMetaKind.ARR):
             return left
         else:
-            return f'(&{left})'
+            return f'(&({left}))'
     if node.kind == NodeKind.DEREF:
         return f'(*{left})'
     if node.kind == NodeKind.END:

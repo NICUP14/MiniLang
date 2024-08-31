@@ -22,6 +22,9 @@ end
 fun _print(st: c_stream, arg: str): void
     fprintf(st, "%s", c_str(arg))
 end
+fun _print(st: c_stream, arg: str&): void
+    fprintf(st, "%s", c_str(arg))
+end
 fun _print(st: c_stream, arg: void*): void
     fprintf(st, "%p", arg)
 end
