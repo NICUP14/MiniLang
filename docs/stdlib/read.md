@@ -10,7 +10,7 @@ Function   | Description
 -----------|------------
 `_read`   | `read` handlers that call `fscanf` based on the argument type
 
-## Macro
+## Macros
 
 Macro     | Description
 ----------|------------

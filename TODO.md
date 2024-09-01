@@ -1,7 +1,8 @@
 # TODO
 
-Solved: 20/31
+Solved: 20/32
 
+- [ ] Fix defers and variable assignments for control sturctures (`for`, ...)
 - [X] Fix references causing errors in c backend (`&fun(...)`)
 - [ ] Suggestive errors for non-existent members
 - [X] Separate macro (`delimit(" " , args)`)

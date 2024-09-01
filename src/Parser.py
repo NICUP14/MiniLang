@@ -690,10 +690,20 @@ class Parser:
 
         tmp_name = full_name_of_var(
             f'{node.value}ref_{self.lineno}', force_local=True)
-        tmp_decl = self.declare(
-            tmp_name, node.ntype, node.ntype.elem_ckind, init_node=node)
 
-        return (tmp_decl, ref_node(Node(NodeKind.IDENT, node.ntype, tmp_name)))
+        def get_type(node: Node):
+            return node.ntype
+
+        fun = Def.fun_map.get(node.value)
+        sig = _find_signature(
+            fun, list(map(get_type, args_to_list(node.left))))
+        if not sig:
+            print_error('ref', '...')
+
+        tmp_decl = self.declare(
+            tmp_name, sig.ret_type, sig.ret_type.elem_ckind, init_node=node)
+
+        return (tmp_decl, ref_node(Node(NodeKind.IDENT, sig.ret_type, tmp_name)))
 
     def to_tree(self, tokens: list[Token]) -> Node:
         node_stack: list[Node] = []
@@ -823,13 +833,12 @@ class Parser:
                                     f'Can only reference identifiers & function return types, got {node.kind}', self)
 
                     # Rvalue correction for function calls
-                    # if kind == NodeKind.REF:
-                    #     print("DBG:", node.kind, node.value)
                     if kind == NodeKind.REF and node.kind == NodeKind.FUN_CALL:
                         tmp_decl, node = self.ref(node)
                         to_predeferred(tmp_decl)
 
-                        return node
+                        node_stack.append(node)
+                        continue
 
                     node_stack.append(
                         Node(kind, type_of_op(kind, node.ntype), token.value, node))

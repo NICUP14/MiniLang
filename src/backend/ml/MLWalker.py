@@ -108,7 +108,7 @@ def ml_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: in
         return f'{color_str(Color.BLUE, "while")} {left}\n{body_indent + right}'
     if node.kind == NodeKind.FOR:
         body_indent = indent if node.left.kind != NodeKind.GLUE else ''
-        return f'{color_str(Color.BLUE, "for")} {ml_walk(parent.left)} in {middle})\n{body_indent + left}'
+        return f'{color_str(Color.BLUE, "for")} {middle} in {right})\n{body_indent + left}'
     if node.kind == NodeKind.GLUE:
         left_indent = indent
         if parent and parent.kind == NodeKind.GLUE:

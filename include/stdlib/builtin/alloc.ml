@@ -45,40 +45,44 @@ macro alloc_start(_lit)
     defer alloc_stop
 end
 
-macro alloc(_lit)
+fun alloc_size(sz: int64, fill: bool): void*
+    let ptr = null
     if _gc_running
-        _lit = _malloc(size_of(_lit))
+        ptr = _malloc(sz)
     else
-        _lit = malloc(size_of(_lit))
+        ptr = malloc(sz)
         alloc_warn
     end
-    if _lit == null
+
+    if ptr == null
         panic("Allocation failed.")
     end
+
+    if fill
+        memset(ptr, 0, 1)
+    end
+
+    ret ptr
+end
+
+fun alloc_size(size: int64): void*
+    ret alloc_size(size, false)
+end
+
+macro alloc(_lit)
+    _lit = alloc_size(size_of(_lit))
 end
 
 macro alloc(_lit, _size)
-    if _gc_running
-        _lit = _malloc(_size)
-    else
-        _lit = malloc(_size)
-        alloc_warn
-    end
-    if _lit == null
-        panic("Allocation failed.")
-    end
+    _lit = alloc_size(_size)
 end
 
 macro alloc_zeroed(_lit)
-    if _gc_running
-        _lit = _calloc(1, size_of(_lit))
-    else
-        _lit = calloc(1, size_of(_lit))
-        alloc_warn
-    end
-    if _lit == null
-        panic("Allocation failed.")
-    end
+    _lit = alloc_size(size_of(_lit), true)
+end
+
+macro alloc_zeroed(_lit, _size)
+    _lit = alloc_size(_size, true)
 end
 
 macro dealloc(_lit)
@@ -87,7 +91,7 @@ macro dealloc(_lit)
     else
         _lit.free
     end
-    _lit = cast("void*", 0)
+    _lit = null
 end
 
 macro with(_lit, _body)

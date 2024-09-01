@@ -142,9 +142,9 @@ fun handle_remove(tsk_list: task_list, cmd: str, args: str)
 end
 
 fun handle_cmd(tsk_list: task_list, full_cmd: str)
-        let sep = full_cmd.find(" ".str)
+        let sep = (&full_cmd).find(&(" ".str))
         let cmd_idx = sep - 1 if sep != 0 - 1 else 0 - 1
-        let cmd: str = substr(full_cmd, 0, cmd_idx)
+        let cmd: str = substr(&full_cmd, 0, cmd_idx)
 
         if cmd.equals("help".str)
             handle_help
@@ -152,7 +152,7 @@ fun handle_cmd(tsk_list: task_list, full_cmd: str)
             tsk_list.handle_list
         else
             assert(sep != 0 - 1)
-            let args: str = full_cmd.substr(sep + 1, 0 - 1)
+            let args = substr(&full_cmd, sep + 1, 0 - 1)
 
             if cmd.equals("add".str)
                 tsk_list.handle_add(cmd, args)

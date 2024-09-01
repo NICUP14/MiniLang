@@ -588,7 +588,10 @@ def rev_type_of_ident(name: str) -> str:
         VariableKind.VOID: 'void',
     }
 
-    def rev_of(ckind: VariableCompKind):
+    def rev_of(ckind: VariableCompKind, name: str = None):
+        if name:
+            return name
+
         if ckind == bool_ckind:
             return 'bool'
 
@@ -632,7 +635,7 @@ def rev_type_of_ident(name: str) -> str:
             specifier = '*'
         else:
             specifier = f'[{ptr.elem_cnt}]*'
-        return f'{rev_of(ptr.elem_type.ckind)}{specifier}'
+        return f'{rev_of(ptr.elem_type.ckind, ptr.elem_type.name)}{specifier}'
 
     print_error('rev_type_of_ident', f'No such meta kind {meta_kind}')
 
@@ -1234,7 +1237,6 @@ def find_signature(fun: Function, node: Node) -> Optional[FunctionSignature]:
 
     args = args_to_list(node)
     if None in args:
-        print('DBG: ', fun.name, end='')
         for arg in args:
             print(rev_type_of(arg.ntype) if arg else 'None', end=' ')
 

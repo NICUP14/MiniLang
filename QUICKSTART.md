@@ -273,7 +273,7 @@ end
 
 ## For loops
 
-For loops are used to iterate over a sequence using iterators. To extend for loops for custom types, declare the required `start`, `stop` and `next` functions.
+For loops are used to iterate over a sequence using iterators.
 
 ```txt
 # For loop syntax
@@ -285,6 +285,42 @@ For loops are used to iterate over a sequence using iterators. To extend for loo
 for it in range(15)
     println(it)
 end
+```
+
+### Internal representation
+
+```txt
+<iter-ret> <target> = iter(&<target_expr>)
+<start-ret> <it> = iter(&<target>)
+for(<it> = start(<it>); stop(&<it>) == false; <it> = next(&<it>)) {
+    <body>
+}
+```
+
+### Extensibility
+
+To extend for loops for custom types, declare the required `iter`, `start`, `stop` and `next` methods, operating on references to the given type.
+
+```txt
+# For-loop support for range type
+
+fun iter(arg: range&): range&
+    ret &arg
+end
+
+fun start(arg: range&): int64
+    ret arg.range_start
+end
+
+fun stop(arg: range&): bool
+    ret arg.range_idx < arg.range_stop
+end
+
+fun next(arg: range&): int64
+    arg.range_idx = arg.range_idx + 1
+    ret arg.range_idx
+end
+
 ```
 
 ## Import statements
@@ -498,3 +534,20 @@ let mystr = str("Hello")
 # print(len(concat(mystr, " World!")))
 mystr.concat(" World!").len.print
 ```
+
+## RAII
+
+> [!WARNING]
+> In the case where a composite type is missing the `copy` method, the intent defaults to moving (surrendering the ownership) the resource to the function. The compiler warns against these implicit ownership claims.
+
+RAII (Resource Acquisition Is Initialization) is a memory allocation tehnique where resources like memory, files, or locks are automatically managed by associating their acquisition and release with the lifetime of an object.
+
+In ML, RAII determines the lifetime of the composite types. Resources are destructed by calling their associated `destruct` and copied by calling `copy`. Both aforementioned methods operate on references of the resources' type. The `move` builtin allows createing rvalue references of resources.
+
+Description   | Type (var)       | Notation     | Effect
+--------------|------------------|--------------|-------
+Implicit copy | composite        | `var`        | `copy(&var)`
+Explicit copy | reference        | `&copy(var)` | `&copy(&var)`
+Implicit move | rvalue reference | `var`        | `var`
+Explicit move | composite        | `move(var)`  | `var`
+Reference     | reference        | `&var`       | `&var`

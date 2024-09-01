@@ -16,6 +16,8 @@ The standard library permits the use of both unsafe c standard library functions
 
 Module                            | Parent dir.   | Description
 ----------------------------------|---------------|------------
+[for](docs/stdlib/for.md)         | builtin       | Convenient for-based constructs and looping utilities
+[alloc](docs/stdlib/alloc.md)     | builtin       | Customizable memory allocation utilities
 [cdefs](docs/stdlib/cdef.md)      | c             | Commonly used c type definitions
 [cstdlib](docs/stdlib/cstdlib.md) | c             | Bindings for ported functions of the c standard library
 [cstarg](docs/stdlib/cstdarg.md)  | c             | Bindings for the `stdarg.h` c library
@@ -25,6 +27,7 @@ Module                            | Parent dir.   | Description
 [convert](docs/stdlib/convert.md) | -             | Type conversion library
 [debug](docs/stdlib/debug.ml)     | -             | Customizable rust-like assertables and panic macros
 [string](docs/stdlib/string.md)   | -             | Functional-like string library
+[macro](docs/stdlib/macro.md)     | -             | Stand-alone convenience macros
 backend                           | alloc         | Bindings for the `gc.h` c library (Garbage collector)
 backend                           | string        | Bindings for the `sds.h` c library (Simple Dynamic Strings)
 va_utils                          | legacy        | Simplistic `stdarg.h`-like implementation for the assembly backend (deprecated)
