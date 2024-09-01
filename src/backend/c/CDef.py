@@ -190,5 +190,5 @@ def c_expand_builtin(node: Node) -> Node:
 
         return Node(NodeKind.INT_LIT, node.ntype, str(elem_cnt))
 
-    print_error('c_expand_tree',
+    print_error('c_expand_builtin',
                 f'Expected a builtin, got {node.kind}')

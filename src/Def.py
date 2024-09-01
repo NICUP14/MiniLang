@@ -1297,6 +1297,14 @@ def glue_statements(node_list: List[Node], in_call: bool = False) -> Optional[No
     return glue_node
 
 
+def to_predeferred(node: Node):
+    global predeferred
+    if not predeferred:
+        predeferred = node
+    else:
+        predeferred = glue_statements([predeferred, node])
+
+
 def node_is_cmp(kind: NodeKind) -> bool:
     return kind in (
         NodeKind.OP_EQ,
@@ -1425,6 +1433,7 @@ macro_arg_cnt = 0
 fun_gen_map: Dict[str, VariableType] = dict()
 macro_arg_map: Dict[str, Node] = dict()
 deferred: Optional[Node] = None
+predeferred: Optional[Node] = None
 hoisted: Optional[Node] = None
 
 type_map = {

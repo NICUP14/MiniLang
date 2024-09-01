@@ -2,7 +2,7 @@
 
 Solved: 20/31
 
-- [ ] Fix references causing errors in c backend (`&fun(...)`)
+- [X] Fix references causing errors in c backend (`&fun(...)`)
 - [ ] Suggestive errors for non-existent members
 - [X] Separate macro (`delimit(" " , args)`)
 - [ ] Function pointer (`&my_fun`)

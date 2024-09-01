@@ -167,7 +167,7 @@ SUM:                                        976            258           3937
 ## Usage
 
 > [!WARNING]
-> The ML and asm compiler backends are currently far outdated. The latest features exclusively require the c compiler backend.
+> The asm compiler backend is currently far outdated. The latest features exclusively require the c and ml compiler backends.
 
 ```txt
 Usage: Main.py [options]

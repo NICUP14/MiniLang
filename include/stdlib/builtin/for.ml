@@ -18,8 +18,8 @@ fun range(range_stop: int64): range
     ret range(0, 0, range_stop)
 end
 
-fun iter(arg: range&): range
-    ret arg
+fun iter(arg: range&): range&
+    ret &arg
 end
 
 fun start(arg: range&): int64

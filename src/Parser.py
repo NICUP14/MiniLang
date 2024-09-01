@@ -77,6 +77,7 @@ from Def import compute_signature
 from Def import glue_statements
 from Def import ref_node
 from Def import args_to_list
+from Def import to_predeferred
 from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
@@ -299,11 +300,14 @@ class Parser:
                         op_stack.append(Token(TokenKind.MACRO_CALL, fun_name))
 
                     elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
-                        if prev_token and prev_token.kind == TokenKind.BIT_AND:
-                            op_stack.append(token)
-                        else:
-                            op_stack.append(
-                                Token(TokenKind.FUN_CALL, fun_name))
+                        op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
+
+                    # elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
+                    #     if prev_token and prev_token.kind == TokenKind.BIT_AND:
+                    #         op_stack.append(token)
+                    #     else:
+                    #         op_stack.append(
+                    #             Token(TokenKind.FUN_CALL, fun_name))
 
                     else:
                         if prev_token is not None and prev_token.kind == TokenKind.PERIOD:
@@ -593,7 +597,14 @@ class Parser:
                     var_type = type_of_ident(node.value)
 
             if is_rv_ref:
-                return Node(NodeKind.REF, rv_ref_of(var_type), '&', node)
+                if node.kind != NodeKind.FUN_CALL:
+                    return Node(NodeKind.REF, rv_ref_of(var_type), '&', node)
+
+                tmp_decl, node = self.ref(node)
+                to_predeferred(tmp_decl)
+
+                node.ntype = rev_type_of(var_type)
+                return node
 
             return node
 
@@ -620,7 +631,13 @@ class Parser:
 
                 return node
             else:
-                return Node(NodeKind.FUN_CALL, copy_sig.ret_type, copy_fun.name, ref_node(node))
+                if node.kind == NodeKind.FUN_CALL:
+                    tmp_decl, node = self.ref(node)
+                    to_predeferred(tmp_decl)
+                else:
+                    node = ref_node(node)
+
+                return Node(NodeKind.FUN_CALL, copy_sig.ret_type, copy_fun.name, node)
 
         nodes = list(map(inject_copy_arg, args_to_list(node)))
         return glue_statements(nodes, in_call=True)
@@ -666,7 +683,19 @@ class Parser:
 
         return node_stack
 
-    def to_tree(self, tokens: List[Token]) -> Node:
+    def ref(self, node: Node) -> tuple[Node, Node]:
+        # Macro fix
+        if Def.macro_name != '':
+            return None, ref_node(node)
+
+        tmp_name = full_name_of_var(
+            f'{node.value}ref_{self.lineno}', force_local=True)
+        tmp_decl = self.declare(
+            tmp_name, node.ntype, node.ntype.elem_ckind, init_node=node)
+
+        return (tmp_decl, ref_node(Node(NodeKind.IDENT, node.ntype, tmp_name)))
+
+    def to_tree(self, tokens: list[Token]) -> Node:
         node_stack: list[Node] = []
 
         for token in tokens:
@@ -789,9 +818,18 @@ class Parser:
                         print_error('to_tree',
                                     f'Cannot dereference the {node.value} pointer-to-void', self)
 
-                    if kind == NodeKind.REF and node.kind not in (NodeKind.IDENT, NodeKind.ELEM_ACC):
+                    if kind == NodeKind.REF and node.kind not in (NodeKind.IDENT, NodeKind.ELEM_ACC, NodeKind.FUN_CALL):
                         print_error('to_tree',
-                                    f'Can only reference identifiers, got {node.kind}', self)
+                                    f'Can only reference identifiers & function return types, got {node.kind}', self)
+
+                    # Rvalue correction for function calls
+                    # if kind == NodeKind.REF:
+                    #     print("DBG:", node.kind, node.value)
+                    if kind == NodeKind.REF and node.kind == NodeKind.FUN_CALL:
+                        tmp_decl, node = self.ref(node)
+                        to_predeferred(tmp_decl)
+
+                        return node
 
                     node_stack.append(
                         Node(kind, type_of_op(kind, node.ntype), token.value, node))
@@ -1316,12 +1354,17 @@ class Parser:
             elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
                 Def.var_off += size_of(vtype.elem_ckind)
                 Def.ptr_map[name] = Pointer(
-                    name, 0, vtype.elem_ckind, Def.var_off, ptr_type_of(meta_kind))
+                    name, 0, VariableType(vtype.elem_ckind, name=vtype.name), Def.var_off, ptr_type_of(meta_kind))
 
         body = self.compound_statement()
 
-        target_ref = Node(
-            NodeKind.REF, target_ref_type, '&', target_node)
+        if target_node.kind == NodeKind.FUN_CALL:
+            tmp_decl, target_ref = self.ref(target_node)
+            to_predeferred(tmp_decl)
+        else:
+            target_ref = Node(
+                NodeKind.REF, target_ref_type, '&', target_node)
+
         iter_ref = Node(
             NodeKind.REF, iter_ref_type, '&', target_ident)
         iter_stmt = Node(NodeKind.FUN_CALL, iter_ret, 'iter',
@@ -1478,7 +1521,7 @@ class Parser:
 
             if destr_stmts:
                 node = glue_statements([node, destr_stmts])
-            node = glue_statements([node, ret_node, Def.deferred])
+            node = glue_statements([Def.deferred, node, ret_node])
 
             return node
 
@@ -1701,7 +1744,7 @@ class Parser:
         Def.fun_name_list.append(sig_name)
         Def.var_off = 8
 
-        # ? Temporary
+        # TODO: Replace the manual declarations with Parser.declare
         for (arg_name, arg_type, elem_type, elem_cnt) in zip(arg_names, arg_types, elem_types, elem_cnts):
             if arg_type == void_type:
                 print_error(
@@ -1742,6 +1785,11 @@ class Parser:
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
             Node(NodeKind.GLUE, void_type, '', self.compound_statement(), Def.deferred))
+
+        # Inserts predeferred statements right before the fun's body
+        if Def.predeferred is not None:
+            body = glue_statements([Def.predeferred, body])
+            Def.predeferred = None
 
         # Return type correction
         if is_implicit:
@@ -1835,7 +1883,8 @@ class Parser:
             node = Node(NodeKind.IDENT, var_type, og_name)
 
             if var_type.ckind == ref_ckind:
-                node = Node(NodeKind.REF, ref_of(var_type), '&', node)
+                tmp_decl, node = self.ref(node)
+                to_predeferred(tmp_decl)
 
             # Fixes bug regarding ref in ctor
             return Node(NodeKind.OP_ASSIGN, var_type, '=',
@@ -2271,4 +2320,12 @@ class Parser:
         check_ident(full_name)
         Def.ident_map[full_name] = meta_kind
 
-        return self.declare(full_name, var_type, elem_ckind, elem_cnt, is_local, is_struct)
+        node = self.declare(full_name, var_type, elem_ckind,
+                            elem_cnt, is_local, is_struct)
+
+        # Inserts predeferred statements right after declarations
+        if Def.predeferred is not None:
+            node = glue_statements([Def.predeferred, node])
+            Def.predeferred = None
+
+        return node

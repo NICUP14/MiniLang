@@ -12,7 +12,7 @@ ASM_OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.S, $(SOURCES))
 # C compiler parameters
 CC = gcc
 CFLAGS ?=
-CLAGS += -g
+CFLAGS += -g
 
 # Compiler parameters
 ML = python ../../src/Main.py
@@ -23,7 +23,8 @@ MLFLAGS += -C -c
 # Recipes
 default: clean def
 c: clean _c
-debug: clean _debug
+ml: clean _ml
+debug: clean _mldebug
 cdebug: clean _cdebug
 assemble: $(ASM_OBJECTS)
 compile: $(PROJECT)
@@ -36,14 +37,17 @@ asm: assemble
 
 _c: $(SOURCES)
 	@mkdir -p $(BUILD_DIR)
-	# $(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
 	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES) > $(BUILD_DIR)/$(PROJECT).c
-	$(CC) -g $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
+	$(CC) $(CFLAGS) -I include include/*.c $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
 
 _cdebug: $(SOURCES)
 	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES)
 
-_debug: $(SOURCES)
+_ml:
+	@mkdir -p $(BUILD_DIR)
+	$(ML) $(MLFLAGS) -d -I $(MLLIB) -I src $(SOURCES) -o $(BUILD_DIR)/$(PROJECT).ml
+
+_mldebug: $(SOURCES)
 	$(ML) $(MLFLAGS) -d -I $(MLLIB) -I src $(SOURCES)
 
 $(PROJECT) : $(OBJECTS)
