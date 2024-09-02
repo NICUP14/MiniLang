@@ -49,6 +49,7 @@ from Def import void_type
 from Def import bool_type
 from Def import default_type
 from Def import str_type
+from Def import get_counter
 from Def import print_error
 from Def import print_warning
 from Def import check_ident
@@ -582,34 +583,44 @@ class Parser:
 
             return sig is not None
 
-        def try_cast_rv_ref(node: Node):
+        def try_cast_ref(node: Node):
             var_type = None
+            is_ref = False
             is_rv_ref = False
 
+            # Explicit move
             if node.kind == NodeKind.MOVE:
                 if is_in_sig(rv_ref_of(node.ntype)):
                     is_rv_ref = True
                     var_type = node.ntype
 
+            # Implicit move
             if node.kind == NodeKind.IDENT:
                 if Def.ident_map.get(node.value) == VariableMetaKind.RV_REF and is_in_sig(type_of_ident(node.value)):
                     is_rv_ref = True
                     var_type = type_of_ident(node.value)
 
-            if is_rv_ref:
+            if not is_in_sig(node.ntype):
+                is_ref = True
+                var_type = ref_of(node.ntype)
+
+            if is_rv_ref or is_ref:
                 if node.kind != NodeKind.FUN_CALL:
-                    return Node(NodeKind.REF, rv_ref_of(var_type), '&', node)
+                    return Node(NodeKind.REF, rv_ref_of(var_type) if is_rv_ref else ref_of(var_type), '&', node)
 
                 tmp_decl, node = self.ref(node)
                 to_predeferred(tmp_decl)
 
-                node.ntype = rev_type_of(var_type)
+                node.ntype = rv_ref_of(
+                    var_type) if is_rv_ref else ref_of(var_type)
                 return node
 
             return node
 
         def inject_copy_arg(node: Node):
-            node = try_cast_rv_ref(node)
+            node = try_cast_ref(node)
+            arg_types.append(node.ntype)
+
             if node.kind == NodeKind.MOVE:
                 return node
 
@@ -670,7 +681,9 @@ class Parser:
                 return node.ntype
 
             arg_types = list(map(get_type, args_to_list(node)))
-            sig = _find_signature(fun, arg_types, check_len=check_len)
+            sig = _find_signature(
+                fun, arg_types, check_len=check_len)
+            ref_sig = _find_signature(fun, arg_types, check_refs=True)
             ret_type = sig.ret_type if sig else any_type
 
             if sig is not None and (
@@ -678,8 +691,13 @@ class Parser:
                 self._infer_gen_types(sig, node)
                 self._gen_fun_call(sig)
 
+            # Exhausive match
+            # !BUG: Creates buggy behaviour do to implicit ptr-ref cast
+            if ref_sig:
+                node = self.inject_copy(fun.name, node)
+
             node_stack.append(
-                Node(kind, ret_type, fun_name, self.inject_copy(fun_name, node)))
+                Node(kind, ret_type, fun_name, node))
 
         return node_stack
 
@@ -689,7 +707,7 @@ class Parser:
             return None, ref_node(node)
 
         tmp_name = full_name_of_var(
-            f'{node.value}ref_{self.lineno}', force_local=True)
+            f'{node.value}_tmp_ref_{get_counter()}', force_local=True)
 
         def get_type(node: Node):
             return node.ntype
@@ -698,7 +716,8 @@ class Parser:
         sig = _find_signature(
             fun, list(map(get_type, args_to_list(node.left))))
         if not sig:
-            print_error('ref', '...')
+            print_error('ref',
+                        f'No signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
         tmp_decl = self.declare(
             tmp_name, sig.ret_type, sig.ret_type.elem_ckind, init_node=node)
@@ -912,7 +931,7 @@ class Parser:
 
                         if kind == NodeKind.ELEM_ACC and Def.ident_map.get(right.value) == VariableMetaKind.NAMESPACE:
                             print_error(
-                                'to_tree', f'Cannot use a qualified namespace function as a UFCS expression. TIP: Consider using an alias. (namespace={right.value})', parser=self)
+                                'to_tree', f'Cannot use a qualified namespace function as a FCS expression. TIP: Consider using an alias. (namespace={right.value})', parser=self)
 
                         if kind == NodeKind.ELEM_ACC and right.kind == NodeKind.FUN_CALL:
                             # Fix for single-arg UFCS expressions
@@ -932,7 +951,8 @@ class Parser:
                                 args = Node(NodeKind.GLUE, void_type, '', Node(
                                     NodeKind.GLUE, void_type, '', None, left), right.left)
 
-                            new_args = self.merge_fun_call(args)
+                            new_args = self.inject_copy(
+                                fun.name, self.merge_fun_call(args))
 
                             sig = Def.find_signature(fun, new_args)
                             if sig:
@@ -1067,58 +1087,65 @@ class Parser:
     def parse_type_list(self):
         pass
 
-    def statement(self) -> Optional[Node]:
+    def statement(self, add_predef: bool = True) -> Optional[Node]:
         token = self.curr_token()
 
+        node = None
         if token.kind == TokenKind.KW_LET:
             self.next_token()
-            return self.declaration()
-        if token.kind == TokenKind.KW_IF:
+            node = self.declaration()
+        elif token.kind == TokenKind.KW_IF:
             self.next_token()
-            return self.if_statement()
-        if token.kind == TokenKind.KW_FOR:
+            node = self.if_statement(False)
+        elif token.kind == TokenKind.KW_FOR:
             self.next_token()
-            return self.for_statement()
-        if token.kind == TokenKind.KW_WHILE:
+            node = self.for_statement(False)
+        elif token.kind == TokenKind.KW_WHILE:
             self.next_token()
-            return self.while_statement()
-        if token.kind == TokenKind.KW_FUN:
+            node = self.while_statement(False)
+        elif token.kind == TokenKind.KW_FUN:
             self.next_token()
-            return self.fun_declaration(is_extern=False)
-        if token.kind == TokenKind.KW_STRUCT:
+            node = self.fun_declaration(is_extern=False)
+        elif token.kind == TokenKind.KW_STRUCT:
             self.next_token()
-            return self.struct_declaration()
-        if token.kind == TokenKind.KW_RET:
+            node = self.struct_declaration()
+        elif token.kind == TokenKind.KW_RET:
             self.next_token()
-            return self.ret_statement()
-        if token.kind == TokenKind.KW_EXTERN:
+            node = self.ret_statement()
+        elif token.kind == TokenKind.KW_EXTERN:
             self.next_token()
             if self.curr_token().kind == TokenKind.KW_FUN:
                 self.match_token(TokenKind.KW_FUN)
-                return self.fun_declaration(is_extern=True)
+                node = self.fun_declaration(is_extern=True)
             else:
                 self.match_token(TokenKind.KW_STRUCT)
-                return self.struct_declaration(is_extern=True)
-        if token.kind == TokenKind.KW_ALIAS:
+                node = self.struct_declaration(is_extern=True)
+        elif token.kind == TokenKind.KW_ALIAS:
             self.next_token()
-            return self.alias_definition()
-        if token.kind == TokenKind.KW_IMPORT:
+            node = self.alias_definition()
+        elif token.kind == TokenKind.KW_IMPORT:
             self.next_token()
-            return self.import_statement()
-        if token.kind == TokenKind.KW_NAMESPACE:
+            node = self.import_statement()
+        elif token.kind == TokenKind.KW_NAMESPACE:
             self.next_token()
-            return self.namespace_statement()
-        if token.kind == TokenKind.KW_DEFER:
+            node = self.namespace_statement()
+        elif token.kind == TokenKind.KW_DEFER:
             self.next_token()
-            return self.defer_statement()
-        if token.kind == TokenKind.KW_BLOCK:
+            node = self.defer_statement()
+        elif token.kind == TokenKind.KW_BLOCK:
             self.next_token()
-            return self.block_statement()
-        if token.kind == TokenKind.KW_MACRO:
+            node = self.block_statement()
+        elif token.kind == TokenKind.KW_MACRO:
             self.next_token()
-            return self.macro_statement()
+            node = self.macro_statement()
+        else:
+            node = self.token_list_to_tree()
 
-        node = self.token_list_to_tree()
+        # Inserts predeferred statements right before the fun's body
+        if add_predef and Def.predeferred is not None:
+            node = glue_statements([Def.predeferred, node])
+            Def.predeferred = None
+
         return node
 
     def program_statement(self) -> Optional[Node]:
@@ -1134,14 +1161,14 @@ class Parser:
 
         return node
 
-    def compound_statement(self) -> Optional[Node]:
+    def compound_statement(self, add_predef: bool = True) -> Optional[Node]:
         node = None
         while not self.no_more_lines(check_next_lines=True) and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE, TokenKind.KW_ELIF):
             if node is None:
-                node = self.statement()
+                node = self.statement(add_predef)
             else:
                 node = Node(NodeKind.GLUE, void_type,
-                            '', node, self.statement())
+                            '', node, self.statement(add_predef))
             self.next_line()
 
         return node
@@ -1253,7 +1280,7 @@ class Parser:
 
         return Node(NodeKind.OP_EQ, bool_type, '==', node, Node(NodeKind.TRUE_LIT, bool_type, 'true'))
 
-    def while_statement(self) -> Optional[Node]:
+    def while_statement(self, add_predef: bool) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
         if cond_node.ntype not in (any_type, bool_type):
             print_error('while_statement',
@@ -1261,13 +1288,14 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
-        body = self.compound_statement()
+        body = self.compound_statement(add_predef)
 
         node = Node(NodeKind.GLUE, void_type, '', Node(
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
+
         return node
 
-    def for_statement(self) -> Optional[Node]:
+    def for_statement(self, add_predef: bool) -> Optional[Node]:
         iter_name = full_name_of_var(
             self.match_token(TokenKind.IDENT).value, force_local=True)
         self.match_token(TokenKind.KW_IN)
@@ -1276,7 +1304,7 @@ class Parser:
         iter_ident = Node(NodeKind.IDENT, default_type, iter_name)
         target_node = self.token_list_to_tree()
 
-        target_name = full_name_of_var(f'for{self.lineno}_target')
+        target_name = full_name_of_var(f'tmp_for_target_{get_counter()}')
         target_ident = Node(NodeKind.IDENT, target_node.ntype, target_name)
         self.next_line()
 
@@ -1365,7 +1393,7 @@ class Parser:
                 Def.ptr_map[name] = Pointer(
                     name, 0, VariableType(vtype.elem_ckind, name=vtype.name), Def.var_off, ptr_type_of(meta_kind))
 
-        body = self.compound_statement()
+        body = self.compound_statement(add_predef)
 
         if target_node.kind == NodeKind.FUN_CALL:
             tmp_decl, target_ref = self.ref(target_node)
@@ -1410,7 +1438,7 @@ class Parser:
         return glue_statements([pre_cond, Node(NodeKind.FOR, void_type, '', body, post_cond, cond), end])
 
     # An if_statement helper to parse multiple elif statements
-    def elif_statement(self) -> Optional[Node]:
+    def elif_statement(self, add_predef: bool) -> Optional[Node]:
         node = None
         cond_node = None
         while not self.no_more_lines() and self.curr_token().kind not in (TokenKind.KW_END, TokenKind.KW_ELSE):
@@ -1420,7 +1448,7 @@ class Parser:
             self.next_line()
             end_node = Node(NodeKind.END, void_type, '')
             elif_node = glue_statements([Node(NodeKind.ELIF, void_type, '',
-                                              self.compound_statement(), None, cond_node), end_node])
+                                              self.compound_statement(add_predef), None, cond_node), end_node])
 
             if node is None:
                 node = elif_node
@@ -1430,7 +1458,7 @@ class Parser:
 
         return node
 
-    def if_statement(self) -> Optional[Node]:
+    def if_statement(self, add_predef: bool) -> Optional[Node]:
         cond_node = self.token_list_to_tree()
         if cond_node.ntype not in (any_type, bool_type):
             print_error('if_statement',
@@ -1441,17 +1469,17 @@ class Parser:
         end_node = Node(NodeKind.END, void_type, '')
 
         true_node = glue_statements([Node(NodeKind.IF, void_type, '',
-                                          self.compound_statement(), None, cond_node), end_node])
+                                          self.compound_statement(add_predef), None, cond_node), end_node])
 
         elif_node = None
         if self.curr_token().kind == TokenKind.KW_ELIF:
-            elif_node = self.elif_statement()
+            elif_node = self.elif_statement(add_predef)
 
         false_node = None
         if self.curr_token().kind == TokenKind.KW_ELSE:
             self.next_line()
             false_node = glue_statements([Node(NodeKind.ELSE, void_type, '',
-                                               self.compound_statement()), end_node])
+                                               self.compound_statement(add_predef)), end_node])
 
         nodes = [true_node]
         if elif_node is not None:
@@ -1515,8 +1543,6 @@ class Parser:
             if node and node.kind == NodeKind.IDENT and node.ntype.ckind == struct_ckind:
                 Def.returned.append(node.value)
 
-            # TODO: Create a unified method to declare variables (declare_statement -> declare)
-            # ? Dirty fix which issues gcc warnings
             # Stores the return in a temp (store -> destr -> ret)
             full_name = full_name_of_var(
                 f'ret_{self.lineno}', force_local=True)
@@ -2333,8 +2359,8 @@ class Parser:
                             elem_cnt, is_local, is_struct)
 
         # Inserts predeferred statements right after declarations
-        if Def.predeferred is not None:
-            node = glue_statements([Def.predeferred, node])
-            Def.predeferred = None
+        # if Def.predeferred is not None:
+        #     node = glue_statements([Def.predeferred, node])
+        #     Def.predeferred = None
 
         return node

@@ -2,6 +2,8 @@
 
 Solved: 19/23
 
+- [ ] `Parser.ref` does not implicit cast-to-ref (add `try_cast_ref`)
+- [ ] Functions like `input` are predeferred.
 - [X] Using an iterator `i` in a for loop does not compile correctly.
 - [X] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function

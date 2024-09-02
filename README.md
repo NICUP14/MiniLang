@@ -34,6 +34,7 @@ The language is designed to closely **match c features** along with some **zero-
 
 ## Goodies
 
+* [RAII](QUICKSTART.md#raii)
 * [Builtins](QUICKSTART.md#builtins)
 * [Booleans](QUICKSTART.md#primitive-types)
 * [References](QUICKSTART.md#reference-type)
@@ -46,6 +47,8 @@ The language is designed to closely **match c features** along with some **zero-
 * [Imports](QUICKSTART.md#import-statements)
 * [Namespaces](QUICKSTART.md#namespace-statements)
 * [Hygienic macros](QUICKSTART.md#macros)
+* [For-each loops](QUICKSTART.md#for-loops)
+* Generic functions
 * [Function overloading](QUICKSTART.md#function-overloading)
 * [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
 * [Multi-line statements](QUICKSTART.md#multi-line-statements)

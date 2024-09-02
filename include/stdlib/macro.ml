@@ -1,8 +1,10 @@
-macro repeat(_n, _body)
-    for _repeat_it in range(_n)
-        _body
-    end
-end
+import stdlib.builtin.for
+
+# macro repeat(_n, _body)
+#     for _repeat_it in range(_n)
+#         _body
+#     end
+# end
 
 # Inserts a delimiter between arguments
 macro delimit(_delim, _arg)
@@ -24,6 +26,9 @@ macro reverse(_arg1, _arg2, _arg3)
 end
 
 # Miscellaneous
+macro ref(_arg)
+    &_arg
+end
 macro not(_arg)
     false if _arg else true
 end

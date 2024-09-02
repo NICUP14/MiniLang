@@ -18,7 +18,7 @@ CFLAGS += -g
 ML = python ../../src/Main.py
 MLLIB ?= "../../include"
 MLFLAGS ?=
-MLFLAGS += -C -c
+MLFLAGS += -C
 
 # Recipes
 default: clean def

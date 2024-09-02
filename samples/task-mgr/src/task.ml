@@ -72,7 +72,7 @@ fun find_task(tsk_list: task_list, tsk_name: str): int64
 end
 
 fun add_task(tsk_list: task_list, tsk: task)
-    let idx = tsk_list.find_task(tsk.name)
+    let idx = find_task(tsk_list, tsk.name)
     if idx != 0 - 1
         if task_at(tsk_list, idx).visible
             ret false
