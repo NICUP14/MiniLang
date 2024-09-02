@@ -2,6 +2,7 @@
 # Provides a functional-like ML frontend of the sds c library.
 # WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
+import stdlib.macro
 import stdlib.debug
 import stdlib.c.cstdlib
 import stdlib.c.cstdarg
@@ -29,7 +30,7 @@ fun str(s: int8*): str
     ret sdsnew(s)
 end
 
-fun str(s: str): str
+fun str(s: str&): str
     ret str(c_str(s))
 end
 
@@ -51,13 +52,8 @@ end
 # Grow the sds to have the specified length. Bytes that were not part of the original length of the sds will be set to zero.
 # 
 # If the specified length is smaller than the current length, no operation is performed. 
-fun extend(s: str, size: int64): str
+fun extend(s: str&, size: int64): str
     ret sdsgrowzero(s, size)
-end
-
-# Duplicate an sds string.
-fun copy(s: str): str
-    ret sdsdup(move(s))
 end
 
 # Modify an sds string in-place to make it empty (zero length).
@@ -75,7 +71,7 @@ fun copy(s: str&, t: str&): str
 end
 
 # Return the length of the sds string.
-fun len(s: str): int64
+fun len(s: str&): int64
     ret sdslen(s)
 end
 
@@ -95,7 +91,7 @@ end
 # s = sdsnew("Hello World");
 # sdsrange(s,1,-1); => "ello World"
 fun substr(s: str&, start: int64, send: int64): str
-    let tmp = str(s)
+    let tmp = str(&s)
     sdsrange(tmp, start, send)
     ret tmp
 end
@@ -107,7 +103,7 @@ end
 # After the call, the modified sds string is no longer valid and all the
 # references must be substituted with the new pointer returned by the call.
 fun concat(s: str&, t: str&): str
-    let tmp = str(s)
+    let tmp = str(&s)
     ret sdscatsds(tmp, t)
 end
 
@@ -131,7 +127,7 @@ fun concat_from(s: str&, fmt: int8*, ...): str
     let listx: va_list
     va_start(listx, fmt)
 
-    let tmp = str(s)
+    let tmp = str(&s)
     ret sdscatvprintf(tmp, fmt, move(listx))
 end
 
@@ -149,8 +145,8 @@ end
 # printf("%s\n", s);
 # 
 # Output will be just "HelloWorld".
-fun trim(s: str, cset: int8*): str
-    let tmp = str(s)
+fun trim(s: str&, cset: int8*): str
+    let tmp = str(&s)
     ret sdstrim(tmp, cset)
 end
 
@@ -170,11 +166,11 @@ fun compare(s: str&, s2: str&): int32
 end
 
 # Returns whether two sds strings are equal.
-fun equals(s: str, s2: str): bool
+fun equals(s: str&, s2: str&): bool
     ret sdscmp(s, s2) == 0
 end
 
-fun equals(s: str, cs2: c_str): bool
+fun equals(s: str&, cs2: c_str): bool
     let s2 = str(cs2)
     ret sdscmp(s, s2) == 0
 end
@@ -217,8 +213,8 @@ fun split(cs: c_str, sep: c_str, cnt: c_int*): sds*
 end
 
 # Overload; Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.
-fun split(s: str, sep: str, cnt: c_int*): sds*
-    let arr: sds* = sdssplitlen(c_str(s), len(s), c_str(sep), len(sep), cnt)
+fun split(s: str&, sep: str&, cnt: c_int*): sds*
+    let arr: sds* = sdssplitlen(c_str(s), len(&s), c_str(sep), len(&sep), cnt)
     if arr == null
         panic("Cannot split string.")
     end
@@ -227,8 +223,8 @@ fun split(s: str, sep: str, cnt: c_int*): sds*
 end
 
 # Overload; Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.
-fun split(s: str, sep: c_str, cnt: c_int*): sds*
-    let arr: sds* = sdssplitlen(c_str(s), len(s), sep, strlen(sep), cnt)
+fun split(s: str&, sep: c_str, cnt: c_int*): sds*
+    let arr: sds* = sdssplitlen(c_str(s), len(&s), sep, strlen(sep), cnt)
     if arr == null
         panic("Cannot split string.")
     end
@@ -259,7 +255,7 @@ end
 
 # Create an sds string from a string using clone. 
 fun to_str(value: str&): str
-    ret value.copy
+    ret ref(value).copy
 end
 
 # Create an sds string from a C string literal. 

@@ -6,10 +6,10 @@ fun main
     let bos = 0
     alloc_start(bos)
 
-    let arr: int64[5]* = null
-    arr.alloc
+    let a = input
+    let b = str(a.str)
+    println a
 
-    free(arr)
     # let s: str& = &empty_str
     # println(delimit(" ", "Hi", "my", "name", "is", "Nicu"))
     # for i in range(10)

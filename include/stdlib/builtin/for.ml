@@ -44,7 +44,7 @@ end
 
 fun lines(arg: c_stream): file_range
     let s = empty_str
-    s = extend(s, 256)
+    s = extend(&s, 256)
 
     let succ = read_line(arg, s, 256)
     ret file_range(arg, c_str(s), succ)
@@ -56,7 +56,7 @@ end
 
 fun next(arg: file_range&): str
     let s = empty_str
-    s = extend(s, 256)
+    s = extend(&s, 256)
 
     let succ = read_line(arg.file_range_st, s, 256)
     arg.file_range_str = c_str(s)
@@ -89,7 +89,7 @@ struct c_str_range
 end
 
 fun iter(arg: str&): c_str_range
-    ret c_str_range(c_str(arg), 0, 0, len(arg))
+    ret c_str_range(c_str(arg), 0, 0, len(&arg))
 end
 
 fun iter(arg: c_str): c_str_range

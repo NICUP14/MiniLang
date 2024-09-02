@@ -12,7 +12,7 @@ ASM_OBJECTS = $(patsubst $(SOURCE_DIR)/%.ml, $(BUILD_DIR)/%.S, $(SOURCES))
 # C compiler parameters
 CC = gcc
 CFLAGS ?=
-CFLAGS += -g
+CFLAGS += -g -O2
 
 # Compiler parameters
 ML = python ../../src/Main.py
@@ -37,7 +37,7 @@ asm: assemble
 
 _c: $(SOURCES)
 	@mkdir -p $(BUILD_DIR)
-	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES) > $(BUILD_DIR)/$(PROJECT).c
+	$(ML) $(MLFLAGS) -I $(MLLIB) -I src $(SOURCES) -o $(BUILD_DIR)/$(PROJECT).c
 	$(CC) $(CFLAGS) -I include include/*.c $(BUILD_DIR)/$(PROJECT).c -o $(BUILD_DIR)/$(PROJECT)
 
 _cdebug: $(SOURCES)

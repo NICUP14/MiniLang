@@ -1191,12 +1191,15 @@ def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
     return True
 
 
-def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True) -> Optional[FunctionSignature]:
+def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True, check_refs: bool = False) -> Optional[FunctionSignature]:
     cnt = 0
     sig = None
 
     def is_generic(sig: FunctionSignature):
         return sig.is_generic
+
+    def matches_ref(arg_type: VariableType, sig_arg_type: VariableType):
+        return ref_of(arg_type) == sig_arg_type
 
     # Looks for an exact match
     for signature in fun.signatures:
@@ -1221,7 +1224,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
         if not is_generic(signature) and (fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt):
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
-                if not type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
+                if not (type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (check_refs and matches_ref(arg_type, fun_arg_type))) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
                     compatible = False
                     break
 
@@ -1333,6 +1336,12 @@ def cmp_modf_of(kind: NodeKind) -> str:
     return modf_map[kind]
 
 
+def get_counter():
+    global counter
+    counter += 1
+    return counter
+
+
 REG_TABLE = (
     ('%rbx', '%ebx', '%bx', '%bl'),
     ('%rcx', '%ecx', '%cx', '%cl'),
@@ -1388,6 +1397,7 @@ comments_enabled = True
 stdout = sys.stdout
 
 
+counter = 0
 var_off = 0
 block_cnt = 0
 macro_map: Dict[str, Macro] = dict()

@@ -1,0 +1,250 @@
+#!/bin/python
+
+import os
+import sys
+import optparse
+from typing import List
+
+quiet = False
+msg_enabled = True
+color_enabled = True
+ml_path = '.'
+ml_flags = '-C'
+c_flags = '-g -O2'
+c_compiler_path = 'gcc'
+ml_compiler_path = f'python3 {os.path.join(ml_path, "src/Main.py")}'
+c_include_path = os.path.join(ml_path, 'skel/include')
+ml_include_path = os.path.join(ml_path, 'include')
+proj_name = 'main'
+build_dir = 'bin'
+source_dir = '.'
+build_opt = 'default'
+source = ''
+
+
+class Color:
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[35m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def c_suff(s): return add_suffix(s, 'c')
+
+
+def ml_suff(s): return add_suffix(s, 'ml')
+
+
+def build_clean(args: List[str]):
+    def clean(arg: str):
+        print_ok(f'Cleaning {arg}')
+        if os.path.exists(f'{arg}'):
+            execute(f'rm -ivrf {arg}')
+
+    if len(args) == 0:
+        clean(build_dir)
+        return
+
+    for arg in args:
+        clean(arg)
+
+
+def find_err_args(args: List[str]) -> bool:
+    err_args = []
+    for arg in args:
+        if not os.path.exists(arg):
+            err_args.append(arg)
+
+    return err_args
+
+
+def build_default(args: List[str]):
+    print_ok(f'Running default option on {source_dir}')
+    ml_cmd = f'{ml_compiler_path} {ml_flags} -I {ml_include_path} -o {os.path.join(build_dir, c_suff(proj_name))} {" ".join(args)}'
+    c_cmd = f'{c_compiler_path} {c_flags} {os.path.join(c_include_path, "*.c")} -I {c_include_path} {os.path.join(build_dir, c_suff(proj_name))} -o {os.path.join(build_dir, proj_name)}'
+
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+    execute(ml_cmd)
+    execute(c_cmd)
+
+
+def build_debug(args: List[str]):
+    print_ok(f'Running debug option on {source_dir}')
+    cmd = f'{ml_compiler_path} -d -I {ml_include_path} {" ".join(args)}'
+    execute(cmd)
+
+
+def build_cdebug(args: List[str]):
+    print_ok(f'Running cdebug option on {source_dir}')
+    cmd = f'{ml_compiler_path} -I {ml_include_path} {" ".join(args)}'
+    execute(cmd)
+
+
+OPTION_MAP = {
+    'clean': build_clean,
+    'default': build_default,
+    'debug': build_debug,
+    'cdebug': build_cdebug,
+    'def': build_default,
+    'dbg': build_debug,
+    'cdbg': build_cdebug,
+}
+
+
+def color_str(color: Color, msg: str):
+    if not color_enabled:
+        return msg
+    return f'{color}{msg}{Color.ENDC}'
+
+
+def print_ok(msg: str):
+    if not msg_enabled:
+        return
+    print(f'> {color_str(Color.GREEN, msg)}',
+          file=sys.stderr)
+
+
+def print_warning(msg: str):
+    print(f'{color_str(Color.WARNING, f"WARNING: {msg}")}',
+          file=sys.stderr)
+    exit(1)
+
+
+def print_error(msg: str):
+    print(f'{color_str(Color.FAIL, f"ERROR: {msg}")}',
+          file=sys.stderr)
+    exit(1)
+
+
+def execute(cmd: str):
+    if not quiet:
+        print(cmd)
+    os.system(cmd)
+
+
+def add_suffix(source: str, suff: str) -> str:
+    return f'{source}.{suff}'
+
+
+def handle_build(args: List[str]):
+    if build_opt not in OPTION_MAP:
+        print_error(f'Invalid option {build_opt}.')
+
+    build_args = args if len(args) > 0 else [build_opt]
+    args = [source]
+
+    err_args = find_err_args(args)
+    if len(err_args):
+        print_error(
+            f'Source files {", ".join(map(repr,err_args))} do not exist.')
+
+    for arg in build_args:
+        if arg not in OPTION_MAP:
+            print_error(f'Invalid option {arg}.')
+
+        OPTION_MAP.get(arg)(args)
+
+
+def handle_run(args: List[str]):
+    if len(args) == 0:
+        args = [source]
+
+    if build_opt not in OPTION_MAP:
+        print_error(f'Invalid option: {build_opt}')
+
+    OPTION_MAP.get(build_opt)(args)
+
+
+def handle_clean(args: List[str]):
+    build_clean(args)
+
+
+def handle_rclean(args: List[str]):
+    # Iterate over all items in the directory
+    if len(args) == 0:
+        print_warning('No directory specified')
+        return
+
+    for arg in args:
+        if not os.path.isdir(arg):
+            print_warning(f'Directory {arg} does not exist, skipping...')
+            continue
+
+        for dir in os.listdir(arg):
+            item_path = os.path.join(arg,
+                                     os.path.join(dir, build_dir))
+
+            # If the item is a directory, recursively call the function
+            if os.path.isdir(item_path):
+                handle_rclean([item_path])
+                handle_clean([item_path])
+
+
+def handle_cmd(parts: List[str]):
+    cmd = parts[0]
+    args = parts[1:]
+
+    if cmd == 'run':
+        handle_run(args)
+    elif cmd == 'build':
+        handle_build(args)
+    elif cmd == 'rclean':
+        handle_rclean(args)
+    elif cmd == 'clean':
+        handle_clean(args)
+    elif cmd == 'init':
+        pass
+    else:
+        print_error(f'Invalid request: {cmd}')
+
+
+if __name__ == '__main__':
+    desc = ', '.join(['The mini language project manager extension',
+                      'Version: 1.0.0',
+                      'Source: https://github.com/NICUP14/MiniLang.git'])
+
+    parser = optparse.OptionParser(description=desc)
+    parser.add_option('-C', '--proj-path', default=source_dir,
+                      help='Specify the project path (default=".").')
+    parser.add_option('-p', '--path', default=ml_path,
+                      help='Specify the MiniLang project path (default=".").')
+    parser.add_option('-b', '--build-dir', default=build_dir,
+                      help='Specify the build directory (default="bin").')
+    parser.add_option('-o', '--build-opt', default=build_opt,
+                      help=f'Specify the build option; Chooise between: {", ".join(OPTION_MAP.keys())} (default="default").')
+    parser.add_option('-n', '--name', default=proj_name,
+                      help='Specify the project\'s name (default="main").')
+    parser.add_option('-i', '--include', default=ml_include_path,
+                      help='Speficy the MiniLang compiler include path (default="include").')
+    parser.add_option('-I', '--c-include', default=c_include_path,
+                      help='Specify the C compiler include path (default="skel/include").')
+    parser.add_option('-q', '--quiet', action='store_true',
+                      help='Run in quiet mode; Does not show compile commands. Overrides "-m".')
+    parser.add_option('-m', '--no-msg', action='store_true',
+                      help='Run in script mode; Does not show mlpx logs.')
+    parser.add_option('-c', '--no-color', action='store_true',
+                      help='Run in text mode; Does not use colors.')
+    values, cmd_list = parser.parse_args()
+    values_dict = vars(values)
+
+    quiet = values_dict.get('quiet')
+    msg_enabled = not quiet and not values_dict.get('no_msg')
+    color_enabled = not values_dict.get('no_color')
+    ml_path = values_dict.get('path')
+    c_include_path = values_dict.get('c_include')
+    ml_include_path = values_dict.get('include')
+    proj_name = values_dict.get('name')
+    build_dir = values_dict.get('build_dir')
+    build_opt = values_dict.get('build_opt')
+
+    source_dir = values_dict.get('proj_path')
+    build_dir = os.path.join(source_dir, build_dir)
+    source = os.path.join(source_dir, 'src/main.ml')
+
+    handle_cmd(cmd_list)
+    print_ok('Done!')

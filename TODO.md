@@ -1,13 +1,14 @@
 # TODO
 
-Solved: 20/32
+Solved: 22/32
 
-- [ ] Fix defers and variable assignments for control sturctures (`for`, ...)
+- [ ] Create `inject_ref` to replace `inject_copy` for `Parser._fun_call`
+- [X] Fix defers and variable assignments for control sturctures (`for`, ...)
 - [X] Fix references causing errors in c backend (`&fun(...)`)
 - [ ] Suggestive errors for non-existent members
 - [X] Separate macro (`delimit(" " , args)`)
 - [ ] Function pointer (`&my_fun`)
-- [ ] Add for-loop & RAII documentation to QUICKSTART.
+- [X] Add for-loop & RAII documentation to QUICKSTART.
 - [ ] Improve safety and memory safety!
 - [ ] Simplify compiling process (`compile.py`)
 - [ ] Add block section to README
