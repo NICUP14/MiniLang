@@ -28,11 +28,15 @@ struct task_list
     arr_len: int64*
 end
 
+fun copy(tsk: task&): task
+    ret task(tsk.name, tsk.status, tsk.visible)
+end
+
 fun task(name: str)
     ret task(name, false, true)
 end
 
-fun len(tsk_list: task_list)
+fun len(tsk_list: task_list&)
     ret *tsk_list.arr_len
 end
 
@@ -50,7 +54,7 @@ macro task_at(_list, _idx)
     _list.arr at _idx
 end
 
-fun list_task(tsk_list: task_list)
+fun list_task(tsk_list: task_list&)
     for it in range(tsk_list.len)
         let tsk = task_at(tsk_list, it)
 
@@ -61,7 +65,7 @@ fun list_task(tsk_list: task_list)
     end
 end
 
-fun find_task(tsk_list: task_list, tsk_name: str): int64
+fun find_task(tsk_list: task_list&, tsk_name: str&): int64
     for it in range(tsk_list.len)
         if tsk_name.equals(task_at(tsk_list, it).name)
             ret it
@@ -71,7 +75,7 @@ fun find_task(tsk_list: task_list, tsk_name: str): int64
     ret 0 - 1
 end
 
-fun add_task(tsk_list: task_list, tsk: task)
+fun add_task(tsk_list: task_list&, tsk: task)
     let idx = find_task(tsk_list, tsk.name)
     if idx != 0 - 1
         if task_at(tsk_list, idx).visible
@@ -101,11 +105,11 @@ fun handle_help
     print(help_msg)
 end
 
-fun handle_list(tsk_list: task_list)
+fun handle_list(tsk_list: task_list&)
     tsk_list.list_task
 end
 
-fun handle_add(tsk_list: task_list, cmd: str, args: str)
+fun handle_add(tsk_list: task_list&, cmd: str&, args: str&)
     let task_name = args.trim("'")
     let stat = tsk_list.add_task(task(task_name))
 
@@ -116,7 +120,7 @@ fun handle_add(tsk_list: task_list, cmd: str, args: str)
     end
 end
 
-fun handle_complete(tsk_list: task_list, cmd: str, args: str)
+fun handle_complete(tsk_list: task_list&, cmd: str&, args: str&)
     let task_name = args.trim("'")
     let idx = tsk_list.find_task(task_name)
     
@@ -128,7 +132,7 @@ fun handle_complete(tsk_list: task_list, cmd: str, args: str)
     end
 end
 
-fun handle_remove(tsk_list: task_list, cmd: str, args: str)
+fun handle_remove(tsk_list: task_list&, cmd: str&, args: str&)
     let task_name = args.trim("'")
     let idx = tsk_list.find_task(task_name)
 
@@ -141,10 +145,10 @@ fun handle_remove(tsk_list: task_list, cmd: str, args: str)
     end
 end
 
-fun handle_cmd(tsk_list: task_list, full_cmd: str)
-        let sep = (&full_cmd).find(&(" ".str))
+fun handle_cmd(tsk_list: task_list&, full_cmd: str)
+        let sep = full_cmd.find(" ")
         let cmd_idx = sep - 1 if sep != 0 - 1 else 0 - 1
-        let cmd: str = substr(&full_cmd, 0, cmd_idx)
+        let cmd: str = substr(full_cmd, 0, cmd_idx)
 
         if cmd.equals("help".str)
             handle_help
@@ -152,7 +156,7 @@ fun handle_cmd(tsk_list: task_list, full_cmd: str)
             tsk_list.handle_list
         else
             assert(sep != 0 - 1)
-            let args = substr(&full_cmd, sep + 1, 0 - 1)
+            let args = substr(full_cmd, sep + 1, 0 - 1)
 
             if cmd.equals("add".str)
                 tsk_list.handle_add(cmd, args)

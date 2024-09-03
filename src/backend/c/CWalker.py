@@ -133,7 +133,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
                 return node.ntype
 
             print_error('c_walker_step',
-                        ' '.join([f'{fun.name}({fun_call_tree_str(node.left, _c_walk)})',
+                        ' '.join([f'{fun.name}({fun_call_tree_str(node, _c_walk)})',
                                  f'\nNo signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
 
         # ? For easy debugging of signatures
@@ -205,6 +205,15 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
 
 def _c_preamble() -> str:
+    funs = """
+        void* ptr_sub(char* cs, char* cs2) {
+            return cs - cs2;
+        }
+        size_t ptr_dist(char* cs, char* cs2) {
+            return (size_t)(cs - cs2);
+        }
+    """
+
     headers = [
         'stdio.h',
         'stdlib.h',
@@ -216,7 +225,7 @@ def _c_preamble() -> str:
     def include(header: str) -> str:
         return f'#include <{header}>'
 
-    return '\n'.join(map(include, headers))
+    return '\n'.join(map(include, headers)) + funs
 
 
 def _c_walk(node):

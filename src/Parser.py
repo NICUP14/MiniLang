@@ -490,35 +490,22 @@ class Parser:
         for name, node in zip(arg_names, arg_list):
             Def.macro_arg_map[name] = node
 
-        # ? Unused
-        def expand_helper(node: Node) -> Optional[Node]:
-            if node is None:
-                return None
-
-            middle, left, right = list(
-                map(lambda n: expand_helper(n), (node.middle, node.left, node.right)))
-
-            return Node(node.kind, node.ntype, node.value, left, right, middle)
-
         parser = Parser(signature.parser)
         parser.source = self.source
         parser.lineno = self.lineno - 1
         try:
-            body = parser.compound_statement()
+            body = parser.compound_statement(False)
         except RecursionError:
             print_error('expand_macro',
                         f'Cannot expand macro {macro.name} (circular macro)', self)
         self.lineno += (parser.lineno - self.lineno)
-
-        # Defer fix
-        Def.deferred = expand_helper(Def.deferred)
 
         # Removes macro placeholders
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.ANY:
                 del Def.ident_map[name]
                 del Def.macro_arg_map[name]
-        return expand_helper(body)
+        return body
 
     def _infer_gen_types(self, sig: FunctionSignature, node: Node):
         def get_type(node: Node) -> VariableType:
@@ -695,6 +682,7 @@ class Parser:
             # !BUG: Creates buggy behaviour do to implicit ptr-ref cast
             if ref_sig:
                 node = self.inject_copy(fun.name, node)
+                ret_type = ref_sig.ret_type
 
             node_stack.append(
                 Node(kind, ret_type, fun_name, node))
@@ -1288,7 +1276,11 @@ class Parser:
 
         self.next_line()
         cond_node = self.inject_cond(cond_node)
-        body = self.compound_statement(add_predef)
+
+        predef = Def.predeferred
+        Def.predeferred = None
+        body = self.compound_statement()
+        Def.predeferred = predef
 
         node = Node(NodeKind.GLUE, void_type, '', Node(
             NodeKind.WHILE, void_type, '', cond_node, body), Node(NodeKind.END, void_type, 'end'))
@@ -1393,7 +1385,10 @@ class Parser:
                 Def.ptr_map[name] = Pointer(
                     name, 0, VariableType(vtype.elem_ckind, name=vtype.name), Def.var_off, ptr_type_of(meta_kind))
 
-        body = self.compound_statement(add_predef)
+        predef = Def.predeferred
+        Def.predeferred = None
+        body = self.compound_statement()
+        Def.predeferred = predef
 
         if target_node.kind == NodeKind.FUN_CALL:
             tmp_decl, target_ref = self.ref(target_node)
@@ -1447,8 +1442,11 @@ class Parser:
 
             self.next_line()
             end_node = Node(NodeKind.END, void_type, '')
+            predef = Def.predeferred
+            Def.predeferred = None
             elif_node = glue_statements([Node(NodeKind.ELIF, void_type, '',
-                                              self.compound_statement(add_predef), None, cond_node), end_node])
+                                              self.compound_statement(), None, cond_node), end_node])
+            Def.predeferred = predef
 
             if node is None:
                 node = elif_node
@@ -1468,8 +1466,12 @@ class Parser:
         cond_node = self.inject_cond(cond_node)
         end_node = Node(NodeKind.END, void_type, '')
 
+        # TODO: Create a function to emulate this repeated behaviour
+        predef = Def.predeferred
+        Def.predeferred = None
         true_node = glue_statements([Node(NodeKind.IF, void_type, '',
-                                          self.compound_statement(add_predef), None, cond_node), end_node])
+                                          self.compound_statement(), None, cond_node), end_node])
+        Def.predeferred = predef
 
         elif_node = None
         if self.curr_token().kind == TokenKind.KW_ELIF:
@@ -1478,8 +1480,11 @@ class Parser:
         false_node = None
         if self.curr_token().kind == TokenKind.KW_ELSE:
             self.next_line()
+            predef = Def.predeferred
+            Def.predeferred = None
             false_node = glue_statements([Node(NodeKind.ELSE, void_type, '',
-                                               self.compound_statement(add_predef)), end_node])
+                                               self.compound_statement()), end_node])
+            Def.predeferred = predef
 
         nodes = [true_node]
         if elif_node is not None:
@@ -1548,6 +1553,28 @@ class Parser:
                 f'ret_{self.lineno}', force_local=True)
             Def.ident_map[full_name] = node.ntype.meta_kind()
             Def.returned.append(full_name)
+
+            if node.ntype.ckind == struct_ckind and fun_name != 'copy':
+                copy_fun = Def.fun_map.get('copy')
+                copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
+
+                if copy_sig:
+                    if node.kind == NodeKind.FUN_CALL:
+                        tmp_decl, node = self.ref(node)
+                        to_predeferred(tmp_decl)
+                    else:
+                        node = ref_node(node)
+
+                    node = Node(NodeKind.FUN_CALL,
+                                copy_sig.ret_type, 'copy', node)
+                else:
+                    destr_fun = Def.fun_map.get('destruct')
+                    destr_sig = _find_signature(
+                        destr_fun, [ref_of(node.ntype)])
+
+                    if destr_sig:
+                        print_error('ret_statement',
+                                    f'Destructor is implemented for {rev_type_of(node.ntype)}; Cannot safely copy the return value of {fun.name}', parser=self)
 
             node = self.declare(
                 full_name, node.ntype, node.ntype.elem_ckind, init_node=node)
@@ -2357,10 +2384,5 @@ class Parser:
 
         node = self.declare(full_name, var_type, elem_ckind,
                             elem_cnt, is_local, is_struct)
-
-        # Inserts predeferred statements right after declarations
-        # if Def.predeferred is not None:
-        #     node = glue_statements([Def.predeferred, node])
-        #     Def.predeferred = None
 
         return node

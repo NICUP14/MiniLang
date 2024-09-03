@@ -40,7 +40,7 @@ fun str_from(fmt: int8*, ...): str
     va_start(listx, fmt)
 
     let tmp = sdsempty
-    ret sdscatvprintf(tmp, fmt, move(listx))
+    ret sdscatvprintf(move(tmp), fmt, move(listx))
 end
 
 # Create an empty (zero length) sds string. 
@@ -53,7 +53,7 @@ end
 # 
 # If the specified length is smaller than the current length, no operation is performed. 
 fun extend(s: str&, size: int64): str
-    ret sdsgrowzero(s, size)
+    ret sdsgrowzero(move(s), size)
 end
 
 # Modify an sds string in-place to make it empty (zero length).
@@ -67,12 +67,12 @@ end
 # Like sdscpylen() but 't' must be a null-terminated string 
 # so that the length of the string is obtained with strlen().
 fun copy(s: str&, t: str&): str
-    ret sdscpy(s, c_str(t))
+    ret sdscpy(move(s), c_str(t))
 end
 
 # Return the length of the sds string.
 fun len(s: str&): int64
-    ret sdslen(s)
+    ret sdslen(move(s))
 end
 
 # Turn the string into a smaller (or equal) string containing only the
@@ -90,9 +90,9 @@ end
 # 
 # s = sdsnew("Hello World");
 # sdsrange(s,1,-1); => "ello World"
-fun substr(s: str&, start: int64, send: int64): str
-    let tmp = str(&s)
-    sdsrange(tmp, start, send)
+fun substr(s: str&, startx: int64, send: int64): str
+    let tmp = str(s)
+    sdsrange(move(tmp), startx, send)
     ret tmp
 end
 
@@ -104,7 +104,7 @@ end
 # references must be substituted with the new pointer returned by the call.
 fun concat(s: str&, t: str&): str
     let tmp = str(&s)
-    ret sdscatsds(tmp, t)
+    ret sdscatsds(move(tmp), move(t))
 end
 
 # Append to the sds string 's' a string obtained using printf-alike format specifier.
@@ -128,7 +128,7 @@ fun concat_from(s: str&, fmt: int8*, ...): str
     va_start(listx, fmt)
 
     let tmp = str(&s)
-    ret sdscatvprintf(tmp, fmt, move(listx))
+    ret sdscatvprintf(move(tmp), fmt, move(listx))
 end
 
 # Remove the part of the string from left and from right composed just of contiguous characters found in 'cset', that is a null terminated C string.
@@ -147,7 +147,7 @@ end
 # Output will be just "HelloWorld".
 fun trim(s: str&, cset: int8*): str
     let tmp = str(&s)
-    ret sdstrim(tmp, cset)
+    ret sdstrim(move(tmp), cset)
 end
 
 # Compare two sds strings s1 and s2 with memcmp().
@@ -162,36 +162,41 @@ end
 # additional characters, the longer string is considered to be greater than
 # the smaller one.
 fun compare(s: str&, s2: str&): int32
-    ret sdscmp(s, s2)
+    ret sdscmp(move(s), move(s2))
 end
 
 # Returns whether two sds strings are equal.
 fun equals(s: str&, s2: str&): bool
-    ret sdscmp(s, s2) == 0
+    ret sdscmp(move(s), move(s2)) == 0
 end
 
 fun equals(s: str&, cs2: c_str): bool
     let s2 = str(cs2)
-    ret sdscmp(s, s2) == 0
+    ret sdscmp(move(s), move(s2)) == 0
 end
 
 # Apply tolower() to every character of the sds string 's'.
 fun to_lower(s: str&): str
-    sdstolower(s)
+    sdstolower(move(s))
     ret s
 end
 
 # Apply toupper() to every character of the sds string 's'.
 fun to_upper(s: str&): str
-    sdstoupper(s)
+    sdstoupper(move(s))
     ret s
+end
+
+# Returns the index of the first occurence of the c string sub in s
+fun find(s: str&, csub: c_str): int64
+    let cs = c_str(s)
+    let ptr = strstr(cs, csub)
+    ret 0 - 1 if ptr == null else ptr_dist(ptr, cs)
 end
 
 # Returns the index of the first occurence of sub in s
 fun find(s: str&, sub: str&): int64
-    let cs = c_str(s)
-    let ptr = strstr(cs, c_str(sub))
-    ret 0 - 1 if ptr == null else (cast("int64", ptr) - cast("int64", cs))
+    ret find(s, c_str(sub))
 end
 
 # Split 's' with separator in 'sep'. An array of sds strings is returned. *count will be set by reference to the number of tokens returned.

@@ -41,7 +41,7 @@ fun open_file(filename: int8*): c_stream
 end
 
 # Reads a line from the given stream until a newline or end-of-file is encountered. Returns true on success, false on failure. (false end-of-file is reached)
-fun read_line(st: c_stream, s: str, size: int64): bool
+fun read_line(st: c_stream, s: str&, size: int64): bool
     let ln: int8* = fgets(c_str(s), size, st)
     ret ln != null
 end

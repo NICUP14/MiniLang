@@ -17,22 +17,22 @@ macro panic(_msg)
     printf("%s\n", _msg)
     panic_exit
 end
-macro assert_exit
-    printf("Assertion failed in function %s %s:%lld.\n", fun, file, lineno)
+macro assert_exit(_cond)
+    printf("Assertion '%s' failed in function %s %s:%lld.\n", strfy(_cond), fun, file, lineno)
     exit(1)
 end
 macro assert(_cond)
     if _cond == false
-        assert_exit
+        assert_exit(_cond)
     end
 end
 macro assert_eq(_expr, _expr2)
     if _expr != _expr2
-        assert_exit
+        assert_exit(_expr != _expr2)
     end
 end
 macro assert_neq(_expr, _expr2)
     if _expr == _expr2
-        assert_exit
+        assert_exit(_expr == _expr2)
     end
 end

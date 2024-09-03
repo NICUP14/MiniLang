@@ -2,6 +2,7 @@ import Def
 import copy
 from Def import Node
 from Def import NodeKind
+from Def import print_error
 from typing import List
 
 
@@ -34,6 +35,11 @@ def fun_call_tree_str(node: Node, func):
         while glue_node is not None:
             args.append(func(glue_node.right))
             glue_node = glue_node.left
+
+    for arg in args:
+        if arg is None:
+            print_error('fun_call_tree_str',
+                        f'Internal error in {node.value}\'s function call (args={func(node.left)})')
 
     args.reverse()
     return ', '.join(args)

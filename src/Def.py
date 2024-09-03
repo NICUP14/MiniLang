@@ -1284,12 +1284,15 @@ def compute_signature(name: str, arg_types: List[VariableType]):
         '*', 'ptr').replace('&', 'ref')
 
 
-def glue_statements(node_list: List[Node], in_call: bool = False) -> Optional[Node]:
+def glue_statements(node_list: List[Optional[Node]], in_call: bool = False) -> Optional[Node]:
     if len(node_list) == 0:
         return None
 
     glue_node = None
     for node in node_list:
+        if node is None:
+            continue
+
         if glue_node is None:
             glue_node = node
         else:
