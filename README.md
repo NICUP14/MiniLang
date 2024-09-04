@@ -80,7 +80,7 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 
 ## Manage ML projects
 
-## Running samples and tests
+### Running samples and tests
 
 To run a sample or test, specify its directory using the `-C` option in `mlpx` with arguments `build and run`.
 
@@ -104,7 +104,7 @@ $EDITOR <PATH_TO_PROJ>/Makefile
 ### Build tools
 
 * [Makefile](docs/build-tool/makefile.md)
-* [mlpx](docs/build-tool/mlpx.md)
+* [MLPX](docs/build-tool/mlpx.md)
 
 ## Code statistics
 
