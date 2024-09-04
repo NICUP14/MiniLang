@@ -2,6 +2,14 @@
 
 An overview of the ML standard library.
 
+## Dependencies
+
+Dependency                                            | Required by
+------------------------------------------------------|------------
+[tiny-regex-c](https://github.com/kokke/tiny-regex-c) | `stdlib/re` (*Coming soon...*)
+[sds](https://github.com/antirez/sds)                 | `stdlib/string`
+[gc](https://github.com/mkirchner/gc)                 | `stdlib/builtin/alloc`
+
 ## Motivation
 
 > [!IMPORTANT]

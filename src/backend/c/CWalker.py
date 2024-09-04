@@ -206,13 +206,12 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
 def _c_preamble() -> str:
     funs = """
-        void* ptr_sub(char* cs, char* cs2) {
-            return cs - cs2;
-        }
-        size_t ptr_dist(char* cs, char* cs2) {
-            return (size_t)(cs - cs2);
-        }
+    inline void* ptr_sub(char* cs, char* cs2) { return (void*)(cs - cs2); }
+    inline size_t ptr_dist(char* cs, char* cs2) { return (size_t)(cs - cs2); }
     """
+
+    def trim_tab(s): return s.lstrip(' \t')
+    funs_str = '\n'.join(map(trim_tab, funs.split('\n')))
 
     headers = [
         'stdio.h',
@@ -225,7 +224,7 @@ def _c_preamble() -> str:
     def include(header: str) -> str:
         return f'#include <{header}>'
 
-    return '\n'.join(map(include, headers)) + funs
+    return '\n'.join(map(include, headers)) + funs_str
 
 
 def _c_walk(node):
@@ -235,4 +234,4 @@ def _c_walk(node):
 
 def c_walk(node):
     node = Def.glue_statements([node])
-    return f'{_c_preamble()}\n\n{_c_walk(node)}'
+    return f'{_c_preamble()}\n{_c_walk(node)}'

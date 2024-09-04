@@ -944,10 +944,11 @@ class Parser:
 
                             sig = Def.find_signature(fun, new_args)
                             if sig:
+                                args = new_args
                                 ret_type = sig.ret_type
 
                             node_stack.append(
-                                Node(right.kind, ret_type, right.value, new_args))
+                                Node(right.kind, ret_type, right.value, args))
                             continue
 
                         # Fixes struct element scoping issues
@@ -1813,8 +1814,11 @@ class Parser:
                     'fun_declaration', 'Declaration of void function arguments is not allowed.', self)
 
             meta_kind = arg_type.meta_kind()
-            Def.ident_map[full_name_of_var(
-                arg_name, exhaustive_match=False)] = meta_kind
+            full_arg_name = full_name_of_var(
+                arg_name, force_local=True, exhaustive_match=False)
+            check_ident(full_arg_name, meta_kind, use_mkind=True)
+
+            Def.ident_map[full_arg_name] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
             if meta_kind == VariableMetaKind.STRUCT:
@@ -1827,16 +1831,16 @@ class Parser:
                 full_elem_names = list(map(add_prefix, elem_names))
                 self.struct_elem_declaration(full_elem_names, struct)
 
-                Def.struct_map[full_name_of_var(arg_name)] = Structure(
-                    full_name, struct.vtype, full_elem_names, struct_elem_types)
+                Def.struct_map[full_arg_name] = Structure(
+                    full_arg_name, struct.vtype, full_elem_names, struct_elem_types)
 
             elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
-                Def.var_map[full_name_of_var(arg_name)] = Variable(
+                Def.var_map[full_arg_name] = Variable(
                     arg_type, Def.var_off, True)
 
             elif meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
                 elem_type.name = arg_type.name
-                Def.ptr_map[full_name_of_var(arg_name)] = Pointer(
+                Def.ptr_map[full_arg_name] = Pointer(
                     full_name_of_var(arg_name), elem_cnt, elem_type, Def.var_off, ptr_type_of(meta_kind), True)
 
             elif (is_generic and meta_kind not in (

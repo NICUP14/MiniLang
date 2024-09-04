@@ -1,7 +1,10 @@
 # Bugs
 
-Solved: 19/23
+Solved: 19/26
 
+- [ ] Create Def.fun_locals.
+- [ ] Macros cause buggy behaviour with UFCS.
+- [ ] Make that control structures create blocks.
 - [ ] `Parser.ref` does not implicit cast-to-ref (add `try_cast_ref`)
 - [ ] Functions like `input` are predeferred.
 - [X] Using an iterator `i` in a for loop does not compile correctly.

@@ -18,11 +18,20 @@ fun range(range_stop: int64): range
     ret range(0, 0, range_stop)
 end
 
+fun until(range_start: int64, range_stop: int64): range
+    ret range(0, range_start, range_stop)
+end
+
+fun to(range_start: int64, range_stop: int64): range
+    ret range(0, range_start, range_stop + 1)
+end
+
 fun iter(arg: range&): range&
     ret &arg
 end
 
 fun start(arg: range&): int64
+    arg.range_idx = arg.range_start
     ret arg.range_start
 end
 

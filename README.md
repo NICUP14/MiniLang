@@ -1,4 +1,4 @@
-# Mini Lang
+# MiniLang
 
 <img src="Logo.png" width="250px"></img>
 
@@ -78,13 +78,20 @@ Install the VSIX extension `./minilang-highlighter/minilang-highlighter-0.0.1.vs
 
 `Extensions -> Views and more actions... (top-left three dots) -> Install from VSIX...`
 
-## Create a ML project
+## Manage ML projects
+
+## Running samples and tests
+
+To run a sample or test, specify its directory using the `-C` option in `mlpx` with arguments `build and run`.
+
+```txt
+python mlpx -C tests/test build and run
+```
+
+### Creating projects
 
 > [!IMPORTANT]
-> The ML project creator utility (`ml-init`) will be available soon...
-
-> [!WARNING]
-> For new ML projects, makefile parameters `ML`, `MLLIB` need to be adjusted if they are specified by a relative path. Check **Makefile** section below.
+> The ML project creator utility (`mlpx init`) will be available soon...
 
 ```txt
 # I. Copy project skeleton
@@ -94,70 +101,31 @@ cp -r skel <PATH_TO_PROJ>
 $EDITOR <PATH_TO_PROJ>/Makefile
 ```
 
-### Project skeleton structure
+### Build tools
 
-```txt
-skel/
-├── include
-│   ├── gc.c
-│   ├── gc.h
-│   ├── gc-LICENSE
-│   ├── log.c
-│   ├── log.h
-│   ├── sds.c
-│   ├── sds.h
-│   ├── sdsalloc.h
-│   └── sds-LICENSE
-├── Makefile
-└── src
-    ├── gc.ml
-    └── main.ml
-```
-
-The [sds](https://github.com/antirez/sds) (Simple Dynamic Strings) library is required by the ML string library. (`stdlib/string.ml`)
-
-The [gc](https://github.com/mkirchner/gc) library will be required by the ML alloc library. (*Coming soon*)
-
-### Makefile
-
-#### Recipes
-
-Recipe   | Alias  | Backend
----------|--------|--------
-default  | def, c | c
-cdebug   | cdbg   | c
-debug    | dbg    | ml
-assemble | asm    | asm
-
-### Parameters
-
-Parameter | Description
-----------|------------------------------
-CC        | Path to c compiler
-ML        | Path to ML compiler
-MLLIB     | Path to ML standard library
-CFLAGS    | Options passed to c compiler
-MLFLAGS   | Options passed to ML compiler
+* [Makefile](docs/build-tool/makefile.md)
+* [mlpx](docs/build-tool/mlpx.md)
 
 ## Code statistics
 
 ```txt
 ----------------------------------------------------------------------------------------
-File                                      blank        comment           code  
+File                                      blank        comment           code
 ----------------------------------------------------------------------------------------
-src\Parser.py                               303             46           1249  
-src\Def.py                                  262             65            901  
-src\Gen.py                                  217            134            697  
-src\Lexer.py                                 43              0            322
-src\backend\c\CWalker.py                     18              8            173
-src\backend\c\CDef.py                        45              1            140
+src\Parser.py                               476             91           1825
+src\Def.py                                  311             74           1076
+src\Gen.py                                  217            134            697
+src\Lexer.py                                 43              1            343
+src\backend\c\CWalker.py                     24             17            196
+src\backend\ml\MLWalker.py                   18              6            179
+src\backend\c\CDef.py                        46              1            147
 src\GenStr.py                                16              1            129
 src\Snippet.py                               38              0            106
-src\backend\ml\MLWalker.py                   10              0            106
-src\Main.py                                   9              2             64
-src\backend\Walker.py                        15              1             50
+src\Main.py                                  14              2             79
+src\backend\ml\MLDef.py                      14              2             56
+src\backend\Walker.py                        16              3             53
 ----------------------------------------------------------------------------------------
-SUM:                                        976            258           3937
+SUM:                                       1233            332           4886
 ----------------------------------------------------------------------------------------
 ```
 
@@ -200,6 +168,8 @@ Options:
 * [HelloWorld](https://github.com/NICUP14/MiniLang/tree/main/samples/helloworld)
 * [Max](https://github.com/NICUP14/MiniLang/tree/main/samples/max)
 * [Fib](https://github.com/NICUP14/MiniLang/tree/main/samples/fib)
+* [IO](https://github.com/NICUP14/MiniLang/tree/main/samples/io)
+* [Calc](https://github.com/NICUP14/MiniLang/tree/main/samples/calc)
 * [FizzBuzz](https://github.com/NICUP14/MiniLang/tree/main/samples/fizzbuzz)
 * [Str-ufcs](https://github.com/NICUP14/MiniLang/tree/main/samples/str-ufcs)
 * [Task-mgr](https://github.com/NICUP14/MiniLang/tree/main/samples/task-mgr)

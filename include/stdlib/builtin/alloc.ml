@@ -59,7 +59,7 @@ fun alloc_size(sz: int64, fill: bool): void*
     end
 
     if fill
-        memset(ptr, 0, 1)
+        memset(ptr, 0, sz)
     end
 
     ret ptr
@@ -75,6 +75,10 @@ end
 
 macro alloc(_lit, _size)
     _lit = alloc_size(_size)
+end
+
+macro alloc(_lit, _num, _size)
+    _lit = alloc(_num, _size * _num)
 end
 
 macro alloc_zeroed(_lit)
