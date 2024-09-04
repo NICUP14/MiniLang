@@ -97,6 +97,7 @@ python mlpx -C tests/test build and run
 # I. Copy project skeleton
 cp -r skel <PATH_TO_PROJ>
 
+# If using the GNU make build tool instead of mlpx
 # II. Configure makefile parameters (ML, MLLIB)
 $EDITOR <PATH_TO_PROJ>/Makefile
 ```

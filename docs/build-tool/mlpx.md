@@ -6,16 +6,6 @@ A convenient tool for managing `MiniLang` projects.
 
 ```txt
 skel/
-├── include
-│   ├── gc.c
-│   ├── gc.h
-│   ├── gc-LICENSE
-│   ├── log.c
-│   ├── log.h
-│   ├── sds.c
-│   ├── sds.h
-│   ├── sdsalloc.h
-│   └── sds-LICENSE
 └── src
     └── main.ml
 ```
@@ -39,18 +29,19 @@ Done!
 
 ```txt
 python mlpx -C tests/test/ run
-Running tests/test/bin/main
+> Running tests/test/bin/main
 tests/test/bin/main
 <Output hidden>
-Done!
+> Done!
 ```
 
 ### Building a project
 
 ```txt
-python mlpx -C tests/test/ build cdebug
+python mlpx -C tests/test/ build
 > Running default option on tests/test/
-<Output hidden>
+python3 ./src/Main.py -C -I ./include -o tests/test/bin/main.c tests/test/src/main.ml
+gcc -g -O2 ./skel/include/*.c -I ./skel/include tests/test/bin/main.c -o tests/test/bin/main
 > Done!
 ```
 

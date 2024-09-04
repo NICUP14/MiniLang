@@ -1,6 +1,6 @@
 # Makefile
 
-Managing `MiniLang` project using the `GNU makefile` tool.
+Managing `MiniLang` project using the `GNU make` build tool.
 
 ## Project skeleton structure
 
