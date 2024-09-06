@@ -5,6 +5,7 @@
 Meta type | Arithmetic | Implicit cast-to-pointer
 ----------|------------|-------------------------
 Integer   | Yes        | No
+Float     | Yes        | No
 Boolean   | No         | No
 Pointer   | No         | Yes
 Reference | No         | No*
@@ -24,6 +25,11 @@ Array     | No         | Yes
 * `int16`
 * `int32`
 * `int64`
+
+### Float primitives
+
+* `float32`
+* `float64`
 
 ### Array type
 

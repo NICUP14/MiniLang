@@ -110,23 +110,23 @@ $EDITOR <PATH_TO_PROJ>/Makefile
 ## Code statistics
 
 ```txt
-----------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------        
 File                                      blank        comment           code
-----------------------------------------------------------------------------------------
-src\Parser.py                               476             91           1825
-src\Def.py                                  311             74           1076
+----------------------------------------------------------------------------------------        
+src\Parser.py                               482             92           1846
+src\Def.py                                  320             74           1108
 src\Gen.py                                  217            134            697
-src\Lexer.py                                 43              1            343
-src\backend\c\CWalker.py                     24             17            196
+src\Lexer.py                                 43              1            351
+src\backend\c\CWalker.py                     25             17            203
 src\backend\ml\MLWalker.py                   18              6            179
-src\backend\c\CDef.py                        46              1            147
+src\backend\c\CDef.py                        50              1            155
 src\GenStr.py                                16              1            129
 src\Snippet.py                               38              0            106
 src\Main.py                                  14              2             79
 src\backend\ml\MLDef.py                      14              2             56
 src\backend\Walker.py                        16              3             53
-----------------------------------------------------------------------------------------
-SUM:                                       1233            332           4886
+----------------------------------------------------------------------------------------        
+SUM:                                       1253            333           4962
 ----------------------------------------------------------------------------------------
 ```
 
@@ -175,6 +175,7 @@ Options:
 * [Str-ufcs](https://github.com/NICUP14/MiniLang/tree/main/samples/str-ufcs)
 * [Task-mgr](https://github.com/NICUP14/MiniLang/tree/main/samples/task-mgr)
 * [Printf](https://github.com/NICUP14/MiniLang/tree/main/samples/printf)
+* [Fractal](https://github.com/NICUP14/MiniLang/tree/main/samples/fractal)
 
 > [!NOTE]
 > All MiniLang samples (example projects) are located within the `samples` directory. All samples are written entirely in ML.
