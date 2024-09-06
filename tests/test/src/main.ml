@@ -10,7 +10,7 @@ fun main
     let bos = 0
     alloc_start(bos)
 
-    let x = 0.0 + 5
-    println(x)
+    let ch: int8 = 0
+    let x = test(&ch)
     
 end

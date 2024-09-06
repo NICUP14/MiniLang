@@ -146,7 +146,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
         call_str = f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
         if sig.ret_type.meta_kind() in (Def.VariableMetaKind.REF, Def.VariableMetaKind.RV_REF) and (
-                parent is None or parent.kind != NodeKind.REF):
+                parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
             return f'*{call_str}'
         else:
             return call_str

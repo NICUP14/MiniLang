@@ -1537,11 +1537,11 @@ class Parser:
                 print_error('ret_statement',
                             'Cannot return a non-void value from a void function', self)
 
-            if not type_compatible(NodeKind.FUN_CALL, void_type, sig.ret_type.ckind):
+            if not type_compatible(NodeKind.FUN_CALL, void_type.ckind, sig.ret_type.ckind):
                 print_error('ret_statement',
                             f'The return type differs from the function\'s ({rev_type_of(void_type)} != {rev_type_of(sig.ret_type)})', self)
 
-            if Def.fun_has_ret and not type_compatible(NodeKind.FUN_CALL, void_type, Def.fun_ret_type.ckind):
+            if Def.fun_has_ret and not type_compatible(NodeKind.FUN_CALL, void_type.ckind, Def.fun_ret_type.ckind):
                 print_error('ret_statement',
                             f'Cannot deduce implicit return value of {fun_name} ({rev_type_of(Def.fun_ret_type)} != {rev_type_of(void_type)})', parser=self)
 
