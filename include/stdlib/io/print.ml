@@ -7,6 +7,12 @@ import stdlib.debug
 import stdlib.string
 
 # Print helper functions
+fun _print(st: c_stream, arg: float64): void
+    fprintf(st, "%f", arg)
+end
+fun _print(st: c_stream, arg: float32): void
+    fprintf(st, "%lf", arg)
+end
 fun _print(st: c_stream, arg: int64): void
     fprintf(st, "%lld", arg)
 end

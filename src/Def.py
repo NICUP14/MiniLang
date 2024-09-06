@@ -54,6 +54,7 @@ class VariableMetaKind(enum.Enum):
     ANY = enum.auto()
     BOOL = enum.auto()
     PRIM = enum.auto()
+    FLOAT = enum.auto()
     PTR = enum.auto()
     REF = enum.auto()
     RV_REF = enum.auto()
@@ -231,6 +232,7 @@ class NodeKind(enum.Enum):
 
     IDENT = enum.auto()
     INT_LIT = enum.auto()
+    FLOAT_LIT = enum.auto()
     OP_ADD = enum.auto()
     OP_SUB = enum.auto()
     OP_MULT = enum.auto()
@@ -238,6 +240,7 @@ class NodeKind(enum.Enum):
     OP_MOD = enum.auto()
     OP_OR = enum.auto()
     OP_AND = enum.auto()
+    OP_NOT = enum.auto()
     OP_BIT_OR = enum.auto()
     OP_BIT_AND = enum.auto()
     OP_ASSIGN = enum.auto()
@@ -595,6 +598,12 @@ def rev_type_of_ident(name: str) -> str:
         if ckind == bool_ckind:
             return 'bool'
 
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT32:
+            return 'float'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT64:
+            return 'double'
+
         return rev_kind_map.get(ckind.kind)
 
     if name not in ident_map:
@@ -607,7 +616,7 @@ def rev_type_of_ident(name: str) -> str:
     if meta_kind == VariableMetaKind.ANY:
         return rev_type_of(any_type)
 
-    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT, VariableMetaKind.BOOL):
         if name not in var_map:
             print_error('rev_type_of_ident', f'No such variable {name}')
 
@@ -654,6 +663,12 @@ def rev_type_of(vtype: VariableType) -> str:
             return 'any'
         if ckind == bool_ckind:
             return 'bool'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT32:
+            return 'float'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT64:
+            return 'double'
 
         return rev_kind_map.get(ckind.kind)
 
@@ -742,7 +757,7 @@ def type_of_ident(ident: str) -> VariableType:
 
         return VariableType(arr_ckind, arr_map.get(ident).elem_type.ckind)
 
-    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT, VariableMetaKind.BOOL):
         if ident not in var_map:
             print_error('type_of_ident', f'No such variable {ident}')
 
@@ -771,9 +786,15 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
     if kind in (NodeKind.ELEM_ACC, NodeKind.TERN_COND, NodeKind.TERN_BODY):
+        if prev_type == any_type:
+            return any_type
+
         return prev_type
 
     if kind == NodeKind.ARR_ACC:
+        if prev_type == any_type:
+            return any_type
+
         return VariableType(prev_type.elem_ckind, name=prev_type.name)
 
     if kind == NodeKind.REF:
@@ -796,6 +817,7 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
         NodeKind.OP_SUB: default_ckind,
         NodeKind.OP_DIV: default_ckind,
         NodeKind.OP_MOD: default_ckind,
+        NodeKind.OP_NOT: bool_ckind,
         NodeKind.OP_AND: bool_ckind,
         NodeKind.OP_OR: bool_ckind,
         NodeKind.OP_BIT_OR: default_ckind,
@@ -822,6 +844,14 @@ def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> Vari
     return VariableType(ckind_map.get(kind), default_ckind)
 
 
+def type_of_bin_op(kind: NodeKind, left_type: VariableType, right_type: VariableType, prev_type: Optional[VariableType] = None) -> VariableType:
+    var_type = type_of_op(kind, prev_type)
+    if var_type == default_type and (left_type.meta_kind() == VariableMetaKind.FLOAT or right_type.meta_kind() == VariableMetaKind.FLOAT):
+        return default_float_type
+    else:
+        return var_type
+
+
 def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCompKind, ref_is_ptr: bool = True) -> bool:
     if ckind == any_ckind or ckind2 == any_ckind:
         return True
@@ -846,6 +876,9 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
         return True
 
     if ckind == any_ckind or ckind2 == any_ckind:
+        return True
+
+    if ckind.meta_kind == VariableMetaKind.FLOAT and ckind2.meta_kind == VariableMetaKind.PRIM:
         return True
 
     if ckind in (ptr_ckind, ref_ckind) and ckind2 in (ptr_ckind, ref_ckind) and ref_is_ptr:
@@ -909,8 +942,9 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.CAST
         ]
 
-    if ckind.meta_kind == VariableMetaKind.PRIM:
+    if ckind.meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT):
         return [
+            NodeKind.ELEM_ACC,
             NodeKind.TERN_COND,
             NodeKind.TERN_BODY,
             NodeKind.INT_LIT,
@@ -946,6 +980,7 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.OP_LT,
             NodeKind.OP_OR,
             NodeKind.OP_AND,
+            NodeKind.OP_NOT,
             NodeKind.OP_LTE,
             NodeKind.OP_GTE,
             NodeKind.OP_EQ,
@@ -1059,7 +1094,8 @@ def needs_widen(ckind: VariableCompKind, ckind2: VariableCompKind):
     if ckind == void_ckind or ckind2 == void_ckind:
         return 0
 
-    meta_kinds = (VariableMetaKind.PRIM, VariableMetaKind.BOOL)
+    meta_kinds = (VariableMetaKind.PRIM,
+                  VariableMetaKind.FLOAT, VariableMetaKind.BOOL)
     if ckind.meta_kind in meta_kinds and ckind2.meta_kind in meta_kinds:
         if ckind.kind == ckind2.kind:
             return 0
@@ -1097,7 +1133,7 @@ def size_of(ckind: VariableCompKind) -> int:
     if ckind in (gen_ckind, any_ckind, ptr_ckind, ref_ckind, rv_ref_ckind, arr_ckind):
         return 8
 
-    if ckind.meta_kind == VariableMetaKind.PRIM:
+    if ckind.meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT):
         size_map = {
             VariableKind.INT64: 8,
             VariableKind.INT32: 4,
@@ -1425,6 +1461,8 @@ arr_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ARR)
 void_ckind = VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)
 bool_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.BOOL)
 default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
+default_float_ckind = VariableCompKind(
+    VariableKind.INT64, VariableMetaKind.FLOAT)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
 any_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ANY)
 struct_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.STRUCT)
@@ -1432,6 +1470,7 @@ gen_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.GENERIC)
 void_type = VariableType(void_ckind)
 bool_type = VariableType(bool_ckind)
 default_type = VariableType(default_ckind)
+default_float_type = VariableType(default_float_ckind)
 any_type = VariableType(any_ckind)
 struct_type = VariableType(struct_ckind)
 str_type = VariableType(ptr_ckind, VariableCompKind(
@@ -1458,4 +1497,6 @@ type_map = {
     'int16': VariableType(VariableCompKind(VariableKind.INT16, VariableMetaKind.PRIM)),
     'int8': VariableType(VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)),
     'void': VariableType(VariableCompKind(VariableKind.VOID, VariableMetaKind.PRIM)),
+    'float32': VariableType(VariableCompKind(VariableKind.INT64, VariableMetaKind.FLOAT)),
+    'float64': VariableType(VariableCompKind(VariableKind.INT32, VariableMetaKind.FLOAT)),
 }

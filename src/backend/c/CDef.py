@@ -24,10 +24,10 @@ from Def import print_warning
 
 def c_rev_type_of(vtype: VariableType):
     rev_kind_map = {
-        VariableKind.INT64: 'long long',
-        VariableKind.INT32: 'int',
-        VariableKind.INT16: 'short',
-        VariableKind.INT8: 'char',
+        VariableKind.INT64: 'int64_t',
+        VariableKind.INT32: 'int32_t',
+        VariableKind.INT16: 'int16_t',
+        VariableKind.INT8: 'int8_t',
         VariableKind.VOID: 'void',
     }
 
@@ -36,6 +36,12 @@ def c_rev_type_of(vtype: VariableType):
             return 'void*'
         if ckind == bool_ckind:
             return 'char'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT32:
+            return 'float'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT64:
+            return 'double'
 
         return rev_kind_map.get(ckind.kind)
 
@@ -62,16 +68,22 @@ def c_rev_type_of(vtype: VariableType):
 
 def c_rev_type_of_ident(name: str) -> str:
     rev_kind_map = {
-        VariableKind.INT64: 'long long',
-        VariableKind.INT32: 'int',
-        VariableKind.INT16: 'short',
-        VariableKind.INT8: 'char',
+        VariableKind.INT64: 'int64_t',
+        VariableKind.INT32: 'int32_t',
+        VariableKind.INT16: 'int16_t',
+        VariableKind.INT8: 'int8_t',
         VariableKind.VOID: 'void',
     }
 
     def rev_of(ckind: VariableCompKind):
         if ckind == bool_ckind:
             return 'char'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT32:
+            return 'float'
+
+        if ckind.meta_kind == VariableMetaKind.FLOAT and ckind.kind == VariableKind.INT64:
+            return 'double'
 
         return rev_kind_map.get(ckind.kind)
 
@@ -86,7 +98,7 @@ def c_rev_type_of_ident(name: str) -> str:
     if meta_kind == VariableMetaKind.ANY:
         return c_rev_type_of(any_type)
 
-    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+    if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT, VariableMetaKind.BOOL):
         if name not in Def.var_map:
             print_error('c_rev_type_of_ident', f'No such variable {name}')
 

@@ -29,6 +29,7 @@ OPERATORS = (
     ']',
     '&&',
     '||',
+    '!',
     '&',
     '|',
     '...',
@@ -44,7 +45,7 @@ def is_int(s: str):
     return re.search(INT_PATTERN, s) is not None
 
 
-INT_PATTERN = r'-?\d+'
+INT_PATTERN = r'\d+'
 CHAR_PATTERN = r'\'[^\']+\''
 STR_PATTERN = r'\"[^\"]*\"'
 SYM_PATTERN = r'\\?[\w\d]+'
@@ -61,6 +62,7 @@ PATTERN = to_pattern([
 class TokenKind(enum.Enum):
     TYPE_LIT = enum.auto()
     INT_LIT = enum.auto()
+    FLOAT_LIT = enum.auto()
     CHAR_LIT = enum.auto()
     STR_LIT = enum.auto()
     PLUS = enum.auto()
@@ -83,6 +85,7 @@ class TokenKind(enum.Enum):
     AMP = enum.auto()
     OR = enum.auto()
     AND = enum.auto()
+    NOT = enum.auto()
     BIT_OR = enum.auto()
     BIT_AND = enum.auto()
     DEREF = enum.auto()
@@ -161,6 +164,7 @@ TOKEN_KIND_MAP = {
     '.': TokenKind.PERIOD,
     '[': TokenKind.LBRACE,
     ']': TokenKind.RBRACE,
+    '!': TokenKind.NOT,
     '&&': TokenKind.AND,
     '||': TokenKind.OR,
     '&': TokenKind.BIT_AND,
@@ -168,6 +172,8 @@ TOKEN_KIND_MAP = {
     '...': TokenKind.PER_FUN,
     '<<-': TokenKind.HEREDOC,
     '\\end': TokenKind.IDENT,
+    'and': TokenKind.AND,
+    'or': TokenKind.OR,
     'at': TokenKind.KW_AT,
     'let': TokenKind.KW_LET,
     'if': TokenKind.KW_IF,
@@ -250,6 +256,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.BIT_AND,
         TokenKind.OR,
         TokenKind.AND,
+        TokenKind.NOT,
         TokenKind.ASSIGN,
         TokenKind.EQ,
         TokenKind.NEQ,
@@ -344,6 +351,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
     return kind in [
         TokenKind.DEREF,
         TokenKind.AMP,
+        TokenKind.NOT,
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
         TokenKind.KW_SIZE,

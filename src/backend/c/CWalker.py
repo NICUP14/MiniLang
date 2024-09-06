@@ -24,7 +24,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     add_left_semi = node.left is not None and has_semicolon(node.left.kind)
     add_right_semi = node.right is not None and has_semicolon(node.right.kind)
 
-    if node.kind in (NodeKind.INT_LIT, NodeKind.CHAR_LIT):
+    if node.kind in (NodeKind.INT_LIT, NodeKind.FLOAT_LIT, NodeKind.CHAR_LIT):
         return node.value
     if node.kind in (NodeKind.TRUE_LIT, NodeKind.FALSE_LIT):
         return color_str(Color.BLUE, node.value)
@@ -56,6 +56,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return f'({left} && {right})'
     if node.kind == NodeKind.OP_OR:
         return f'({left} || {right})'
+    if node.kind == NodeKind.OP_NOT:
+        return f'(!{left})'
     if node.kind == NodeKind.OP_ASSIGN:
         # ptr = Def.ptr_map.get(node.left.value)
         # if ptr.ref:
@@ -142,7 +144,13 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         # print('DBG:',
         #       f'Call to {fun.name}: {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} fetches {[list(map(Def.rev_type_of, sig.arg_types))]} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
-        return f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
+        call_str = f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
+        if sig.ret_type.meta_kind() in (Def.VariableMetaKind.REF, Def.VariableMetaKind.RV_REF) and (
+                parent is None or parent.kind != NodeKind.REF):
+            return f'*{call_str}'
+        else:
+            return call_str
+
     if node.kind == NodeKind.ASM:
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:

@@ -16,7 +16,7 @@ skel/
 
 ```txt
 # Cleaning a project
-python mlpx -C tests/test/ clean
+$ python mlpx -C tests/test/ clean
 Cleaning tests/test/bin
 rm -vrf tests/test/bin
 removed 'tests/test/bin/main.c'
@@ -28,7 +28,7 @@ Done!
 ### Running a project
 
 ```txt
-python mlpx -C tests/test/ run
+$ python mlpx -C tests/test/ run
 > Running tests/test/bin/main
 tests/test/bin/main
 <Output hidden>
@@ -38,7 +38,7 @@ tests/test/bin/main
 ### Building a project
 
 ```txt
-python mlpx -C tests/test/ build
+$ python mlpx -C tests/test/ build
 > Running default option on tests/test/
 python3 ./src/Main.py -C -I ./include -o tests/test/bin/main.c tests/test/src/main.ml
 gcc -g -O2 ./skel/include/*.c -I ./skel/include tests/test/bin/main.c -o tests/test/bin/main
@@ -48,7 +48,7 @@ gcc -g -O2 ./skel/include/*.c -I ./skel/include tests/test/bin/main.c -o tests/t
 ### Building a project using a custom build option
 
 ```txt
-python mlpx -C tests/test/ build cdebug
+$ python mlpx -C tests/test/ build cdebug
 > Running cdebug option on tests/test/
 <Output hidden>
 > Done!
@@ -57,7 +57,7 @@ python mlpx -C tests/test/ build cdebug
 ### Building and running a project
 
 ```txt
-python mlpx -C tests/test/ build and run
+$ python mlpx -C tests/test/ build and run
 > Running default option on tests/test/
 python3 ./src/Main.py -C -I ./include -o tests/test/bin/main.c tests/test/src/main.ml
 gcc -g -O2 ./skel/include/*.c -I ./skel/include tests/test/bin/main.c -o tests/test/bin/main

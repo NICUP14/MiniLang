@@ -64,7 +64,7 @@ def find_err_args(args: List[str]) -> bool:
 
 def build_default(args: List[str]):
     print_ok(f'Running default option on {source_dir}')
-    ml_cmd = f'{ml_compiler_path} {ml_flags} -I {ml_include_path} -o {os.path.join(build_dir, c_suff(proj_name))} {" ".join(args)}'
+    ml_cmd = f'{ml_compiler_path} {ml_flags} -I {source_dir} -I {ml_include_path} -o {os.path.join(build_dir, c_suff(proj_name))} {" ".join(args)}'
     c_cmd = f'{c_compiler_path} {c_flags} {os.path.join(c_include_path, "*.c")} -I {c_include_path} {os.path.join(build_dir, c_suff(proj_name))} -o {os.path.join(build_dir, proj_name)}'
 
     if not os.path.exists(build_dir):
@@ -75,13 +75,13 @@ def build_default(args: List[str]):
 
 def build_debug(args: List[str]):
     print_ok(f'Running debug option on {source_dir}')
-    cmd = f'{ml_compiler_path} -d -I {ml_include_path} {" ".join(args)}'
+    cmd = f'{ml_compiler_path} -d -I {source_dir} -I {ml_include_path} {" ".join(args)}'
     execute(cmd)
 
 
 def build_cdebug(args: List[str]):
     print_ok(f'Running cdebug option on {source_dir}')
-    cmd = f'{ml_compiler_path} -I {ml_include_path} {" ".join(args)}'
+    cmd = f'{ml_compiler_path} -I {source_dir} -I {ml_include_path} {" ".join(args)}'
     execute(cmd)
 
 

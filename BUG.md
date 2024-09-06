@@ -1,12 +1,13 @@
 # Bugs
 
-Solved: 19/26
+Solved: 21/27
 
+- [ ] Bug with functions returning refs.
 - [ ] Create Def.fun_locals.
 - [ ] Macros cause buggy behaviour with UFCS.
 - [ ] Make that control structures create blocks.
-- [ ] `Parser.ref` does not implicit cast-to-ref (add `try_cast_ref`)
-- [ ] Functions like `input` are predeferred.
+- [X] `Parser.ref` does not implicit cast-to-ref (add `try_cast_ref`)
+- [X] Functions like `input` are predeferred.
 - [X] Using an iterator `i` in a for loop does not compile correctly.
 - [X] Nested UFCS expressions (s.equals("Hello".str))
 - [X] The type of an overloaded function with a diff type than the first takes the type of the first overloaded function

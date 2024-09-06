@@ -58,6 +58,7 @@ from Def import rv_ref_of
 from Def import type_of
 from Def import ptr_type_of
 from Def import type_of_op
+from Def import type_of_bin_op
 from Def import type_of_ident
 from Def import type_of_lit
 from Def import type_compatible
@@ -92,6 +93,7 @@ PRECEDENCE_MAP = {
     TokenKind.KW_LIT: 26,
     TokenKind.DEREF: 25,
     TokenKind.AMP: 25,
+    TokenKind.NOT: 25,
     TokenKind.KW_ASM: 26,
     TokenKind.FUN_CALL: 26,
     TokenKind.MACRO_CALL: 26,
@@ -120,6 +122,7 @@ PRECEDENCE_MAP = {
 
 NODE_KIND_MAP = {
     TokenKind.INT_LIT: NodeKind.INT_LIT,
+    TokenKind.FLOAT_LIT: NodeKind.FLOAT_LIT,
     TokenKind.CHAR_LIT: NodeKind.CHAR_LIT,
     TokenKind.PLUS: NodeKind.OP_ADD,
     TokenKind.MINUS: NodeKind.OP_SUB,
@@ -127,6 +130,7 @@ NODE_KIND_MAP = {
     TokenKind.DIV: NodeKind.OP_DIV,
     TokenKind.PERC: NodeKind.OP_MOD,
     TokenKind.OR: NodeKind.OP_OR,
+    TokenKind.NOT: NodeKind.OP_NOT,
     TokenKind.AND: NodeKind.OP_AND,
     TokenKind.BIT_OR: NodeKind.OP_BIT_OR,
     TokenKind.BIT_AND: NodeKind.OP_BIT_AND,
@@ -343,7 +347,9 @@ class Parser:
                 # Handles Unary operator (token correction)
                 op_token = token
                 if prev_token is None or token_is_op(prev_token.kind) or prev_token.kind == TokenKind.LPAREN:
-                    if token.kind == TokenKind.MULT:
+                    if token.kind == TokenKind.NOT:
+                        op_token = token
+                    elif token.kind == TokenKind.MULT:
                         op_token = Token(TokenKind.DEREF, '*')
                     elif token.kind == TokenKind.BIT_AND:
                         op_token = Token(TokenKind.AMP, '&')
@@ -684,6 +690,10 @@ class Parser:
                 node = self.inject_copy(fun.name, node)
                 ret_type = ref_sig.ret_type
 
+            if ret_type.ckind == ref_ckind:
+                ret_type = VariableType(
+                    ret_type.elem_ckind, name=ret_type.name)
+
             node_stack.append(
                 Node(kind, ret_type, fun_name, node))
 
@@ -835,9 +845,9 @@ class Parser:
                         print_error('to_tree',
                                     f'Cannot dereference the {node.value} pointer-to-void', self)
 
-                    if kind == NodeKind.REF and node.kind not in (NodeKind.IDENT, NodeKind.ELEM_ACC, NodeKind.FUN_CALL):
+                    if kind == NodeKind.REF and node.kind not in (NodeKind.IDENT, NodeKind.ELEM_ACC, NodeKind.ARR_ACC, NodeKind.FUN_CALL):
                         print_error('to_tree',
-                                    f'Can only reference identifiers & function return types, got {node.kind}', self)
+                                    f'Can only reference identifiers, array acceses & function return types, got {node.kind}', self)
 
                     # Rvalue correction for function calls
                     if kind == NodeKind.REF and node.kind == NodeKind.FUN_CALL:
@@ -895,9 +905,8 @@ class Parser:
                             if Def.ident_map.get(name) == VariableMetaKind.FUN:
                                 self._fun_call(name, node_stack)
                             else:
-                                ntype = type_of_ident(name)
                                 node_stack.append(
-                                    Node(NodeKind.IDENT, ntype, f'{left.value}_{right.value}'))
+                                    Node(NodeKind.IDENT, right.ntype, f'{left.value}_{right.value}'))
                             continue
 
                         # Builds the python-like ternary condition (check #1)
@@ -915,6 +924,12 @@ class Parser:
 
                             node_stack.append(
                                 Node(NodeKind.TERN, right.ntype, '', left.left, right, left.right))
+                            continue
+
+                        # Float fix
+                        if kind == NodeKind.ELEM_ACC and left.kind == NodeKind.INT_LIT and left.kind == NodeKind.INT_LIT:
+                            node_stack.append(
+                                Node(NodeKind.FLOAT_LIT, Def.default_float_type, f'{left.value}.{right.value}'))
                             continue
 
                         if kind == NodeKind.ELEM_ACC and Def.ident_map.get(right.value) == VariableMetaKind.NAMESPACE:
@@ -958,11 +973,11 @@ class Parser:
 
                         if left.kind != NodeKind.GLUE and kind != NodeKind.GLUE and (left.ntype == void_type or right.ntype == void_type or not type_compatible(kind, left.ntype.ckind, right.ntype.ckind)):
                             print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #1)', self)
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #1) ({kind} {left.value} {right.value})', self)
 
                         if kind not in allowed_op(left.ntype.ckind):
                             print_error('to_tree',
-                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #2)', self)
+                                        f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #2) ({kind} {left.value} {right.value})', self)
 
                         # Disallows string literal modification
                         if kind == NodeKind.OP_ASSIGN and left.kind == NodeKind.ARR_ACC and left.left.kind == NodeKind.STR_LIT:
@@ -981,7 +996,7 @@ class Parser:
                         # ? Needs refactor
                         prev_type = left.ntype if kind != NodeKind.ELEM_ACC else right.ntype
                         node_stack.append(
-                            Node(kind, type_of_op(kind, prev_type), token.value, left, right))
+                            Node(kind, type_of_bin_op(kind, left.ntype, right.ntype, prev_type), token.value, left, right))
                 else:
                     print_error('to_tree',
                                 f'Operator kind {token.kind} is neither binary or unary', self)
@@ -1516,10 +1531,21 @@ class Parser:
         destr_stmts = self.inject_destr(
             fun_name, sig_name, sig.arg_names, sig.arg_types)
 
-        if sig.ret_type == Def.void_type:
+        ret_void = self.no_more_tokens()
+        if sig.ret_type == Def.void_type or ret_void:
             if not self.no_more_tokens():
                 print_error('ret_statement',
                             'Cannot return a non-void value from a void function', self)
+
+            if not type_compatible(NodeKind.FUN_CALL, void_type, sig.ret_type.ckind):
+                print_error('ret_statement',
+                            f'The return type differs from the function\'s ({rev_type_of(void_type)} != {rev_type_of(sig.ret_type)})', self)
+
+            if Def.fun_has_ret and not type_compatible(NodeKind.FUN_CALL, void_type, Def.fun_ret_type.ckind):
+                print_error('ret_statement',
+                            f'Cannot deduce implicit return value of {fun_name} ({rev_type_of(Def.fun_ret_type)} != {rev_type_of(void_type)})', parser=self)
+
+            Def.fun_has_ret = True
 
             node = Node(NodeKind.RET, void_type, '')
             if destr_stmts:
@@ -1834,7 +1860,7 @@ class Parser:
                 Def.struct_map[full_arg_name] = Structure(
                     full_arg_name, struct.vtype, full_elem_names, struct_elem_types)
 
-            elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL):
+            elif meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT, VariableMetaKind.BOOL):
                 Def.var_map[full_arg_name] = Variable(
                     arg_type, Def.var_off, True)
 
@@ -1943,6 +1969,8 @@ class Parser:
         def inject_decl(tpl: Tuple[str, str, VariableType]) -> Node:
             #!BUG: No array declaration
             new_name, og_name, var_type = tpl
+            og_name = full_name_of_var(og_name)
+
             elem_acc = Node(NodeKind.ELEM_ACC, struct.vtype, '', Node(
                 NodeKind.IDENT, struct.vtype, tmp_name), Node(NodeKind.IDENT, var_type, new_name))
 
@@ -2247,7 +2275,7 @@ class Parser:
 
             return Node(NodeKind.STRUCT_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
 
-        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.BOOL, VariableMetaKind.ANY):
+        if meta_kind in (VariableMetaKind.PRIM, VariableMetaKind.FLOAT, VariableMetaKind.BOOL, VariableMetaKind.ANY):
             value = 0
             Def.var_off += size_of(var_type.ckind)
             Def.var_map[full_name] = Variable(
