@@ -4,10 +4,8 @@ from Def import NodeKind
 from Def import VariableMetaKind
 from Def import default_type
 from Def import arg_cnt
-from Def import args_to_list
 from Def import print_error
 from Def import rev_type_of
-from Def import rev_type_of_ident
 
 
 def is_special_fun(name: str):

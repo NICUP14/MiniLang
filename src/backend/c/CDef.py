@@ -17,9 +17,7 @@ from Def import bool_type
 from Def import default_type
 from Def import arg_cnt
 from Def import args_to_list
-from Def import size_of_ident
 from Def import print_error
-from Def import print_warning
 
 
 def c_rev_type_of(vtype: VariableType):
