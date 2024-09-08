@@ -1,9 +1,7 @@
 import Def
-import copy
 from Def import Node
 from Def import NodeKind
 from Def import print_error
-from typing import List
 
 
 def has_indent(kind: NodeKind):
