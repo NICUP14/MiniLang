@@ -10,6 +10,7 @@ from Def import any_ckind
 from Def import ptr_ckind
 from Def import arr_ckind
 from Def import ref_ckind
+from Def import sig_ckind
 from Def import rv_ref_ckind
 from Def import struct_ckind
 from Def import any_type
@@ -47,6 +48,11 @@ def c_rev_type_of(vtype: VariableType):
 
     if vtype.kind() not in rev_kind_map:
         print_error('c_rev_type_of', f'Invalid variable kind {vtype.kind}')
+
+    if vtype.ckind == sig_ckind:
+        sig = Def.sig_map.get(vtype.name)
+        args_str = ', '.join(map(c_rev_type_of, sig.arg_types))
+        return f'{c_rev_type_of(sig.ret_type)} (*{vtype.name})({args_str})'
 
     if vtype.ckind == struct_ckind:
         return vtype.name

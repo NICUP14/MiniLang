@@ -8,6 +8,7 @@ from Def import print_error
 
 
 OPERATORS = (
+    '^',
     '<<-',
     '+',
     '-',
@@ -94,6 +95,7 @@ class TokenKind(enum.Enum):
     PERIOD = enum.auto()
     PER_FUN = enum.auto()
     FUN_CALL = enum.auto()
+    SIG_CALL = enum.auto()
     HEREDOC = enum.auto()
     KW_AT = enum.auto()
     KW_LET = enum.auto()
@@ -136,6 +138,8 @@ class TokenKind(enum.Enum):
     KW_BLOCK = enum.auto()
     KW_MACRO = enum.auto()
     MACRO_CALL = enum.auto()
+    REF_FUN = enum.auto()
+    FUN_LIT = enum.auto()
 
 
 @dataclass
@@ -169,6 +173,7 @@ TOKEN_KIND_MAP = {
     '||': TokenKind.OR,
     '&': TokenKind.BIT_AND,
     '|': TokenKind.BIT_OR,
+    '^': TokenKind.REF_FUN,
     '...': TokenKind.PER_FUN,
     '<<-': TokenKind.HEREDOC,
     '\\end': TokenKind.IDENT,
@@ -226,7 +231,8 @@ def token_is_lit(kind: TokenKind) -> bool:
         TokenKind.CHAR_LIT,
         TokenKind.STR_LIT,
         TokenKind.TRUE_LIT,
-        TokenKind.FALSE_LIT
+        TokenKind.FALSE_LIT,
+        TokenKind.FUN_LIT,
     )
 
 
@@ -241,6 +247,7 @@ def token_is_param(kind: TokenKind) -> bool:
         TokenKind.STR_LIT,
         TokenKind.TRUE_LIT,
         TokenKind.FALSE_LIT,
+        TokenKind.FUN_LIT,
         TokenKind.IDENT
     )
 
@@ -269,7 +276,9 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_AT,
         TokenKind.AMP,
         TokenKind.DEREF,
+        TokenKind.REF_FUN,
         TokenKind.FUN_CALL,
+        TokenKind.SIG_CALL,
         TokenKind.MACRO_CALL,
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
@@ -352,6 +361,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.DEREF,
         TokenKind.AMP,
         TokenKind.NOT,
+        TokenKind.REF_FUN,
         TokenKind.KW_ASM,
         TokenKind.KW_TYPE,
         TokenKind.KW_SIZE,
@@ -362,6 +372,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_STRFY,
         TokenKind.KW_CAST,
         TokenKind.FUN_CALL,
+        TokenKind.SIG_CALL,
         TokenKind.MACRO_CALL,
     ]
 
@@ -376,20 +387,23 @@ def tokenize(line: str):
 
 def post_process(tokens: List[Token]):
     def process(params):
-        token, next_token = params
+        token, next_token, prev_token = params
         # TODO: Add fixed-length pointer support
-        if token.kind == TokenKind.TYPE_LIT and next_token and next_token.kind in (TokenKind.MULT, TokenKind.BIT_AND):
-            return (Token(TokenKind.TYPE_LIT, token.value + next_token.value),)
+        if token.kind == TokenKind.REF_FUN:
+            return tuple()
+        if token.kind == TokenKind.IDENT and prev_token and prev_token.kind == TokenKind.REF_FUN:
+            return (Token(TokenKind.FUN_LIT, token.value),)
         if token.kind == TokenKind.RBRACE:
             return (Token(TokenKind.RPAREN, ')'),)
         if token.kind == TokenKind.LBRACE:
             return (Token(TokenKind.KW_AT, 'at'), Token(TokenKind.LPAREN, '('))
         return (token, )
 
-    def flat_map(f, xs, zs):
-        return [y for ys in zip_longest(xs, zs) for y in f(ys)]
+    def flat_map(f, xs, zs, ts):
+        return [y for ys in zip_longest(xs, zs, ts) for y in f(ys)]
 
     if tokens.count(Token(TokenKind.LBRACE, '[')) != tokens.count(Token(TokenKind.RBRACE, ']')):
         print_error('post_process', 'Expression contains unclosed braces')
 
-    return flat_map(process, tokens, tokens[1:])
+    tokens = flat_map(process, tokens, tokens[1:], [None] + tokens[:-1])
+    return tokens

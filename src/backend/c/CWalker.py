@@ -28,6 +28,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return node.value
     if node.kind in (NodeKind.TRUE_LIT, NodeKind.FALSE_LIT):
         return color_str(Color.BLUE, node.value)
+    if node.kind == NodeKind.FUN_LIT:
+        return node.ntype.name
     if node.kind == NodeKind.STR_LIT:
         string = node.value.replace('\n', '\\n').replace(
             '\t', '\\t').replace('\\end', 'end')
@@ -78,6 +80,12 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.ARR_DECL:
         arr = Def.arr_map.get(node.value)
         return f'{color_str(Color.GREEN, c_rev_type_of(arr.elem_type))} {node.value}[{arr.elem_cnt}]'
+    if node.kind == NodeKind.SIG_DECL:
+        sig = Def.sig_map.get(node.ntype.name)
+        args_str = ', '.join(map(c_rev_type_of, sig.arg_types))
+
+        return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} (*{left})({args_str}) = {sig.name}'
+
     if node.kind == NodeKind.STRUCT_ARR_DECL:
         arr = Def.arr_map.get(node.value)
         return f'{color_str(Color.GREEN, c_rev_type_of(arr.elem_type))} {node.value}[{arr.elem_cnt}]'
@@ -127,16 +135,38 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             return f'{indent if add_indent else empty_str}{left}{";" if add_left_semi else empty_str}\n{indent + right}{";" if add_right_semi else empty_str}'
     if node.kind == NodeKind.MOVE:
         return left
-    if node.kind == NodeKind.FUN_CALL:
+    if node.kind in (NodeKind.FUN_CALL, NodeKind.SIG_CALL):
+        def get_type(node: Node):
+            return node.ntype
+
+        def type_compatible(tpl):
+            kind, ckind, ckind2 = tpl
+            return Def.type_compatible(kind, ckind, ckind2)
+
+        def sig_compat(tpl):
+            var_type1, var_type2 = tpl
+            return type_compatible((NodeKind.FUN_CALL, var_type1.ckind, var_type2.ckind))
+
         fun = Def.fun_map.get(node.value)
-        sig: Def.FunctionSignature = find_signature(fun, node.left)
-        if sig is None:
-            def get_type(node: Node):
-                return node.ntype
+        sig = None
+        if node.kind == NodeKind.SIG_CALL:
+            sig = Def.sig_map.get(node.value)
+        else:
+            sig: Def.FunctionSignature = find_signature(fun, node.left)
+
+        if sig is None or (node.kind == NodeKind.SIG_CALL and not all(map(sig_compat, zip(map(get_type, args_to_list(node.left)), sig.arg_types)))):
+            fun_str = ''
+            prelude = ''
+            if node.kind == NodeKind.FUN_CALL:
+                fun_str = fun.name
+                prelude = f'No signature of {fun_str} matches'
+            if node.kind == NodeKind.SIG_CALL:
+                fun_str = node.value
+                prelude = f'No arguments of signature {fun_str} matches'
 
             print_error('c_walker_step',
-                        ' '.join([f'{fun.name}({fun_call_tree_str(node, _c_walk)})',
-                                 f'\nNo signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
+                        ' '.join([f'{fun_str}({fun_call_tree_str(node, _c_walk)})',
+                                 f'\n{prelude} {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {list(map(Def.rev_type_of, sig.arg_types)) if node.kind == NodeKind.SIG_CALL else [list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
 
         # ? For easy debugging of signatures
         # def get_type(node: Node):
@@ -144,7 +174,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         # print('DBG:',
         #       f'Call to {fun.name}: {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} fetches {[list(map(Def.rev_type_of, sig.arg_types))]} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
-        call_str = f'{sig.name}({fun_call_tree_str(node, _c_walk)})'
+        fun_str = sig.name if node.kind == NodeKind.FUN_CALL else f'(*{node.value})'
+        call_str = f'{fun_str}({fun_call_tree_str(node, _c_walk)})'
         if sig.ret_type.meta_kind() in (Def.VariableMetaKind.REF, Def.VariableMetaKind.RV_REF) and (
                 parent is None or parent.kind not in (NodeKind.REF, NodeKind.DECLARATION)):
             return f'*{call_str}'
@@ -154,6 +185,13 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.ASM:
         return f'{color_str(Color.BLUE, node.value)}({node.left.value})'
     if node.kind == NodeKind.FUN:
+        def arg_rev_type_of(tpl):
+            name, var_type = tpl
+            if var_type.ckind == Def.sig_ckind:
+                return f'{color_str(Color.BLUE, c_rev_type_of(var_type))}'
+            else:
+                return f'{color_str(Color.BLUE, c_rev_type_of(var_type))} {name}'
+
         sig_name = node.value
         fun_name = Def.fun_sig_map.get(node.value)
         fun = Def.fun_map.get(fun_name)
@@ -168,7 +206,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         if sig.arg_cnt > 0:
             args_zip = zip(sig.arg_names, sig.arg_types)
             args_map = map(
-                lambda t: f'{color_str(Color.BLUE, c_rev_type_of(t[1]))} {t[0]}', args_zip)
+                arg_rev_type_of, args_zip)
             args_str = ", ".join(
                 list(args_map) + (['...'] if fun.is_variadic else []))
 

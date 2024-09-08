@@ -43,6 +43,7 @@ from Def import void_ckind
 from Def import default_ckind
 from Def import struct_ckind
 from Def import fun_ckind
+from Def import sig_ckind
 from Def import gen_ckind
 from Def import any_type
 from Def import void_type
@@ -83,6 +84,7 @@ from Def import to_predeferred
 from copy import deepcopy as copy_of
 
 PRECEDENCE_MAP = {
+    TokenKind.REF_FUN: 30,
     TokenKind.KW_MOVE: 26,
     TokenKind.KW_STRFY: 26,
     TokenKind.KW_CAST: 26,
@@ -124,6 +126,7 @@ NODE_KIND_MAP = {
     TokenKind.INT_LIT: NodeKind.INT_LIT,
     TokenKind.FLOAT_LIT: NodeKind.FLOAT_LIT,
     TokenKind.CHAR_LIT: NodeKind.CHAR_LIT,
+    TokenKind.FUN_LIT: NodeKind.FUN_LIT,
     TokenKind.PLUS: NodeKind.OP_ADD,
     TokenKind.MINUS: NodeKind.OP_SUB,
     TokenKind.MULT: NodeKind.OP_MULT,
@@ -147,6 +150,7 @@ NODE_KIND_MAP = {
     TokenKind.PERIOD: NodeKind.ELEM_ACC,
     TokenKind.DEREF: NodeKind.DEREF,
     TokenKind.AMP: NodeKind.REF,
+    TokenKind.REF_FUN: NodeKind.REF,
     TokenKind.FUN_CALL: NodeKind.FUN_CALL,
     TokenKind.STR_LIT: NodeKind.STR_LIT,
     TokenKind.KW_ASM: NodeKind.ASM,
@@ -293,9 +297,15 @@ class Parser:
                         name = Def.alias_map.get(token.value)
                         postfix_tokens.append(Token(TokenKind.IDENT, name))
                     else:
-                        postfix_tokens.append(token)
+                        var_name = full_name_of_var(token.value)
+                        if var_name in Def.sig_map:
+                            postfix_tokens.append(
+                                Token(TokenKind.FUN_LIT, var_name))
+                        else:
+                            postfix_tokens.append(token)
                 else:
                     # Detects if the token is a function/macro call (token correction)
+                    var_name = full_name_of_var(token.value)
                     fun_name = full_name_of_fun(token.value)
 
                     if Def.ident_map.get(fun_name) == VariableMetaKind.ALIAS:
@@ -307,12 +317,9 @@ class Parser:
                     elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
                         op_stack.append(Token(TokenKind.FUN_CALL, fun_name))
 
-                    # elif Def.ident_map.get(fun_name) == VariableMetaKind.FUN:
-                    #     if prev_token and prev_token.kind == TokenKind.BIT_AND:
-                    #         op_stack.append(token)
-                    #     else:
-                    #         op_stack.append(
-                    #             Token(TokenKind.FUN_CALL, fun_name))
+                    # Casts signature to fun call
+                    elif Def.ident_map.get(var_name) == VariableMetaKind.SIG:
+                        op_stack.append(Token(TokenKind.SIG_CALL, var_name))
 
                     else:
                         if prev_token is not None and prev_token.kind == TokenKind.PERIOD:
@@ -646,10 +653,47 @@ class Parser:
         nodes = list(map(inject_copy_arg, args_to_list(node)))
         return glue_statements(nodes, in_call=True)
 
-    def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True) -> List[Node]:
+    def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True, is_sig: bool = False) -> List[Node]:
+        if fun_name not in Def.fun_map and fun_name not in Def.fun_sig_map and not is_sig:
+            print_error(
+                '_fun_call', f'No such function {fun_name}', parser=self)
+
+        if is_sig:
+            kind = NodeKind.SIG_CALL
+            sig = Def.sig_map.get(fun_name)
+            if not sig:
+                print_error('_fun_call',
+                            f'No such signature {fun_name}', parser=self)
+
+            ret_type = sig.ret_type
+            if sig.arg_cnt == 0:
+                node_stack.append(Node(kind, ret_type, fun_name))
+            else:
+                if len(node_stack) == 0:
+                    print_error('to_tree',
+                                f'Missing function operand of {fun_name}', self)
+
+                node = self.merge_fun_call(node_stack.pop()) if len(
+                    node_stack) > 0 else None
+
+                if sig is not None and (
+                        sig.is_generic and Def.macro_name == ''):
+                    self._infer_gen_types(sig, node)
+                    self._gen_fun_call(sig)
+
+                if ret_type.ckind == ref_ckind:
+                    ret_type = VariableType(
+                        ret_type.elem_ckind, name=ret_type.name)
+
+                node_stack.append(
+                    Node(kind, ret_type, fun_name, node))
+
+                return node_stack
+
         if fun_name in Def.fun_sig_map:
             fun_name = Def.fun_sig_map.get(fun_name)
 
+        fun = None
         fun = Def.fun_map.get(fun_name)
         kind = NodeKind.FUN_CALL
 
@@ -776,12 +820,24 @@ class Parser:
                             Node(self.node_kind_of(token.kind), ntype, name))
 
                 else:
+                    # Check for function literals
+                    if token.kind == TokenKind.FUN_LIT:
+                        if token.value not in Def.fun_map and token.value not in Def.sig_map:
+                            print_error('to_tree',
+                                        f"Invalid function literal {token.value}.", parser=self)
+                    # value = token.value
+                    # if value in Def.sig_map
                     kind = self.node_kind_of(token.kind)
                     node_stack.append(
-                        Node(kind, type_of_lit(kind), token.value))
+                        Node(kind, type_of_lit(kind, token.value), token.value))
 
             if token_is_op(token.kind):
                 if token_is_unary_op(token.kind):
+                    # Signature call fix
+                    if token.kind == TokenKind.SIG_CALL:
+                        self._fun_call(token.value, node_stack,
+                                       check_len=False, is_sig=True)
+                        continue
                     # Function call fix
                     if token.kind == TokenKind.FUN_CALL:
                         self._fun_call(token.value, node_stack,
@@ -1003,7 +1059,7 @@ class Parser:
 
         if len(node_stack) > 1:
             def val_of(node: Node) -> str:
-                return node.value
+                return f'{node.value} of {node.kind}'
 
             print_error('to_tree',
                         f'Unused operands [{", ".join(map(val_of, node_stack[1:]))}]', self)
@@ -1657,13 +1713,16 @@ class Parser:
 
         return destr_stmts
 
-    def fun_declaration(self, is_extern: bool = False, in_generic: bool = False) -> Optional[Node]:
+    def fun_declaration(self, is_extern: bool = False, in_generic: bool = False, is_sig: bool = False) -> Optional[Node]:
         # Needed for generics
         parser = Parser(self)
 
         # Needed for extern
-        name = self.match_token(TokenKind.IDENT).value
-        full_name = full_name_of_fun(name, force_global=True)
+        name = ''
+        full_name = ''
+        if not is_sig:
+            name = self.match_token(TokenKind.IDENT).value
+            full_name = full_name_of_fun(name, force_global=True)
 
         # Needed for extern
         is_generic = False
@@ -1687,7 +1746,7 @@ class Parser:
                     self.match_token(TokenKind.COMMA)
             self.match_token(TokenKind.RBRACE)
 
-        if not is_generic and Def.fun_name != '':
+        if not is_sig and not is_generic and Def.fun_name != '':
             print_error('fun_declaration',
                         'Local functions are not allowed', self)
 
@@ -1696,10 +1755,6 @@ class Parser:
             is_generic = False
         else:
             for gen_name in gen_names:
-                # if gen_name in Def.type_map:
-                #     print_error('fun_declaration',
-                #                 f'Generic type parameter {gen_name} shadows a same-name type ({rev_type_of(Def.type_map.get(gen_name))})')
-
                 gen_type = VariableType(gen_ckind, name=gen_name)
                 Def.type_map[gen_name] = gen_type
 
@@ -1710,11 +1765,23 @@ class Parser:
                 arg_name = self.match_token(TokenKind.IDENT).value
                 self.match_token(TokenKind.COLON)
 
-                type_str = self.curr_token().value
-                arg_type = type_of(type_str)
-                elem_type = arg_type
+                type_str = ''
+                arg_type = None
+                elem_type = None
                 elem_cnt = 0
-                self.next_token()
+                if not self.no_more_tokens() and self.curr_token().kind == TokenKind.KW_FUN:
+                    self.next_token()
+                    sig = self.fun_declaration(is_sig=True)
+                    sig_name = f'{full_name}_{arg_name}'
+                    Def.sig_map[sig_name] = sig
+
+                    arg_type = VariableType(sig_ckind, name=sig_name)
+                else:
+                    type_str = self.curr_token().value
+                    arg_type = type_of(type_str)
+                    elem_type = arg_type
+                    elem_cnt = 0
+                    self.next_token()
 
                 # Fixes bug in when the argumen gets the type thru an alias
                 if arg_type.ckind in (ptr_ckind, ref_ckind):
@@ -1783,7 +1850,7 @@ class Parser:
                 ret_type = VariableType(
                     ref_ckind, ret_type.ckind, name=ret_type.name)
 
-            if not self.no_more_tokens():
+            if not is_sig and not self.no_more_tokens():
                 print_error('fun_declaration',
                             'Junk after function declaration', self)
 
@@ -1798,13 +1865,17 @@ class Parser:
         Def.fun_name_list.append(sig_name)
         for arg_name in arg_names:
             full_arg_names.append(full_name_of_var(
-                arg_name, exhaustive_match=False))
+                arg_name, force_local=True))
         Def.fun_name_list.pop()
 
         signature = FunctionSignature(sig_name, len(
             arg_types), full_arg_names, arg_types, ret_type, is_extern, is_generic, parser if is_generic else None)
-        Def.fun_sig_map[sig_name] = full_name
 
+        # TODO: Should be moved in Paser.parse_sig
+        if is_sig:
+            return signature
+
+        Def.fun_sig_map[sig_name] = full_name
         check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
         if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
             fun = Def.fun_map.get(full_name)
@@ -1847,6 +1918,12 @@ class Parser:
             Def.ident_map[full_arg_name] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
+            if meta_kind == VariableMetaKind.SIG:
+                # Signature name correction
+                sig = Def.sig_map.get(f'{full_name}_{arg_name}')
+                Def.sig_map[full_arg_name] = sig
+                print('DBG:', full_arg_name)
+
             if meta_kind == VariableMetaKind.STRUCT:
                 def add_prefix(name: str, arg_name: str = arg_name) -> str:
                     return f'{arg_name}_{name}'
@@ -1873,6 +1950,11 @@ class Parser:
                     VariableMetaKind.GENERIC, VariableMetaKind.ANY)):
                 print_error('fun_declaration',
                             f'Invalid argument meta kind {meta_kind}', parser=self)
+
+        # Signature name correction (VariableType is a class, thus references)
+        for full_arg_name, arg_type in zip(full_arg_names, arg_types):
+            if arg_type.ckind == sig_ckind:
+                arg_type.name = full_arg_name
 
         self.next_line()
         body = self.compound_statement() if fun.ret_type != void_type else (
@@ -2256,6 +2338,25 @@ class Parser:
         if is_struct:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
+        if meta_kind == VariableMetaKind.SIG:
+            node = init_node if init_node else self.token_list_to_tree()
+
+            sig2 = None
+            sig = Def.sig_map.get(var_type.name)
+            is_fun = node.kind == NodeKind.FUN_LIT and node.value in Def.fun_map
+            if is_fun:
+                sig2 = _find_signature(
+                    Def.fun_map.get(node.value), sig.arg_types)
+            else:
+                sig2 = Def.sig_map.get(node.value)
+
+            if not sig2 or sig.arg_types != sig2.arg_types or sig.ret_type != sig2.ret_type:
+                print_error('declaration',
+                            f'Incompatible assignment between signatures {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
+
+            Def.sig_map[full_name] = sig2
+            return Node(NodeKind.SIG_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
+
         if meta_kind == VariableMetaKind.STRUCT:
             struct = Def.struct_map.get(var_type.name)
             elem_names = struct.elem_names
@@ -2345,6 +2446,11 @@ class Parser:
                         f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
 
         name = self.match_token(TokenKind.IDENT).value
+        var_name = full_name_of_var(
+            name, force_local=True, exhaustive_match=False)
+
+        is_local = Def.fun_name != ''
+        full_name = var_name if is_local else full_name_of_var(name, True)
         is_implicit = self.curr_token().kind != TokenKind.COLON
 
         elem_cnt = 0
@@ -2353,10 +2459,19 @@ class Parser:
         if not is_implicit:
             self.match_token(TokenKind.COLON)
 
-            parsed_type = self.parse_type()
-            var_type = parsed_type.var_type
-            elem_cnt = parsed_type.elem_cnt
-            meta_kind = var_type.meta_kind()
+            if self.curr_token().kind == TokenKind.KW_FUN:
+                self.match_token(TokenKind.KW_FUN)
+                sig = self.fun_declaration(is_sig=True)
+                Def.sig_map[full_name] = sig
+
+                var_type = VariableType(sig_ckind, name=full_name)
+                meta_kind = var_type.meta_kind()
+                elem_cnt = 0
+            else:
+                parsed_type = self.parse_type()
+                var_type = parsed_type.var_type
+                elem_cnt = parsed_type.elem_cnt
+                meta_kind = var_type.meta_kind()
 
         if not self.no_more_tokens():
             self.match_token(TokenKind.ASSIGN)
@@ -2370,6 +2485,11 @@ class Parser:
             node = self.token_list_to_tree()
             var_type = node.ntype
             meta_kind = var_type.meta_kind()
+
+            if var_type.ckind == sig_ckind:
+                print_error(
+                    'declaration',
+                    'Implicit signature declaration is not permitted.', self)
 
             if var_type.ckind == void_ckind:
                 print_error('declaration',
@@ -2397,11 +2517,6 @@ class Parser:
             elem_ckind = var_type.ckind
         else:
             elem_ckind = var_type.elem_ckind
-
-        is_local = Def.fun_name != ''
-        var_name = full_name_of_var(
-            name, force_local=True, exhaustive_match=False)
-        full_name = var_name if is_local else full_name_of_var(name, True)
 
         if is_struct:
             name = f'{Def.struct_name}_elem_{name}'

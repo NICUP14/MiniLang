@@ -60,6 +60,7 @@ class VariableMetaKind(enum.Enum):
     RV_REF = enum.auto()
     ARR = enum.auto()
     FUN = enum.auto()
+    SIG = enum.auto()
     STRUCT = enum.auto()
     MACRO = enum.auto()
     ALIAS = enum.auto()
@@ -231,6 +232,7 @@ class NodeKind(enum.Enum):
     """
 
     IDENT = enum.auto()
+    FUN_LIT = enum.auto()
     INT_LIT = enum.auto()
     FLOAT_LIT = enum.auto()
     OP_ADD = enum.auto()
@@ -246,6 +248,7 @@ class NodeKind(enum.Enum):
     OP_ASSIGN = enum.auto()
     DECLARATION = enum.auto()
     ARR_DECL = enum.auto()
+    SIG_DECL = enum.auto()
     STRUCT = enum.auto()
     STRUCT_DECL = enum.auto()
     STRUCT_ARR_DECL = enum.auto()
@@ -267,6 +270,7 @@ class NodeKind(enum.Enum):
     GLUE = enum.auto()
     FUN = enum.auto()
     FUN_CALL = enum.auto()
+    SIG_CALL = enum.auto()
     CHAR_LIT = enum.auto()
     TRUE_LIT = enum.auto()
     FALSE_LIT = enum.auto()
@@ -610,6 +614,8 @@ def rev_type_of_ident(name: str) -> str:
         print_error('rev_type_of_ident', f'No such identifier {name}')
 
     meta_kind = ident_map.get(name)
+    if meta_kind == VariableMetaKind.SIG:
+        return f'sig({sig_map.get(name)})'
     if meta_kind == VariableMetaKind.GENERIC:
         return rev_type_of(any_type)
 
@@ -675,6 +681,9 @@ def rev_type_of(vtype: VariableType) -> str:
     if vtype.kind() not in rev_kind_map:
         print_error('rev_type_of', f'Invalid variable kind {vtype.kind}')
 
+    if vtype.ckind == sig_ckind:
+        return f'{vtype.name}sig'
+
     if vtype.ckind == struct_ckind:
         return vtype.name
 
@@ -724,9 +733,6 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
-    if meta_kind == VariableMetaKind.FUN:
-        return VariableType(VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN), name=ident)
-
     if meta_kind == VariableMetaKind.NAMESPACE:
         return void_type
 
@@ -741,6 +747,12 @@ def type_of_ident(ident: str) -> VariableType:
             print_error('type_of_ident', f'No such struct {ident}')
 
         return struct_map.get(ident).vtype
+
+    if meta_kind == VariableMetaKind.SIG:
+        if ident not in sig_map:
+            print_error('type_of_ident', f'No such signature {ident}')
+
+        return VariableType(sig_ckind, name=ident)
 
     if meta_kind in (VariableMetaKind.PTR, VariableMetaKind.REF, VariableMetaKind.RV_REF):
         if ident not in ptr_map:
@@ -766,11 +778,12 @@ def type_of_ident(ident: str) -> VariableType:
     print_error('type_of_ident', f'No such meta kind {meta_kind}')
 
 
-def type_of_lit(kind: NodeKind) -> VariableType:
+def type_of_lit(kind: NodeKind, name: str = '') -> VariableType:
     if kind in (NodeKind.TRUE_LIT, NodeKind.FALSE_LIT):
         return bool_type
 
     lit_type_map = {
+        NodeKind.FUN_LIT: sig_ckind,
         NodeKind.STR_LIT: ptr_ckind,
         NodeKind.INT_LIT: default_ckind,
         NodeKind.CHAR_LIT: VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM),
@@ -781,7 +794,14 @@ def type_of_lit(kind: NodeKind) -> VariableType:
 
     char_ckind = VariableCompKind(VariableKind.INT8, VariableMetaKind.PRIM)
     elem_ckind = char_ckind if kind == NodeKind.STR_LIT else default_ckind
-    return VariableType(lit_type_map.get(kind), elem_ckind)
+
+    ckind = lit_type_map.get(kind)
+    var_type = VariableType(lit_type_map.get(kind), elem_ckind)
+
+    if ckind == sig_ckind:
+        var_type.name = name
+
+    return var_type
 
 
 def type_of_op(kind: NodeKind, prev_type: Optional[VariableType] = None) -> VariableType:
@@ -1058,12 +1078,10 @@ def allowed_op(ckind: VariableCompKind):
             NodeKind.REF
         ]
 
-    if ckind == fun_ckind:
+    if ckind == sig_ckind:
         return [
             NodeKind.TERN_COND,
             NodeKind.TERN_BODY,
-            NodeKind.OP_ASSIGN,
-            NodeKind.REF
         ]
 
     print_error('allowed_op', f'Invalid type: {ckind}')
@@ -1123,6 +1141,9 @@ def elem_count_of(ident: str) -> int:
 
 
 def size_of(ckind: VariableCompKind) -> int:
+    if ckind == sig_ckind:
+        return 8
+
     #! BUG: Should be corrected later
     if ckind == struct_ckind:
         return 0
@@ -1260,7 +1281,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
         if not is_generic(signature) and (fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt):
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
-                if not (type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (check_refs and matches_ref(arg_type, fun_arg_type))) or (arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
+                if not (type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (check_refs and matches_ref(arg_type, fun_arg_type))) or (arg_type.ckind != sig_ckind and arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
                     compatible = False
                     break
 
@@ -1396,6 +1417,8 @@ REG_TABLE = (
     ('%r15', '%r15d', '%r15w', '%r15b'),
     ('%rax', '%eax', '%ax', '%al'),
     ('%rdx', '%edx', '%dx', '%dl'),
+
+
 )
 
 REGS = (
@@ -1443,6 +1466,7 @@ macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()
 struct_map: Dict[str, Structure] = dict()
+sig_map: Dict[str, FunctionSignature] = dict()
 # Redirects overloads to original function name
 fun_sig_map: Dict[str, str] = dict()
 arr_map: Dict[str, Array] = dict()
@@ -1464,6 +1488,7 @@ default_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.PRIM)
 default_float_ckind = VariableCompKind(
     VariableKind.INT64, VariableMetaKind.FLOAT)
 fun_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.FUN)
+sig_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.SIG)
 any_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.ANY)
 struct_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.STRUCT)
 gen_ckind = VariableCompKind(VariableKind.INT64, VariableMetaKind.GENERIC)

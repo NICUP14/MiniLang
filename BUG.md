@@ -1,8 +1,9 @@
 # Bugs
 
-Solved: 21/27
+Solved: 22/28
 
-- [ ] Bug with functions returning refs.
+- [ ] No type checking when passing sig to fun.
+- [X] Bug with functions returning refs.
 - [ ] Create Def.fun_locals.
 - [ ] Macros cause buggy behaviour with UFCS.
 - [ ] Make that control structures create blocks.
