@@ -20,7 +20,7 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return ''
 
     indent = '  ' * indent_cnt
-    prev_indent = '  ' * (indent_cnt - 1)
+    # prev_indent = '  ' * (indent_cnt - 1)
     add_left_semi = node.left is not None and has_semicolon(node.left.kind)
     add_right_semi = node.right is not None and has_semicolon(node.right.kind)
 
