@@ -50,6 +50,7 @@ The language is designed to closely **match c features** along with some **zero-
 * [For-each loops](QUICKSTART.md#for-loops)
 * Generic functions
 * [Function overloading](QUICKSTART.md#function-overloading)
+* [Function signatures](QUICKSTART.md#signatures-function-pointers)
 * [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
 * [Multi-line statements](QUICKSTART.md#multi-line-statements)
 
