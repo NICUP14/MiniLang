@@ -717,9 +717,9 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
         free_all_regs()
         return None
 
-    if (node.left != None):
+    if (node.left is not None):
         left_opd = gen_tree(node.left, node, -1)
-    if (node.right != None):
+    if (node.right is not None):
         right_opd = gen_tree(node.right, node, -1)
 
     if node.kind == NodeKind.OP_WIDEN:
