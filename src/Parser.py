@@ -1922,7 +1922,6 @@ class Parser:
                 # Signature name correction
                 sig = Def.sig_map.get(f'{full_name}_{arg_name}')
                 Def.sig_map[full_arg_name] = sig
-                print('DBG:', full_arg_name)
 
             if meta_kind == VariableMetaKind.STRUCT:
                 def add_prefix(name: str, arg_name: str = arg_name) -> str:

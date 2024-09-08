@@ -916,6 +916,51 @@ def type_compatible(kind: NodeKind, ckind: VariableCompKind, ckind2: VariableCom
     return False
 
 
+def _sig_args_compat(sig: FunctionSignature, sig2: FunctionSignature):
+    def _args_compatible(tpl) -> bool:
+        kind, ckind, ckind2 = tpl
+        return type_compatible(kind, ckind, ckind2)
+
+    def args_compatible(tpl) -> bool:
+        var_type1, var_type2 = tpl
+        return _args_compatible((NodeKind.FUN_CALL, var_type1.ckind, var_type2.ckind))
+
+    return all(map(args_compatible, zip(sig.arg_types, sig2.arg_types)))
+
+
+def _sig_compat(fun: Function, name: str) -> bool:
+    def _rev_type_of(var_type: VariableType) -> str:
+        if var_type.ckind != sig_ckind:
+            return rev_type_of(var_type)
+        return f'sig{[rev_type_of(arg_type) for arg_type in sig_map.get(var_type.name).arg_types]}'
+    if name not in sig_map:
+        print_error('_sig_compat',
+                    f'No such signature {name}.')
+
+    sig = sig_map.get(name)
+    sig2 = _find_signature(fun, sig.arg_types)
+
+    if not sig2:
+        print_error('_sig_compat',
+                    ' '.join([f'\nNo signature matches {list(map(_rev_type_of, sig.arg_types))} out of {[list(map(_rev_type_of, signature.arg_types)) for signature in fun.signatures]}']))
+
+    return _sig_args_compat(sig, sig2)
+
+
+def sig_compat(name: str, name2: str) -> bool:
+    if name in fun_map and name2 in fun_map:
+        return False
+
+    if name in fun_map:
+        return _sig_compat(fun_map.get(name), name2)
+    if name2 in fun_map:
+        return _sig_compat(fun_map.get(name2), name)
+    if name in sig_map and name2 in sig_map:
+        return _sig_args_compat(sig_map.get(name), sig_map.get(name2))
+
+    return False
+
+
 def allowed_op(ckind: VariableCompKind):
     # Fix for macros
     if ckind == any_ckind:
@@ -1281,7 +1326,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
         if not is_generic(signature) and (fun.is_variadic or not check_len or len(arg_types) == signature.arg_cnt):
             compatible = True
             for arg_type, fun_arg_type in zip(arg_types, signature.arg_types):
-                if not (type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (check_refs and matches_ref(arg_type, fun_arg_type))) or (arg_type.ckind != sig_ckind and arg_type.name != fun_arg_type.name and arg_type != any_type and fun_arg_type != any_type):
+                if not (type_compatible(NodeKind.FUN_CALL, arg_type.ckind, fun_arg_type.ckind) or (check_refs and matches_ref(arg_type, fun_arg_type))) or ((arg_type.ckind != sig_ckind or fun_arg_type.ckind != sig_ckind) and arg_type.name != fun_arg_type.name) or ((arg_type.ckind == sig_ckind or fun_arg_type.ckind == sig_ckind) and not sig_compat(arg_type.name, fun_arg_type.name)):
                     compatible = False
                     break
 

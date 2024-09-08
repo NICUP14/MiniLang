@@ -1,8 +1,8 @@
 # Bugs
 
-Solved: 22/28
+Solved: 23/28
 
-- [ ] No type checking when passing sig to fun.
+- [X] No type checking when passing sig to fun.
 - [X] Bug with functions returning refs.
 - [ ] Create Def.fun_locals.
 - [ ] Macros cause buggy behaviour with UFCS.

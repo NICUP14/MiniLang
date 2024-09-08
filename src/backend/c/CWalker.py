@@ -164,9 +164,14 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
                 fun_str = node.value
                 prelude = f'No arguments of signature {fun_str} matches'
 
+            def _rev_type_of(var_type) -> str:
+                if var_type.ckind != Def.sig_ckind:
+                    return Def.rev_type_of(var_type)
+                return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.sig_map.get(var_type.name).arg_types]}'
+
             print_error('c_walker_step',
                         ' '.join([f'{fun_str}({fun_call_tree_str(node, _c_walk)})',
-                                 f'\n{prelude} {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {list(map(Def.rev_type_of, sig.arg_types)) if node.kind == NodeKind.SIG_CALL else [list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
+                                 f'\n{prelude} {list(map(_rev_type_of, map(get_type, args_to_list(node.left))))} out of {list(map(Def.rev_type_of, sig.arg_types)) if node.kind == NodeKind.SIG_CALL else [list(map(_rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
 
         # ? For easy debugging of signatures
         # def get_type(node: Node):

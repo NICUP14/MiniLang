@@ -24,7 +24,7 @@ fun main
     alloc_start(bos)
 
     let c: int8 = 10
-    let x: fun(_: int64): int8& = ^test
+    let x: fun(_: int8*): int8& = ^test
     test_ptr(^x, &c)
 
     ret 0
