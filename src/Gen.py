@@ -91,7 +91,7 @@ def gen_reg_chown(old_reg: Register, left_opd: Operand, right_opd: Operand) -> O
     if old_reg == right_opd.reg:
         return right_opd
 
-    if Def.reg_avail_map[old_reg] == False:
+    if not Def.reg_avail_map[old_reg]:
         old_opd = Def.opd_map.get(old_reg)
         new_opd = copy_of(old_opd)
         new_opd.reg = alloc_reg(opd=new_opd)
@@ -586,7 +586,7 @@ def gen_tree(node: Node, parent: Optional[Node], curr_label: int):
     if node is None:
         return
 
-    if Def.comments_enabled == True and node.kind in (NodeKind.OP_ASSIGN,
+    if Def.comments_enabled and node.kind in (NodeKind.OP_ASSIGN,
                                                       NodeKind.DECLARATION,
                                                       NodeKind.IF,
                                                       NodeKind.WHILE,
