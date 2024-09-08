@@ -151,21 +151,23 @@ at     | Binary | -        | Array access
 <      | Binary | -        | Less-than comparison
 \>     | Binary | -        | Greater-than comparison
 &      | Unary  | Prefix   | Address
+^      | Unary  | Prefix   | Function address
 \*     | Unary  | Prefix   | Dereference
 
 Precedence | Operator | Description
 -----------|----------|------------
-Level 1   | `cast` `type_of` `len_of` `size_of` `count` `literal` `asm` `()` `.` | Builtins, function calls, macro calls and element access
-Level 2   | `*` `&`                     | Reference and dereference
-Level 3   | `at`                        | Array element access
-Level 4   | `*` `/`                     | Multiplication and division
-Level 5   | `+` `-`                     | Addition and subtraction
-Level 6   | `%` `&` `\|`                | Remainder, bitwise and, bitwise or
-Level 7   | `==` `!=` `>` `<` `>=` `<=` | Comparisons
-Level 8   | `&&` `\|\|`                 | Logical and, logical or
-Level 9   | `... if ... else ...`       | Ternary conditional
-Level 10  | `=`                         | Assignment
-Level 11  | `,`                         | Comma
+Level 0    | `^`                         | Function address
+Level 1    | `cast` `type_of` `len_of` `size_of` `count` `literal` `asm` `()` `.` | Builtins, function calls, macro calls and element access
+Level 2    | `*` `&`                     | Address and dereference
+Level 3    | `at`                        | Array element access
+Level 4    | `*` `/`                     | Multiplication and division
+Level 5    | `+` `-`                     | Addition and subtraction
+Level 6    | `%` `&` `\|`                | Remainder, bitwise and, bitwise or
+Level 7    | `==` `!=` `>` `<` `>=` `<=` | Comparisons
+Level 8    | `&&` `\|\|`                 | Logical and, logical or
+Level 9    | `... if ... else ...`       | Ternary conditional
+Level 10   | `=`                         | Assignment
+Level 11   | `,`                         | Comma
 
 ## Inline assembly
 
@@ -200,19 +202,21 @@ asm "sub $48, %rsp"
 
 > [!Note]
 > The alias statement defines alternative names for existing types and variables, structures and functions.
-> The type aliases defined below are part of the standard library. (`stdlib/defs.ml`)
+> The type aliases defined below are part of the standard library. (`stdlib/c/cdefs.ml`)
 
 ```txt
 # Alias syntax
 # alias alternative_name = name
 # alias alternative_type = type
-alias int = int64
-alias ptr = void*
-alias cint = int32
-alias cstr = int8*
-alias byte = int8
-alias char = int8
-alias size_t = int64
+
+alias c_void = void
+alias c_char  = int8
+alias c_short = int16
+alias c_int   = int32
+alias c_long  = int32
+alias c_long_long = int64
+alias c_str = int8*
+alias c_stream = FILE*
 ```
 
 ## Declaration/Assignment
@@ -220,9 +224,10 @@ alias size_t = int64
 ```txt
 # Declaration syntax
 # Recommended naming convention: snake_case
-# The type for non-array and non-heredoc variables is optional (type inference)
+# Explicit type definitions are optional, except for arrays, heredocs, and signatures. (type inference).
 let variable: type = value
 let pointer: type* = address
+let signature: fun(_: type_1, ..., _: type_n) = ^function
 let inferred = &variable
 let array: type[n] = [elem_1, elem_2, ..., elem_n]
 
@@ -505,6 +510,30 @@ fun U64ToStrLen(nr: int64): int64
     end
 
     ret cnt
+end
+```
+
+### Function signatures (function pointers)
+
+ML refers to function pointers as `function signatures`. Functions can have multiple signatures which can be bound to a variable by using the `^` (function address) operator.
+
+```txt
+import stdlib.io.print
+
+fun test(arg: int8*): int8&
+    ret arg
+end
+
+fun test_ptr(farg: fun(_: int8*): int8&, arg: int8*): void
+    println(farg(arg))
+end
+
+fun main
+    let c: int8 = 10
+    let x: fun(_: int8*): int8& = ^test
+    test_ptr(^x, &c)
+
+    ret 0
 end
 ```
 

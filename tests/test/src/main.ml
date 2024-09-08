@@ -16,8 +16,6 @@ end
 
 # Create a sig
 # let x: fun(_: int8*): int8& = ^test
-# !BUG: Does not impose strict sig matching
-
 
 fun main
     let bos = 0
