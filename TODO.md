@@ -1,8 +1,9 @@
 # TODO
 
-Solved: 28/40
+Solved: 28/41
 
 - [ ] Add roadmap to README.
+- [ ] Add function sigs to README
 - [ ] Add generic functions to QUICKSTART.
 - [ ] Document `mlpx` in `MLPX.md` and add it to README.
 - [ ] Create `inject_ref` to replace `inject_copy` for `Parser._fun_call`.

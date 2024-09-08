@@ -15,7 +15,7 @@ Types         | Description
 ## Functions
 
 > [!NOTE]
-> `iter`/`start`/`stop`/`next` methods are not discussed in this document. Check the [standard library examples](examples.md) for-based loop examples.
+> `iter`/`start`/`stop`/`next` methods are not discussed in this document. Check the [standard library examples](examples.md) for usage examples.
 
 Functions | Description
 ------|------------
