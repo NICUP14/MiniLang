@@ -42,7 +42,7 @@ def ml_suff(s): return add_suffix(s, 'ml')
 def build_clean(args: List[str]):
     def clean(arg: str):
         print_ok(f'Cleaning {arg}')
-        if os.path.exists(f'{arg}'):
+        if os.path.exists(arg):
             execute(f'rm -vrf {arg}')
 
     if len(args) == 0:
@@ -53,7 +53,7 @@ def build_clean(args: List[str]):
         clean(arg)
 
 
-def find_err_args(args: List[str]) -> bool:
+def find_err_args(args: List[str]) -> List[str]:
     err_args = []
     for arg in args:
         if not os.path.exists(arg):
@@ -131,6 +131,46 @@ def add_suffix(source: str, suff: str) -> str:
     return f'{source}.{suff}'
 
 
+def handle_init(args: List[str]):
+    def init(arg: str):
+        print_ok(f'Initializing {arg}')
+        if os.path.exists(arg):
+            print_warning(f'Directory {arg} already exists, skipping...')
+        else:
+            ml_dir = os.path.relpath(ml_path, arg)
+            src_dir = os.path.join(
+                os.path.join(ml_path, "skel"), "src")
+
+            execute(f'mkdir -p {arg}')
+            execute(f'cp -vr {src_dir} {arg}')
+            execute('echo -e \"' + '\\n'.join([
+                '#!/bin/bash',
+                f'{os.path.join(ml_dir, "mlpx")} -p {ml_dir} \$@']) + f'\" > {os.path.join(arg, "mlpx")}')
+            execute(f'chmod +x {os.path.join(arg, "mlpx")}')
+
+    if len(args) == 0:
+        args = [proj_name]
+
+    for arg in args:
+        init(arg)
+
+
+def handle_init_makefile(args: List[str]):
+    def init(arg: str):
+        print_ok(f'Initializing {arg}')
+        if os.path.exists(arg):
+            print_warning(f'Directory {arg} already exists, skipping...')
+        else:
+            execute(f'mkdir {arg}')
+            execute(f'cp -vr {os.path.join(ml_path, "skel")}/* {arg}')
+
+    if len(args) == 0:
+        args = [proj_name]
+
+    for arg in args:
+        init(arg)
+
+
 def handle_build(args: List[str]):
     if build_opt not in OPTION_MAP:
         print_error(f'Invalid option {build_opt}.')
@@ -200,7 +240,9 @@ def handle_cmd(parts: List[str]):
     elif cmd == 'clean':
         handle_clean(args)
     elif cmd == 'init':
-        pass
+        handle_init(args)
+    elif cmd == 'init-makefile':
+        handle_init_makefile(args)
     else:
         print_error(f'Invalid request: {cmd}')
 
@@ -223,7 +265,7 @@ def handle_cmd_list(args: List[str]):
 if __name__ == '__main__':
     desc = ', '.join(['The mini language project manager extension',
                       'Version: 1.0.0',
-                      'Source: https://github.com/NICUP14/MiniLang.git'])
+                     'Source: https://github.com/NICUP14/MiniLang.git'])
 
     parser = optparse.OptionParser(description=desc)
     parser.add_option('-C', '--proj-path', default=source_dir,
@@ -262,6 +304,10 @@ if __name__ == '__main__':
     source_dir = values_dict.get('proj_path')
     build_dir = os.path.join(source_dir, build_dir)
     source = os.path.join(source_dir, 'src/main.ml')
+
+    ml_compiler_path = f'python3 {os.path.join(ml_path, "src/Main.py")}'
+    c_include_path = os.path.join(ml_path, 'skel/include')
+    ml_include_path = os.path.join(ml_path, 'include')
 
     handle_cmd_list(args)
     print_ok('Done!')

@@ -1,13 +1,12 @@
 import stdlib.io.print
 
 fun main: int32
-    # GC needed for stdlib.alloc & stdlib.string
+    # Starts the garbage collector 
     let bos = 0
-    gc_start(&ml_gc, &bos)
+    alloc_start(bos)
 
     # Your code here
     println "HelloWorld"
 
-    gc_stop(&ml_gc)
     ret 0
 end

@@ -6,16 +6,27 @@ A convenient tool for managing `MiniLang` projects.
 
 ```txt
 skel/
+├── mlpx
 └── src
     └── main.ml
 ```
 
 ## Examples
 
-### Cleaning
+### Creating a project
 
 ```txt
-# Cleaning a project
+$ python mlpx init tests/newproj
+Initializing project tests/newproj
+mkdir -p tests/newproj
+cp -vr ./skel/src tests/newproj
+'./skel/src' -> 'tests/newproj/src'
+'./skel/src/main.ml' -> 'tests/newproj/src/main.ml'
+```
+
+### Cleaning a project
+
+```txt
 $ python mlpx -C tests/test/ clean
 Cleaning tests/test/bin
 rm -vrf tests/test/bin
@@ -72,13 +83,14 @@ tests/test/bin/main
 > [!TIP]
 > Commands can be chained using the `and` separator: `python mlpx build and run`.
 
-Command          | Action
------------------|-----------
-`run`            | Runs the executable created by the `build` command.
-`build  [opts]`  | Builds the current project using build options `opts`.
-`rclean [dirs]`  | Recursively cleans all projects in `dirs`.
-`clean  [dirs]`  | Cleans the projects specified by `dirs`.
-`init   [proj]`  | Initializes a new `MiniLang` project named `proj`. (coming soon)
+Command                | Action
+-----------------------|-----------
+`run`                  | Runs the executable created by the `build` command.
+`build  [opts]`        | Builds the current project using build options `opts`.
+`rclean [dirs]`        | Recursively cleans all projects in `dirs`.
+`clean  [dirs]`        | Cleans the projects specified by `dirs`.
+`init   [proj]`        | Initializes a new `MiniLang` project named `proj` using `mlpx` as the build tool.
+`init-makefile [proj]` | Initializes a new `MiniLang` project named `proj` using `GNU make` as the build tool.
 
 ## Options
 
@@ -101,6 +113,7 @@ Shorthand | Option      | Default        | Description
 Option   | Shorthand | Description
 ---------|-----------|------------
 `clean`  | -         | Removes the build directory.
+`rclean` | -         | Recursively removes all build directories.
 `deault` | `def`     | Compiles the project and creates an executable.
 `debug`  | `dbg`     | Compiles using the `MiniLang` backend and prints to `stdout`.
 `cdebug` | `cdbg`    | Compiles using the `C` backend and prints to `stdout`.
