@@ -5,7 +5,7 @@ fun test[T](arg: T)
     println(type_of(arg))
 end
 
-fun test2[T, T2](arg: T, arg2: T2)
+fun testx[T, T2](arg: T, arg2: T2)
     println(type_of(arg))
     println(type_of(arg2))
 end
@@ -27,7 +27,7 @@ fun main
     test(123)
     test(null)
     test("15")
-    test2(15, range(0, 15))
+    testx(range(15), 15)
 
     ret 0
 end

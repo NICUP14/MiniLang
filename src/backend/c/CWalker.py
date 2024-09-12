@@ -152,7 +152,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         if node.kind == NodeKind.SIG_CALL:
             sig = Def.sig_map.get(node.value)
         else:
-            sig: Def.FunctionSignature = find_signature(fun, node.left)
+            sig: Def.FunctionSignature = find_signature(
+                fun, node.left, use_gen=False)
 
         if sig is None or (node.kind == NodeKind.SIG_CALL and not all(map(sig_compat, zip(map(get_type, args_to_list(node.left)), sig.arg_types)))):
             fun_str = ''
@@ -167,7 +168,10 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
             def _rev_type_of(var_type) -> str:
                 if var_type.ckind != Def.sig_ckind:
                     return Def.rev_type_of(var_type)
-                return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.sig_map.get(var_type.name).arg_types]}'
+                if var_type.name in Def.fun_map:
+                    return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.fun_map.get(var_type.name).arg_types]}'
+                if var_type.name in Def.sig_map:
+                    return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.sig_map.get(var_type.name).arg_types]}'
 
             print_error('c_walker_step',
                         ' '.join([f'{fun_str}({fun_call_tree_str(node, _c_walk)})',

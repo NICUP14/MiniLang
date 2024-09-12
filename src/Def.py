@@ -1280,9 +1280,9 @@ def args_to_list(node: Node) -> List[Node]:
 
 def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
     gen_map = dict()
-    for arg_type, sig_arg_type in zip(arg_types, sig.arg_types):
+    for arg_name, arg_type, sig_arg_type in zip(sig.arg_names, arg_types, sig.arg_types):
         if sig_arg_type.ckind == gen_ckind:
-            gen_name = sig.name
+            gen_name = arg_name
             gen_type = gen_map.get(gen_name)
 
             if gen_type and gen_type != arg_type:
@@ -1293,7 +1293,7 @@ def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
     return True
 
 
-def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True, check_refs: bool = False) -> Optional[FunctionSignature]:
+def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True, check_refs: bool = False, use_gen: bool = True) -> Optional[FunctionSignature]:
     cnt = 0
     sig = None
 
@@ -1309,17 +1309,18 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
             return signature
 
     # Looks for a generic match
-    for signature in fun.signatures:
-        if is_generic(signature) and gen_compatible(signature, arg_types):
-            cnt = cnt + 1
-            sig = signature
+    if use_gen:
+        for signature in fun.signatures:
+            if is_generic(signature) and gen_compatible(signature, arg_types):
+                cnt = cnt + 1
+                sig = signature
 
-    # Ensures that only one generic match is valid
-    if cnt == 1:
-        return sig
-    elif cnt > 0:
-        print_error("_find_signature",
-                    f"Multiple matches found for function {fun.name}")
+        # Ensures that only one generic match is valid
+        if cnt == 1:
+            return sig
+        elif cnt > 0:
+            print_error("_find_signature",
+                        f"Multiple matches found for function {fun.name}")
 
     # Looks for compatible matches
     for signature in fun.signatures:
@@ -1336,7 +1337,7 @@ def _find_signature(fun: Function, arg_types: List[VariableType], check_len: boo
     return None
 
 
-def find_signature(fun: Function, node: Node) -> Optional[FunctionSignature]:
+def find_signature(fun: Function, node: Node, use_gen: bool = True) -> Optional[FunctionSignature]:
     def get_type(node: Node) -> VariableType:
         return node.ntype
 
@@ -1346,7 +1347,7 @@ def find_signature(fun: Function, node: Node) -> Optional[FunctionSignature]:
             print(rev_type_of(arg.ntype) if arg else 'None', end=' ')
 
     arg_types = list(map(get_type, args))
-    return _find_signature(fun, arg_types)
+    return _find_signature(fun, arg_types, use_gen=use_gen)
 
 
 # Checks if signature already exists

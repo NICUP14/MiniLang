@@ -646,6 +646,30 @@ class Parser:
         nodes = list(map(inject_copy_arg, args_to_list(node)))
         return glue_statements(nodes, in_call=True)
 
+    def _process_fun_args(self, sig: FunctionSignature, node: Node) -> Node:
+        new_args = []
+        args = args_to_list(node)
+        for idx, arg in enumerate(args):
+            if arg.kind == NodeKind.FUN_LIT and arg.value in Def.fun_map:
+                target_sig = Def.sig_map.get(sig.arg_types[idx].name)
+                found_sig = _find_signature(
+                    Def.fun_map.get(arg.value), target_sig.arg_types, use_gen=False)
+
+                # Creates a temporary signature
+                sig_name = full_name_of_var(
+                    f'tmp_sig_{self.lineno}', force_local=True)
+                sig_type = VariableType(sig_ckind, name=sig_name)
+                Def.sig_map[sig_name] = FunctionSignature(
+                    sig_name, found_sig.arg_cnt, found_sig.arg_names, found_sig.arg_types, found_sig.ret_type, False, False, found_sig.parser)
+
+                to_predeferred(self.declare(sig_name, sig_type, init_node=Node(
+                    NodeKind.FUN_LIT, sig_type, arg.value)))
+                new_args.append(Node(NodeKind.FUN_LIT, sig_type, '^'))
+            else:
+                new_args.append(arg)
+
+        return glue_statements(new_args, in_call=True)
+
     def _fun_call(self, fun_name: str, node_stack: List[Node], check_len: bool = True, is_sig: bool = False) -> List[Node]:
         if fun_name not in Def.fun_map and fun_name not in Def.fun_sig_map and not is_sig:
             print_error(
@@ -669,8 +693,7 @@ class Parser:
                 node = self.merge_fun_call(node_stack.pop()) if len(
                     node_stack) > 0 else None
 
-                if sig is not None and (
-                        sig.is_generic and Def.macro_name == ''):
+                if sig is not None and (sig.is_generic and Def.macro_name == ''):
                     self._infer_gen_types(sig, node)
                     self._gen_fun_call(sig)
 
@@ -716,8 +739,7 @@ class Parser:
             ref_sig = _find_signature(fun, arg_types, check_refs=True)
             ret_type = sig.ret_type if sig else any_type
 
-            if sig is not None and (
-                    sig.is_generic and Def.macro_name == ''):
+            if sig is not None and (sig.is_generic and Def.macro_name == ''):
                 self._infer_gen_types(sig, node)
                 self._gen_fun_call(sig)
 
@@ -731,6 +753,7 @@ class Parser:
                 ret_type = VariableType(
                     ret_type.elem_ckind, name=ret_type.name)
 
+            node = self._process_fun_args(sig, node)
             node_stack.append(
                 Node(kind, ret_type, fun_name, node))
 
@@ -1746,7 +1769,7 @@ class Parser:
         # Defines the generic type params as aliases of a generic type
         if in_generic:
             is_generic = False
-        else:
+        elif is_generic:
             for gen_name in gen_names:
                 gen_type = VariableType(gen_ckind, name=gen_name)
                 Def.type_map[gen_name] = gen_type
@@ -1916,7 +1939,7 @@ class Parser:
                 sig = Def.sig_map.get(f'{full_name}_{arg_name}')
                 Def.sig_map[full_arg_name] = sig
 
-            if meta_kind == VariableMetaKind.STRUCT:
+            elif meta_kind == VariableMetaKind.STRUCT:
                 def add_prefix(name: str, arg_name: str = arg_name) -> str:
                     return f'{arg_name}_{name}'
 
@@ -2343,8 +2366,14 @@ class Parser:
                 sig2 = Def.sig_map.get(node.value)
 
             if not sig2 or sig.arg_types != sig2.arg_types or sig.ret_type != sig2.ret_type:
+                def _rev_type_of(var_type) -> str:
+                    if var_type.ckind != Def.sig_ckind:
+                        return Def.rev_type_of(var_type)
+
+                    return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.sig_map.get(var_type.name).arg_types]}'
+
                 print_error('declaration',
-                            f'Incompatible assignment between signatures {rev_type_of(var_type)} and {rev_type_of(node.ntype)}', self)
+                            f'Incompatible assignment between signatures {_rev_type_of(var_type)} and {_rev_type_of(node.ntype)}', self)
 
             Def.sig_map[full_name] = sig2
             return Node(NodeKind.SIG_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name), node)
