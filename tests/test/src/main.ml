@@ -1,27 +1,36 @@
 import stdlib.io.print
 
-fun _count(arg: int64*): bool
-    if *arg >= 3
-        ret true
-    else
-        ret false
-    end
+struct mystr
+    ptr: int8*
+    length: int64
 end
 
-fun count_if[T](f: fun(_: T): bool, arg: T, l: int64): int64
-    let cnt = 0
-    for itr in range(l)
-        if f(&(arg[itr]))
-            cnt = cnt + 1
-        end
-    end
+fun mystr(ptr: int8*)
+    ret mystr(ptr, strlen(ptr))
+end
 
-    ret cnt
+fun copy(arg: mystr&)
+    ret mystr(arg.ptr)
+end
+
+fun ret_by_alloc: mystr&
+    let s: mystr* = null
+    s.alloc
+
+    *s = mystr("abc")
+    ret s
+end
+
+fun ret_by_copy
+    let s = mystr("abc")
+    ret s
+end
+
+fun ret_by_move
+    let s = mystr("abc")
+    ret move s
 end
 
 fun main
-    let arr: int64[5] = [1, 2, 0, 4, 5]
-    println(count_if(^_count, &arr, 5))
-
     ret 0
 end

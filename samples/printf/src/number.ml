@@ -1,21 +1,28 @@
 import stdlib.c.cstdlib
 import stdlib.c.cdef
 
-macro add(_aptr, _aoff)
-    cast("void*", cast("int64", _aptr) + _aoff)
-end
-
-macro sub(_sptr, _soff)
-    cast("void*", cast("int64", _sptr) + _soff)
-end
-
 let mzf_mask: int8 = 12
 let minus_flag: int8 = 8
 let zero_flag: int8 = 4
 let plus_flag: int8 = 2
 let space_flag: int8 = 1
 
-fun U64ToStrlength(nr: int64): int64
+macro if_set(_flag, _pos)
+    (_flag & _pos) > 0
+end
+
+macro max(_arg, _arg2)
+    _arg if _arg > _arg2 else _arg2
+end
+
+fun str(cnt: int64, ch: int8)
+    let s = empty_str.extend(cnt)
+    memset(s.c_str, ch, cnt)
+
+    ret s
+end
+
+fun num_len(nr: int64): int64
     let cnt = 0
     while nr > 0
         nr = nr / 10
@@ -25,103 +32,51 @@ fun U64ToStrlength(nr: int64): int64
     ret cnt
 end
 
-fun U64ToStr(nr: int64, buff: int8*): int64
-    let length = U64ToStrlength(nr)
-    let idx = length - 1
-
-    while nr != 0
-        buff[idx] = (nr % 10) + 48
-        idx = idx - 1
-        nr = nr / 10
-    end
-
-    ret length
+fun concat(s: str&, ch: int8)
+    ret s.concat(str(1, ch))
 end
 
-fun strnToU64(str: int8*, length: int64): int64
-    let nr = 0
-    let idx = length
-    while idx < length
-        nr = nr * 10 + (str[idx] - '0')
-        idx = idx + 1
-    end
+fun custom_printf_number(num: int64, repr: bool, flag: int8, width: int64): str
+ 	let mf_set =  if_set(flag, minus_flag)
+ 	let zf_set  = if_set(flag, zero_flag)
+ 	let pf_set =  if_set(flag, plus_flag)
+ 	let sf_set =  if_set(flag, space_flag)
 
-    ret nr
-end
-
-fun number(buff: int8*, num: int64, repr: int8, flag: int8, width: int64): int64
- 	let zf_set: int8  = (flag & 8)
- 	let mf_set: int8  = (flag & 4)
- 	let pf_set: int8  = (flag & 2)
- 	let sf_set: int8  = (flag & 1)
     let sign = false
     let sign_ch = '_'
-    let width_ch = '_'
-    let idx = 0
+    let width_ch = ('0' if zf_set else ' ')
 
-  	if zf_set > 0
-  	    width_ch = '0'
-  	else
-  	    width_ch = ' '
-    end
-   
     if num < 0
         sign = true
         num = 0 - num
     end
    
-    if repr > 0
+    if repr
         if sign
             sign_ch = '-'
-        else
-            if sf_set > 0
-                sign_ch = ' '
-            elif pf_set > 0
-                sign_ch = '+'
-            end
+        elif pf_set
+            sign_ch = '+'
+        elif sf_set
+            sign_ch = ' '
         end
     end
 
-    # puts("number before width")
+    let buf = empty_str
+    let length = num_len(num)
+    width = max(width - length, 0)
 
-    let length = U64ToStrlength(num)
-    width = width - U64ToStrlength(num)
-    if width < 0
-        width = 0
+    if zf_set
+        buf = str(width, width_ch)
     end
 
-    # puts("number after width")
+    if repr && (sign || sf_set || pf_set)
+        buf = buf.concat(sign_ch)
+    end
+    buf = buf.concat(num.to_str)
 
-    if mf_set == 0
-        memset(add(buff, idx), width_ch, width)
-        idx = idx + width
+    if !zf_set
+        buf = buf.concat(str(width, width_ch))
     end
 
-    if repr > 0
-        if sf_set > 0
-            buff[idx] = sign_ch
-            idx = idx + 1
-        else
-            if pf_set > 0
-                buff[idx] = sign_ch
-                idx = idx + 1
-            else
-                if sign
-                    buff[idx] = sign_ch
-                    idx = idx + 1
-                end
-            end
-        end
-    end
-
-    let nbytes = U64ToStr(num, add(buff, idx))
-    idx = idx + nbytes
-    # printf("DBG number: %s\n", buff)
-
-    if mf_set > 0
-        memset(add(buff, idx), width_ch, width)
-        idx = idx + width
-    end
-
-    ret idx
+    ret buf
 end

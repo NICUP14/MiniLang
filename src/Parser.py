@@ -49,7 +49,6 @@ from Def import default_type
 from Def import get_counter
 from Def import print_error
 from Def import print_warning
-from Def import check_ident
 from Def import ref_of
 from Def import rv_ref_of
 from Def import type_of
@@ -399,6 +398,19 @@ class Parser:
 
         return Node(NodeKind.CAST, var_type, 'cast', target_node)
 
+    def check_ident(self, name: str, meta_kind: Optional[VariableMetaKind] = None, use_mkind: bool = False):
+        if name not in Def.ident_map:
+            return
+
+        meta_kind2 = Def.ident_map.get(name)
+        if use_mkind and meta_kind != meta_kind2:
+            if meta_kind is None:
+                print_error('check_ident',
+                            f'Redefinition of identifier {name}, (meta_kind = {meta_kind2})', self)
+            else:
+                print_error('check_ident',
+                            f'Redefinition of identifier {name}, (meta_kind = {meta_kind}, meta_kind2 = {meta_kind2})', self)
+
     def fun_arg_cnt(self, node: Node) -> int:
         arg_cnt = 0
         while node is not None and node.kind == NodeKind.GLUE:
@@ -489,7 +501,7 @@ class Parser:
         arg_names = list(
             map(lambda name: full_name_of_var(name, exhaustive_match=False), arg_names))
         for name in arg_names:
-            check_ident(name)
+            self.check_ident(name, VariableMetaKind.ANY, use_mkind=True)
             Def.ident_map[name] = VariableMetaKind.ANY
 
         # Add to Def.macro_arg_map
@@ -763,6 +775,10 @@ class Parser:
         # Macro fix
         if Def.macro_name != '':
             return None, ref_node(node)
+
+        # Fix for passing non-funs to Parser.ref
+        if node.value not in Def.fun_map:
+            return (None, ref_node(node))
 
         tmp_name = full_name_of_var(
             f'{node.value}_tmp_ref_{get_counter()}', force_local=True)
@@ -1434,7 +1450,7 @@ class Parser:
         # Issues a warning if the iterator has been previously-defined
         if iter_exists:
             print_warning('for_statement',
-                          f'Previously-defined iterator {iter_name}is reused here.', parser=self)
+                          f'Previously-defined iterator {iter_name} is reused here.', parser=self)
 
         if stop_ret != bool_type:
             print_error('for_statement',
@@ -1447,7 +1463,7 @@ class Parser:
 
         # ? Needs refactoring, duplicated from struct_elem_declaration
         for name, vtype in zip(name_list, type_list):
-            check_ident(name, use_mkind=True)
+            self.check_ident(name, vtype.meta_kind(), use_mkind=True)
 
             meta_kind = vtype.meta_kind()
             Def.ident_map[name] = meta_kind
@@ -1677,6 +1693,7 @@ class Parser:
 
             node = self.declare(
                 full_name, node.ntype, node.ntype.elem_ckind, init_node=node)
+
             ident = Node(NodeKind.IDENT, node.ntype, full_name)
             ret_node = Node(NodeKind.RET, node.ntype, '', ident)
 
@@ -1892,7 +1909,7 @@ class Parser:
             return signature
 
         Def.fun_sig_map[sig_name] = full_name
-        check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
+        self.check_ident(full_name, VariableMetaKind.FUN, use_mkind=True)
         if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
             fun = Def.fun_map.get(full_name)
 
@@ -1929,7 +1946,7 @@ class Parser:
             meta_kind = arg_type.meta_kind()
             full_arg_name = full_name_of_var(
                 arg_name, force_local=True, exhaustive_match=False)
-            check_ident(full_arg_name, meta_kind, use_mkind=True)
+            self.check_ident(full_arg_name, meta_kind, use_mkind=True)
 
             Def.ident_map[full_arg_name] = meta_kind
 
@@ -2214,7 +2231,6 @@ class Parser:
             if not self.no_more_tokens():
                 print_error('macro_statement',
                             'Junk after macro declaration', self)
-
         self.next_line()
 
         signature = MacroSignature(len(arg_names), arg_names, Parser(self))
@@ -2228,13 +2244,13 @@ class Parser:
                 Def.macro_map[full_name].signatures.append(signature)
 
         else:
-            check_ident(full_name, VariableMetaKind.MACRO, use_mkind=True)
+            self.check_ident(full_name, VariableMetaKind.MACRO, use_mkind=True)
             Def.ident_map[full_name] = VariableMetaKind.MACRO
             Def.macro_map[full_name] = Macro(
                 full_name, len(arg_names), [signature])
 
         for name in arg_names:
-            check_ident(full_name)
+            self.check_ident(name, use_mkind=True)
             Def.ident_map[name] = VariableMetaKind.ANY
 
         Def.macro_name = full_name
@@ -2354,6 +2370,9 @@ class Parser:
             decl_kind = NodeKind.STRUCT_ARR_DECL if meta_kind == VariableMetaKind.ARR else NodeKind.STRUCT_ELEM_DECL
 
         if meta_kind == VariableMetaKind.SIG:
+            if is_struct:
+                return Node(NodeKind.STRUCT_SIG_DECL, var_type, '=', Node(NodeKind.IDENT, var_type, full_name))
+
             node = init_node if init_node else self.token_list_to_tree()
 
             sig2 = None
@@ -2540,14 +2559,15 @@ class Parser:
             elem_ckind = var_type.elem_ckind
 
         if is_struct:
+            self.check_ident(name, use_mkind=True)
             name = f'{Def.struct_name}_elem_{name}'
             full_name = var_name if is_local else full_name_of_var(name, True)
 
-            check_ident(full_name)
+            self.check_ident(full_name, use_mkind=True)
             Def.struct_map[Def.struct_name].elem_names.append(name)
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
-        check_ident(full_name)
+        self.check_ident(full_name, use_mkind=True)
         Def.ident_map[full_name] = meta_kind
 
         node = self.declare(full_name, var_type, elem_ckind,

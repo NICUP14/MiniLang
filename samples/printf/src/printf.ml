@@ -1,111 +1,108 @@
-import src.number
+import stdlib.convert
+import stdlib.io.print
 import stdlib.c.cstdlib
 import stdlib.c.cstdarg
+import src.number
+
+# Not implemented in the language yet
+macro break
+    literal("break;")
+end
+
+# Shared range
+struct shared_range
+    _range: c_str_range&
+end
+
+fun iter(arg: shared_range&): shared_range&
+    ret &arg
+end
+
+fun start(arg: shared_range&): int64
+    arg._range.c_str_range_start = arg._range.c_str_range_idx
+    ret arg._range.start
+end
+
+fun stop(arg: shared_range&): bool
+    ret arg._range.stop
+end
+
+fun next(arg: shared_range&): int64
+    ret arg._range.next
+end
+
+fun curr(arg: shared_range&): int8
+    ret arg.start
+end
 
 fun custom_printf(format: int8*, ...): void
     let va_list: va_list
     va_start(va_list, format)
 
-    # DBG
-    # asm "lea string_13(%rip), %rdi"
-    # asm "mov %rsp, %rsi"
-    # asm "xor %rax, %rax"
-    # asm "call printf"
-
+    let buf = empty_str
+    let repeat = false
     let flag: int8 = 0
-    let repeat: int8 = 0
-    let arr: int8[500]
-    let string: int8* = arr
-    let string_idx = 0
-    let format_idx = 0
 
-    while format[format_idx] != 0 
-        while format[format_idx] != '%'
-            # printf("char: '%c'\n", format[format_idx])
-            string[string_idx] = format[format_idx]
+    let format_range = shared_range(iter(format))
+    for format_ch in format_range
 
-            if format[format_idx] == 0
-                puts(arr)
-                ret
+        for format_ch in format_range
+            if format_ch == '\0' || format_ch == '%'
+                break
             end
 
-            string_idx = string_idx + 1
-            format_idx = format_idx + 1
+            buf = buf.concat(format_ch)
         end
 
-        flag = 0 
-        repeat = 1
-        while repeat == 1
-            format_idx = format_idx + 1
-            if format[format_idx] == '-' 
+        if format_ch == '\0'
+            break
+        end
+
+        # Fetch next iterator
+        format_range.next
+        format_ch = curr(format_range)
+
+        flag = 0
+        repeat = true
+        for format_ch in format_range
+            if format_ch == '-' 
                 flag = (flag | minus_flag)
-                # puts("minus-flag")
+            elif format_ch == '0'
+                flag = flag | zero_flag 
+            elif format_ch == '+'
+                flag = flag | plus_flag 
+            elif format_ch == ' '
+                flag = flag | space_flag 
             else
-                if format[format_idx] == '0' 
-                    flag = flag | zero_flag 
-                    # puts("zero-flag")
-                else
-                    if format[format_idx] == '+' 
-                        flag = flag | plus_flag 
-                        # puts("plus-flag")
-                    else
-                        if format[format_idx] == ' ' 
-                            flag = flag | space_flag 
-                            # puts("space_flag")
-                        else
-                            repeat = 0
-                        end
-                    end
-                end
+                break
             end
         end
 
         let width = 0
-        if format[format_idx] == '*' 
+        if format_ch == '*' 
             width = va_arg_int64(va_list) 
         else: 
-            let cnt = 0 
-            while isdigit(format[format_idx]) > 0
-                cnt = cnt + 1
-                format_idx = format_idx + 1
-            end
-
-            if cnt > 0
-                width = strnToU64(sub(add(format, format_idx), cnt), cnt)
-            end
-        end
-
-        if format[format_idx] == '%' 
-            string[string_idx] = '%' 
-            string_idx = string_idx + 1
-            # puts("percent")
-        else
-            if format[format_idx] == 's'
-                let buf = c_str(va_arg_voidptr(va_list))
-                # printf("stringing: %s\n", buf)
-                strcpy(add(string, string_idx), buf) 
-                string_idx = string_idx + strlen(buf)
-            else
-                if format[format_idx] == 'd'
-                    let repr = cast("c_char", (format[format_idx] == 'd'))
-                    let num = va_arg_int64(va_list)
-                    let off = number(add(string, string_idx), num, repr, flag, width) 
-                    string_idx = string_idx + off
-                    # puts("signed iteger")
-                else
-                    if format[format_idx] == 'u'
-                        # puts("unsigned iteger")
-                        let repr = cast("c_char", (format[format_idx] == 'd'))
-                        let num: int64 = va_arg_int64(va_list) 
-                        let off = number(add(string, string_idx), num, repr, flag, width) 
-                        string_idx = string_idx + off
-                    end
+            width = 0
+            for format_ch in format_range
+                if isdigit(format_ch) == 0
+                    break
                 end
+
+                width = width * 10 + (format_ch - '0')
             end
         end
-
-        format_idx = format_idx + 1
+        
+        if format_ch == '%' 
+            buf = buf.concat(format_ch)
+        elif format_ch == 's'
+            let arg = c_str(va_arg_voidptr(va_list))
+            buf = buf.concat(arg.str)
+        elif format_ch == 'd' || format_ch == 'u'
+            let repr = format_ch == 'd'
+            let num: int64 = va_arg_int64(va_list) 
+            buf = buf.concat(custom_printf_number(num, repr, flag, width))
+        end
     end
 
-    puts(arr)
+    print(buf)
 end

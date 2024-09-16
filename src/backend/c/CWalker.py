@@ -80,11 +80,14 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
     if node.kind == NodeKind.ARR_DECL:
         arr = Def.arr_map.get(node.value)
         return f'{color_str(Color.GREEN, c_rev_type_of(arr.elem_type))} {node.value}[{arr.elem_cnt}]'
-    if node.kind == NodeKind.SIG_DECL:
+    if node.kind in (NodeKind.SIG_DECL, NodeKind.STRUCT_SIG_DECL):
         sig = Def.sig_map.get(node.ntype.name)
         args_str = ', '.join(map(c_rev_type_of, sig.arg_types))
 
-        return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} (*{left})({args_str}) = {sig.name}'
+        if node.kind == NodeKind.STRUCT_SIG_DECL:
+            return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} (*{left})({args_str})'
+        else:
+            return f'{color_str(Color.GREEN, c_rev_type_of(sig.ret_type))} (*{left})({args_str}) = {sig.name}'
 
     if node.kind == NodeKind.STRUCT_ARR_DECL:
         arr = Def.arr_map.get(node.value)

@@ -1,7 +1,8 @@
 # Bugs
 
-Solved: 23/28
+Solved: 23/29
 
+- [X] No type checking for array access idx.
 - [X] No type checking when passing sig to fun.
 - [X] Bug with functions returning refs.
 - [ ] Create Def.fun_locals.

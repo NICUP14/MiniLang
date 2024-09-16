@@ -252,6 +252,7 @@ class NodeKind(enum.Enum):
     STRUCT = enum.auto()
     STRUCT_DECL = enum.auto()
     STRUCT_ARR_DECL = enum.auto()
+    STRUCT_SIG_DECL = enum.auto()
     STRUCT_ELEM_DECL = enum.auto()
     OP_GT = enum.auto()
     OP_LT = enum.auto()
@@ -409,20 +410,6 @@ def print_warning(loc: str, msg: str, parser=None, node=None):
 
 def print_stdout(msg: str = ''):
     print(msg, file=stdout)
-
-
-def check_ident(name: str, meta_kind: Optional[VariableMetaKind] = None, use_mkind: bool = False):
-    if name not in ident_map:
-        return
-
-    meta_kind2 = ident_map.get(name)
-    if use_mkind and meta_kind != meta_kind2:
-        if meta_kind is None:
-            print_error('check_ident',
-                        f'Redefinition of identifier {name}, (meta_kind = {meta_kind2})')
-        else:
-            print_error('check_ident',
-                        f'Redefinition of identifier {name}, (meta_kind = {meta_kind}, meta_kind2 = {meta_kind2})')
 
 
 def alloc_reg(reg: Register = Register.id_max, opd: Operand = None) -> Register:
@@ -1294,6 +1281,9 @@ def gen_compatible(sig: FunctionSignature, arg_types: List[VariableType]):
 
 
 def _find_signature(fun: Function, arg_types: List[VariableType], check_len: bool = True, check_refs: bool = False, use_gen: bool = True) -> Optional[FunctionSignature]:
+    if not fun:
+        print_error('_find_signature', 'No such signature')
+
     cnt = 0
     sig = None
 
