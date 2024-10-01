@@ -44,6 +44,15 @@ class Register(enum.Enum):
     id_max = 14
 
 
+# Context is provided as an extension due to the maturity of the project
+# Scope: context_map.get(full_name).scope
+# Small name: context_map.get(full_name).name
+@dataclass
+class Context:
+    name: str
+    scope: str
+
+
 class VariableMetaKind(enum.Enum):
     """
     Defines all possible structural types.
@@ -479,6 +488,14 @@ def global_modf_of(kind: VariableKind) -> str:
 
     return modf_map[kind]
 
+def curr_scope() -> str:
+    return module_name_list + fun_name_list
+
+def name_of(full_name: str) -> str:
+    if full_name not in context_map:
+        print_error('name_of', f'No such small name for {full_name}')
+    
+    return context_map.get(full_name).name
 
 def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bool = True):
     # Namespace match
@@ -1498,6 +1515,7 @@ stdout = sys.stdout
 counter = 0
 var_off = 0
 block_cnt = 0
+context_map: Dict[str, Context] = dict()
 macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()

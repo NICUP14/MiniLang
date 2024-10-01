@@ -4,6 +4,7 @@
 
 #ifndef ML_ALLOC_H
 #define ML_ALLOC_H
+#define ML_ALLOC_GC
 
 #ifndef ML_ALLOC_GC
 GarbageCollector ml_gc;

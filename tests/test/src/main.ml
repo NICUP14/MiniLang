@@ -1,36 +1,30 @@
 import stdlib.io.print
 
-struct mystr
-    ptr: int8*
-    length: int64
+struct test
+    op1: int64
+    op2: int64
 end
 
-fun mystr(ptr: int8*)
-    ret mystr(ptr, strlen(ptr))
+fun test(op1: int64)
+    println("Constructor")
+    ret test(op1, 0)
 end
 
-fun copy(arg: mystr&)
-    ret mystr(arg.ptr)
+fun copy(arg: test&)
+    println("Copy")
+    ret test(arg.op1, arg.op2)
 end
 
-fun ret_by_alloc: mystr&
-    let s: mystr* = null
-    s.alloc
-
-    *s = mystr("abc")
-    ret s
+fun destruct(arg: test&)
+    println("Destruct")
 end
 
-fun ret_by_copy
-    let s = mystr("abc")
-    ret s
-end
-
-fun ret_by_move
-    let s = mystr("abc")
-    ret move s
+fun ret_test
+    ret test(0)
 end
 
 fun main
+    let a = ret_test
+    a = ret_test
     ret 0
 end

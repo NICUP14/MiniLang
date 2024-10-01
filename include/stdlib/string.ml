@@ -245,11 +245,13 @@ end
 
 # Create an sds string from a boolean value. 
 fun to_str(value: bool): str
+    let cs = null
     if value
-        ret str("true")
+        cs = "true"
     else
-        ret str("false")
+        cs = "false"
     end
+    ret str(cs)
 end
 
 # Create an sds string from a long long value. 

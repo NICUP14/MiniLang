@@ -259,7 +259,9 @@ def handle_cmd_list(args: List[str]):
     if len(parts) > 0:
         handle_cmd(parts)
     else:
-        print_error(f'Missing command in list {" ".join(args)}')
+        # Defaults to build and run for convenience
+        handle_build([])
+        handle_run([])
 
 
 if __name__ == '__main__':

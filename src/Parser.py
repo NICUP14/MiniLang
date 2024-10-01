@@ -21,6 +21,7 @@ from Lexer import token_is_rassoc
 from Def import Node
 from Def import NodeKind
 from Def import Variable
+from Def import Context
 from Def import VariableCompKind
 from Def import VariableType
 from Def import VariableMetaKind
@@ -58,6 +59,7 @@ from Def import type_of_bin_op
 from Def import type_of_ident
 from Def import type_of_lit
 from Def import type_compatible
+from Def import curr_scope
 from Def import full_name_of_var
 from Def import full_name_of_fun
 from Def import needs_widen
@@ -343,18 +345,25 @@ class Parser:
                     op_stack.append(token)
                     continue
 
-                # Handles Unary operator (token correction)
+                # Handles unary operators (token correction)
                 op_token = token
                 if prev_token is None or token_is_op(prev_token.kind) or prev_token.kind == TokenKind.LPAREN:
-                    if token.kind == TokenKind.NOT:
-                        op_token = token
-                    elif token.kind == TokenKind.MULT:
-                        op_token = Token(TokenKind.DEREF, '*')
-                    elif token.kind == TokenKind.BIT_AND:
-                        op_token = Token(TokenKind.AMP, '&')
+                    # Fix for unary plus/minus
+                    if token.kind == TokenKind.PLUS:
+                        continue
+                    elif token.kind == TokenKind.MINUS:
+                        postfix_tokens.append(Token(TokenKind.INT_LIT, '0'))
+
                     else:
-                        print_error('to_postfix',
-                                    f'Invalid unary operator kind {token.kind}', self)
+                        if token.kind == TokenKind.NOT:
+                            op_token = token
+                        elif token.kind == TokenKind.MULT:
+                            op_token = Token(TokenKind.DEREF, '*')
+                        elif token.kind == TokenKind.BIT_AND:
+                            op_token = Token(TokenKind.AMP, '&')
+                        else:
+                            print_error('to_postfix',
+                                        f'Invalid unary operator kind {token.kind}', self)
 
                 while len(op_stack) > 0 and (not token_is_rassoc(op_stack[-1].kind)) and op_stack[-1].kind != TokenKind.LPAREN and cmp_precedence(op_token, op_stack[-1]):
                     postfix_tokens.append(op_stack.pop())
@@ -780,8 +789,8 @@ class Parser:
         if node.value not in Def.fun_map:
             return (None, ref_node(node))
 
-        tmp_name = full_name_of_var(
-            f'{node.value}_tmp_ref_{get_counter()}', force_local=True)
+        small_name = f'{node.value}_tmp_ref_{get_counter()}'
+        tmp_name = full_name_of_var(small_name, force_local=True)
 
         def get_type(node: Node):
             return node.ntype
@@ -793,6 +802,8 @@ class Parser:
             print_error('ref',
                         f'No signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
+        Def.context_map[tmp_name] = Context(small_name, curr_scope())
+        Def.ident_map[tmp_name] = sig.ret_type.meta_kind()
         tmp_decl = self.declare(
             tmp_name, sig.ret_type, sig.ret_type.elem_ckind, init_node=node)
 
@@ -1066,6 +1077,20 @@ class Parser:
                         if kind not in allowed_op(left.ntype.ckind):
                             print_error('to_tree',
                                         f'to_tree: Incompatible types {kind} {rev_type_of(left.ntype)}, {rev_type_of(right.ntype)} (check #2) ({kind} {left.value} {right.value})', self)
+
+                        # Destructs old value on assignment
+                        if kind == NodeKind.OP_ASSIGN and left.ntype.ckind == struct_ckind:
+                            destr_fun = Def.fun_map.get('destruct')
+                            destr_sig = _find_signature(
+                                destr_fun, [ref_of(left.ntype)])
+
+                            if not destr_fun or not destr_sig:
+                                print_warning(
+                                    'to_tree', f'No destructor implemented for {left.ntype.name}; Resource is not properly cleaned up', parser=self)
+
+                            else:
+                                to_predeferred(
+                                    Node(NodeKind.FUN_CALL, destr_sig.ret_type, 'destruct', ref_node(left)))
 
                         # Disallows string literal modification
                         if kind == NodeKind.OP_ASSIGN and left.kind == NodeKind.ARR_ACC and left.left.kind == NodeKind.STR_LIT:
@@ -1357,8 +1382,10 @@ class Parser:
         namespace = self.match_token(TokenKind.IDENT).value
         self.next_line()
 
-        Def.ident_map[full_name_of_fun(
-            namespace, force_global=True)] = VariableMetaKind.NAMESPACE
+        full_name = full_name_of_fun(
+            namespace, force_global=True)
+        Def.context_map[full_name] = Context(namespace, curr_scope())
+        Def.ident_map[full_name] = VariableMetaKind.NAMESPACE
         Def.module_name_list.append(namespace)
         namespace_node = Node(NodeKind.NAMESPACE, void_type,
                               namespace, self.compound_statement())
@@ -1466,6 +1493,7 @@ class Parser:
             self.check_ident(name, vtype.meta_kind(), use_mkind=True)
 
             meta_kind = vtype.meta_kind()
+            Def.context_map[name] = Context(name, curr_scope())
             Def.ident_map[name] = meta_kind
             if meta_kind == VariableMetaKind.STRUCT:
                 def add_prefix(elem_name: str, name: str = name) -> str:
@@ -1664,8 +1692,10 @@ class Parser:
                 Def.returned.append(node.value)
 
             # Stores the return in a temp (store -> destr -> ret)
+            small_name = f'ret_{self.lineno}'
             full_name = full_name_of_var(
-                f'ret_{self.lineno}', force_local=True)
+                small_name, force_local=True)
+            Def.context_map[full_name] = Context(small_name, curr_scope())
             Def.ident_map[full_name] = node.ntype.meta_kind()
             Def.returned.append(full_name)
 
@@ -1924,6 +1954,7 @@ class Parser:
             fun = Function(full_name, len(arg_types), full_arg_names,
                            arg_types, ret_type, 0, is_variadic, is_extern, [signature])
 
+            Def.context_map[full_name] = Context(name, curr_scope())
             Def.ident_map[full_name] = VariableMetaKind.FUN
             Def.fun_map[full_name] = fun
 
@@ -1948,6 +1979,7 @@ class Parser:
                 arg_name, force_local=True, exhaustive_match=False)
             self.check_ident(full_arg_name, meta_kind, use_mkind=True)
 
+            Def.context_map[full_arg_name] = Context(arg_name, curr_scope())
             Def.ident_map[full_arg_name] = meta_kind
 
             Def.var_off += size_of(arg_type.ckind)
@@ -2076,6 +2108,7 @@ class Parser:
             struct.elem_names), full_arg_names, struct.elem_types, struct.vtype, is_extern, False, None)
         Def.fun_sig_map[sig_name] = fun_name
 
+        Def.context_map[fun_name] = Context(fun_name, curr_scope())
         Def.ident_map[fun_name] = VariableMetaKind.FUN
         Def.fun_map[fun_name] = Function(fun_name, len(struct.elem_names), struct.elem_names, struct.elem_types,
                                          struct.vtype, 0, False, False, [signature])
@@ -2098,6 +2131,8 @@ class Parser:
             return Node(NodeKind.OP_ASSIGN, var_type, '=',
                         elem_acc, node)
 
+        Def.context_map[tmp_name] = Context(tmp_name, curr_scope())
+        Def.ident_map[tmp_name] = struct.vtype.meta_kind()
         decl = Node(NodeKind.STRUCT_DECL, struct.vtype, tmp_name)
         ret = Node(NodeKind.RET, struct.vtype, '', Node(
             NodeKind.IDENT, struct.vtype, tmp_name))
@@ -2334,6 +2369,7 @@ class Parser:
     def struct_elem_declaration(self, names: List[str], og_struct: Structure) -> Optional[Node]:
         for new_name, og_name, var_type in zip(names, og_struct.elem_names, og_struct.elem_types):
             meta_kind = var_type.meta_kind()
+            Def.context_map[new_name] = Context(new_name, curr_scope())
             Def.ident_map[new_name] = meta_kind
 
             if meta_kind == VariableMetaKind.STRUCT:
@@ -2568,6 +2604,7 @@ class Parser:
             Def.struct_map[Def.struct_name].elem_types.append(var_type)
 
         self.check_ident(full_name, use_mkind=True)
+        Def.context_map[full_name] = Context(name, curr_scope())
         Def.ident_map[full_name] = meta_kind
 
         node = self.declare(full_name, var_type, elem_ckind,

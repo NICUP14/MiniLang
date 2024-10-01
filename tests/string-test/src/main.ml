@@ -1,74 +1,93 @@
+import stdlib.macro
 import stdlib.string
-import stdlib.io.file
+import stdlib.str_list
+import stdlib.str_build
 import stdlib.io.print
-import stdlib.convert
-import stdlib.c.cstdlib
-import src.for
 
-fun part_one(st: c_stream): void
-    let sum = 0
-    let max_sum = 0
-    let s: str = extend(empty_str, 256)
+fun str(cnt: int64, ch: int8)
+    let s = empty_str.extend(cnt)
+    memset(s.c_str, ch, cnt)
 
-    while read_line(st, s, 256)
-        s = s.trim("\n")
-
-        if s.len == 0
-            max_sum = sum if sum > max_sum else max_sum
-            sum = 0
-        else
-            sum = sum + to_int64(c_str(s))
-        end
-    end
-
-    "Part one: ".print
-    max_sum.println
+    ret s
 end
 
-fun part_two(st: c_stream): void
-    let sum = 0
-    let max_sum = 0
-    let max_sum2 = 0
-    let max_sum3 = 0
-    let s: str = extend(empty_str, 256)
+fun concat(s: str&, ch: int8)
+    ret s.concat(str(1, ch))
+end
 
-    while read_line(st, s, 256)
-        s = s.trim("\n")
+fun _format(cnt: int64, fmt: str&, ...): str
+    let list: va_list
+    va_start(list, fmt)
 
-        if s.len == 0
-            if sum > max_sum
-                max_sum3 = max_sum2
-                max_sum2 = max_sum
-                max_sum = sum
+    let idx = 0
+    let args_idx = 0
+    let skip = false
+    let pos = false
+    let args = str_list(cnt, list)
 
-            elif sum > max_sum2
-                max_sum3 = max_sum2
-                max_sum2 = sum
+    let buf = false
+    let start_idx = 0
+    let end_idx = 0
 
-            elif sum > max_sum3
-                max_sum3 = sum
+    let ch: int8 = 0
+    let res = str_build(1000)
+    while idx < fmt.len && (ch = c_str(fmt)[idx]) > '\0'
+        if !skip && ch == '\\'
+            skip = true
+        elif !skip && ch == '{'
+            if buf
+                res.append(fmt.substr(start_idx, end_idx))
+                buf = false
             end
 
-            sum = 0
+            idx.incr
+            pos = false
+            let pos_idx = 0
+            while idx < fmt.len && (
+                  ch = c_str(fmt)[idx]) != '}' && isdigit(ch) > 0
+                pos = true
+                pos_idx = pos_idx * 10 + (ch - '0')
+                idx.incr
+            end
+
+            if !pos
+                pos_idx = args_idx
+                args_idx.incr
+            end
+
+            if pos_idx > args.str_list_cnt || pos_idx < 0
+                panicf("Invalid index: %lld\n", pos_idx)
+            end
+            
+            res.append(args.str_list_arr[pos_idx])
         else
-            sum = sum + to_int64(c_str(s))
+            if buf
+                end_idx = idx
+            else
+                start_idx = end_idx = idx
+                buf = true
+            end
         end
+
+        idx.incr
     end
 
-    "Part two: ".print
-    (max_sum + max_sum2 + max_sum3).println
+    ret res.to_str
 end
 
+macro format(_fmt)
+    _format(1, _fmt)
+end
+
+macro format(_fmt, _other)
+    _format(count(_other), _fmt, _other)
+end
 
 fun main: int32
     let bos = 0
-    gc_start(&ml_gc, &bos)
+    alloc_start(bos)
 
-    let in_file = open_file("input.txt")
-    part_one(in_file)
-    rewind(in_file)
-    part_two(in_file)
+    print(format("Hello {1} {}".str, "Hello", "Sir"))
 
-    gc_stop(&ml_gc)
     ret 0
 end

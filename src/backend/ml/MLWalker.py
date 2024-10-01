@@ -39,6 +39,7 @@ def ml_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: in
             return f'(*{node.value})'
 
         return node.value
+
     if node.kind == NodeKind.OP_ADD:
         return f'({left} + {right})'
     if node.kind == NodeKind.OP_SUB:

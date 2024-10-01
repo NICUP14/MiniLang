@@ -92,15 +92,16 @@ python mlpx -C tests/test build and run
 ### Creating projects
 
 > [!IMPORTANT]
-> The ML project creator utility (`mlpx init`) will be available soon...
+> It's recommended to use the `mlpx` build tool as it's specifically designed for this purpose: no libary redundancy and no configuration compared to using the `make` build tool.
+
+Creating a `MiniLang` project is easy and straight-forward using the `mlpx` utility, which provides two ways with differing build tools.
 
 ```txt
-# I. Copy project skeleton
-cp -r skel <PATH_TO_PROJ>
+# Using the mlpx build tool
+python mlpx init my_new_project
 
-# If using the GNU make build tool instead of mlpx
-# II. Configure makefile parameters (ML, MLLIB)
-$EDITOR <PATH_TO_PROJ>/Makefile
+# Using the make build tool
+python mlpx makefile-init my_new_project
 ```
 
 ### Build tools

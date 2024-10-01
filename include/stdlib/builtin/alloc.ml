@@ -23,6 +23,7 @@ macro alloc_stop
     literal("#define s_malloc malloc")
     literal("#define s_realloc realloc")
     literal("#define s_free free")
+    literal("#include <sdsalloc.h>")
 
     gc_stop(&ml_gc)
     _gc_running = false
@@ -39,6 +40,7 @@ macro alloc_start(_lit)
     literal("#define s_malloc ml_malloc")
     literal("#define s_realloc ml_realloc")
     literal("#define s_free ml_free")
+    literal("#include <sdsalloc.h>")
 
     gc_start(&ml_gc, &_lit)
     _gc_running = true

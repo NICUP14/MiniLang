@@ -81,7 +81,7 @@ fun custom_printf(format: int8*, ...): void
         let width = 0
         if format_ch == '*' 
             width = va_arg_int64(va_list) 
-        else: 
+        else
             width = 0
             for format_ch in format_range
                 if isdigit(format_ch) == 0
