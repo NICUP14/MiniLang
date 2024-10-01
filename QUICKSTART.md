@@ -575,6 +575,9 @@ mystr.concat(" World!").len.print
 > [!WARNING]
 > In the case where a composite type is missing the `copy` method, the intent defaults to moving (surrendering the ownership) the resource to the function. The compiler warns against these implicit ownership claims.
 
+> [!WARNING]
+> Due to the current scope implementation references to rvalues (function return values) are not cleaned up. This is a bug and will be resolved soon.
+
 RAII (Resource Acquisition Is Initialization) is a memory allocation tehnique where resources like memory, files, or locks are automatically managed by associating their acquisition and release with the lifetime of an object.
 
 In ML, RAII determines the lifetime of the composite types. Resources are destructed by calling their associated `destruct` and copied by calling `copy`. Both aforementioned methods operate on references of the resources' type. The `move` builtin allows createing rvalue references of resources.

@@ -802,8 +802,8 @@ class Parser:
             print_error('ref',
                         f'No signature of {fun.name} matches {list(map(Def.rev_type_of, map(get_type, args_to_list(node.left))))} out of {[list(map(Def.rev_type_of, sig.arg_types)) for sig in fun.signatures]}')
 
-        Def.context_map[tmp_name] = Context(small_name, curr_scope())
-        Def.ident_map[tmp_name] = sig.ret_type.meta_kind()
+        # Def.context_map[tmp_name] = Context(small_name, curr_scope())
+        # Def.ident_map[tmp_name] = sig.ret_type.meta_kind()
         tmp_decl = self.declare(
             tmp_name, sig.ret_type, sig.ret_type.elem_ckind, init_node=node)
 
@@ -1695,31 +1695,31 @@ class Parser:
             small_name = f'ret_{self.lineno}'
             full_name = full_name_of_var(
                 small_name, force_local=True)
-            Def.context_map[full_name] = Context(small_name, curr_scope())
+            # Def.context_map[full_name] = Context(small_name, curr_scope())
             Def.ident_map[full_name] = node.ntype.meta_kind()
             Def.returned.append(full_name)
 
-            if node.ntype.ckind == struct_ckind and fun_name != 'copy':
-                copy_fun = Def.fun_map.get('copy')
-                copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
+            # if node.ntype.ckind == struct_ckind and fun_name != 'copy':
+            #     copy_fun = Def.fun_map.get('copy')
+            #     copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
 
-                if copy_sig:
-                    if node.kind == NodeKind.FUN_CALL:
-                        tmp_decl, node = self.ref(node)
-                        to_predeferred(tmp_decl)
-                    else:
-                        node = ref_node(node)
+            #     if copy_sig:
+            #         if node.kind == NodeKind.FUN_CALL:
+            #             tmp_decl, node = self.ref(node)
+            #             to_predeferred(tmp_decl)
+            #         else:
+            #             node = ref_node(node)
 
-                    node = Node(NodeKind.FUN_CALL,
-                                copy_sig.ret_type, 'copy', node)
-                else:
-                    destr_fun = Def.fun_map.get('destruct')
-                    destr_sig = _find_signature(
-                        destr_fun, [ref_of(node.ntype)])
+            #         node = Node(NodeKind.FUN_CALL,
+            #                     copy_sig.ret_type, 'copy', node)
+            #     else:
+            #         destr_fun = Def.fun_map.get('destruct')
+            #         destr_sig = _find_signature(
+            #             destr_fun, [ref_of(node.ntype)])
 
-                    if destr_sig:
-                        print_error('ret_statement',
-                                    f'Destructor is implemented for {rev_type_of(node.ntype)}; Cannot safely copy the return value of {fun.name}', parser=self)
+            #         if destr_sig:
+            #             print_error('ret_statement',
+            #                         f'Destructor is implemented for {rev_type_of(node.ntype)}; Cannot safely copy the return value of {fun.name}', parser=self)
 
             node = self.declare(
                 full_name, node.ntype, node.ntype.elem_ckind, init_node=node)
