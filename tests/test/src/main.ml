@@ -1,30 +1,59 @@
+import stdlib.io.read
 import stdlib.io.print
 
-struct test
-    op1: int64
-    op2: int64
+let falltrough = false
+macro switch(_ident2, _cond2, _body2)
+    if (_ident2 == _cond2) || falltrough
+        falltrough = true
+        _body2
+    end
+
 end
 
-fun test(op1: int64)
-    println("Constructor")
-    ret test(op1, 0)
+macro switch(_ident, _cond, _body, _other)
+    switch(_ident, _cond, _body)
+    switch(_ident, _other)
 end
 
-fun copy(arg: test&)
-    println("Copy")
-    ret test(arg.op1, arg.op2)
+macro break
+    falltrough = false
 end
 
-fun destruct(arg: test&)
-    println("Destruct")
+macro add_args
+    1
+    2
 end
 
-fun ret_test
-    ret test(0)
+macro sum(_arg1, _arg2)
+    _arg1 + _arg2
+end
+
+macro sum(_arg1, _arg2, _arg3)
+    _arg1 + sum(_arg2, _arg3)
 end
 
 fun main
-    let a = ret_test
-    a = ret_test
+    # let a = 0
+    # read(a)
+
+    # switch(a,
+    #     (15, 
+    #         group(
+    #             print("Is 15"), 
+    #             break)),
+    #     (16, 
+    #         group(
+    #             print("Is 16"), 
+    #             print("Also 16"), 
+    #             print("Also 166"))),
+    #     (17, 
+    #         print("Is 17")),
+    #     (18, 
+    #         print("Is 18")),
+    #     (19, 
+    #         print("Is 19")),
+    #     (20, 
+    #         print("Is 20"))
+    # )
     ret 0
 end

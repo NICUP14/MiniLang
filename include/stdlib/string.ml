@@ -2,7 +2,6 @@
 # Provides a functional-like ML frontend of the sds c library.
 # WARNING: Relies on the sds bindings for ML (string-backend.ml).
 
-import stdlib.macro
 import stdlib.debug
 import stdlib.c.cstdlib
 import stdlib.c.cstdarg
@@ -262,7 +261,7 @@ end
 
 # Create an sds string from a string using clone. 
 fun to_str(value: str&): str
-    ret ref(value).copy
+    ret copy(value)
 end
 
 # Create an sds string from a C string literal. 

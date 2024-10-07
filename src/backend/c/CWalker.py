@@ -226,6 +226,8 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
 
     if node.kind in (NodeKind.OP_WIDEN, NodeKind.CAST):
         return f'({color_str(Color.GREEN, c_rev_type_of(node.ntype))}){left}'
+    if node.kind == NodeKind.GROUP:
+        return left
     if node.kind == NodeKind.STRFY:
         if node.left.kind == NodeKind.STRFY:
             return _c_walk(node.left)
@@ -235,8 +237,6 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
         return _c_walk(c_expand_builtin(node))
     if node.kind == NodeKind.RET:
         return f'{color_str(Color.BLUE, "return")} {left if left is not None else ""}'
-    if node.kind == NodeKind.BLOCK:
-        return ''
     if node.kind in (NodeKind.NAMESPACE, NodeKind.BLOCK):
         return left
     if node.kind == NodeKind.REF:

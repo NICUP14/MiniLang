@@ -462,7 +462,7 @@ end
 
 ## Macros
 
-Compared to C/C++ macros, the ML macro system is hygienic. That means that each macro is represented internally by an AST (pre-processor-less macros). On each macro call, the parser substitutes each macro argument with their invoked counterpart.
+MiniLang's macro system stands out as its most exceptional feature, surpassing all other systems languages. With the ability to manipulate the Abstract Syntax Tree (AST) directly at compile time, macros enable dynamic structural modifications and transformations. This capability offers powerful meta-programming features akin to those found in Lisp. A detailed description of the MiniLang macro system can be found [here](docs/language/rethinking%20macros.md).
 
 ```txt
 # Macro syntax
@@ -581,6 +581,9 @@ mystr.concat(" World!").len.print
 RAII (Resource Acquisition Is Initialization) is a memory allocation tehnique where resources like memory, files, or locks are automatically managed by associating their acquisition and release with the lifetime of an object.
 
 In ML, RAII determines the lifetime of the composite types. Resources are destructed by calling their associated `destruct` and copied by calling `copy`. Both aforementioned methods operate on references of the resources' type. The `move` builtin allows createing rvalue references of resources.
+
+> [!IMPORTANT]
+> Implicit copying occurs only for parameters of a function call.
 
 Description   | Type (var)       | Notation     | Effect
 --------------|------------------|--------------|-------

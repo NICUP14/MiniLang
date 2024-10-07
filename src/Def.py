@@ -225,6 +225,7 @@ class Function:
 class MacroSignature:
     arg_cnt: int
     arg_names: List[str]
+    ret: bool
     parser: Any
 
 
@@ -271,7 +272,7 @@ class NodeKind(enum.Enum):
     OP_NEQ = enum.auto()
     TERN = enum.auto()
     TERN_COND = enum.auto()
-    TERN_BODY = enum.auto
+    TERN_BODY = enum.auto()
     IF = enum.auto()
     ELIF = enum.auto()
     ELSE = enum.auto()
@@ -295,6 +296,7 @@ class NodeKind(enum.Enum):
     ASM = enum.auto()
     CAST = enum.auto()
     STRFY = enum.auto()
+    GROUP = enum.auto()
     MOVE = enum.auto()
     TYPE = enum.auto()
     OFF = enum.auto()
@@ -488,14 +490,17 @@ def global_modf_of(kind: VariableKind) -> str:
 
     return modf_map[kind]
 
+
 def curr_scope() -> str:
     return module_name_list + fun_name_list
+
 
 def name_of(full_name: str) -> str:
     if full_name not in context_map:
         print_error('name_of', f'No such small name for {full_name}')
-    
+
     return context_map.get(full_name).name
+
 
 def full_name_of_fun(name: str, force_global: bool = False, exhaustive_match: bool = True):
     # Namespace match
@@ -573,8 +578,9 @@ def off_of(ident: str) -> int:
 
 
 # Parses the type of the identifier
-def type_of(sym: str) -> VariableType:
-    if sym not in type_map:
+# Exits via print_err if err is set
+def type_of(sym: str, err=True) -> VariableType:
+    if sym not in type_map and err:
         print_error('type_of', f'Invalid type identifier {sym}')
 
     return type_map.get(sym)

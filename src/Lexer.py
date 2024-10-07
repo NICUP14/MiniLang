@@ -1,5 +1,6 @@
 import re
 import enum
+import Def
 from typing import List
 from typing import Optional
 from dataclasses import dataclass
@@ -42,8 +43,19 @@ def to_pattern(l):
     return '|'.join(l)
 
 
+def type_pattern() -> str:
+    suffs = ('', '\*', '&', '&&', '\[\d\]\*')
+    patterns = [pref + suff for pref in Def.type_map for suff in suffs]
+    print('DBG:', patterns)
+    return '|'.join(patterns)
+
+
 def is_int(s: str):
     return re.search(INT_PATTERN, s) is not None
+
+
+def is_type(s: str):
+    return Def.type_of(s, err=False)
 
 
 INT_PATTERN = r'\d+'
@@ -51,12 +63,14 @@ CHAR_PATTERN = r'\'[^\']+\''
 STR_PATTERN = r'\"[^\"]*\"'
 SYM_PATTERN = r'\\?[\w\d]+'
 OP_PATTERN = to_pattern(map(re.escape, OPERATORS))
+TYPE_PATTERN = type_pattern()
 PATTERN = to_pattern([
     INT_PATTERN,
     CHAR_PATTERN,
     STR_PATTERN,
     SYM_PATTERN,
-    OP_PATTERN
+    OP_PATTERN,
+    TYPE_PATTERN,
 ])
 
 
@@ -128,6 +142,7 @@ class TokenKind(enum.Enum):
     KW_SIZE = enum.auto()
     KW_COUNT = enum.auto()
     KW_STRFY = enum.auto()
+    KW_GROUP = enum.auto()
     KW_MOVE = enum.auto()
     KW_LEN = enum.auto()
     KW_LIT = enum.auto()
@@ -207,6 +222,7 @@ TOKEN_KIND_MAP = {
     'literal': TokenKind.KW_LIT,
     'move': TokenKind.KW_MOVE,
     'strfy': TokenKind.KW_STRFY,
+    'group': TokenKind.KW_GROUP,
     'cast': TokenKind.KW_CAST,
     'true': TokenKind.TRUE_LIT,
     'false': TokenKind.FALSE_LIT,
@@ -287,6 +303,7 @@ def token_is_op(kind: TokenKind) -> bool:
         TokenKind.KW_LEN,
         TokenKind.KW_LIT,
         TokenKind.KW_STRFY,
+        TokenKind.KW_GROUP,
         TokenKind.KW_MOVE,
         TokenKind.KW_CAST,
         TokenKind.KW_IF,
@@ -314,6 +331,9 @@ def token_kind_of(value: str) -> Optional[TokenKind]:
     sym = value.replace('_', '')
     if sym == '' or str.isalnum(sym):
         return TokenKind.IDENT
+
+    if is_type(value):
+        return TokenKind.TYPE_LIT
 
     print_error('token_kind_of', f'Invalid token {value}')
     return None
@@ -370,6 +390,7 @@ def token_is_unary_op(kind: TokenKind) -> bool:
         TokenKind.KW_LIT,
         TokenKind.KW_MOVE,
         TokenKind.KW_STRFY,
+        TokenKind.KW_GROUP,
         TokenKind.KW_CAST,
         TokenKind.FUN_CALL,
         TokenKind.SIG_CALL,

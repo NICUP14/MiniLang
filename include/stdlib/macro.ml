@@ -1,10 +1,10 @@
 import stdlib.builtin.for
 
-# macro repeat(_n, _body)
-#     for _repeat_it in range(_n)
-#         _body
-#     end
-# end
+macro repeat(_n, _body)
+    for _repeat_it in range(_n)
+         _body
+     end
+end
 
 # Inserts a delimiter between arguments
 macro delimit(_delim, _arg)

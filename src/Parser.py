@@ -81,6 +81,7 @@ PRECEDENCE_MAP = {
     TokenKind.REF_FUN: 30,
     TokenKind.KW_MOVE: 26,
     TokenKind.KW_STRFY: 26,
+    TokenKind.KW_GROUP: 26,
     TokenKind.KW_CAST: 26,
     TokenKind.KW_TYPE: 26,
     TokenKind.KW_LEN: 26,
@@ -341,7 +342,7 @@ class Parser:
 
             elif token_is_op(token.kind):
                 # Assembly, type, offset, size, len, cast, warn builtin pass-trough
-                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST, TokenKind.KW_STRFY, TokenKind.KW_MOVE):
+                if token.kind in (TokenKind.KW_ASM, TokenKind.KW_TYPE, TokenKind.KW_SIZE, TokenKind.KW_COUNT, TokenKind.KW_LEN, TokenKind.KW_LIT, TokenKind.KW_CAST, TokenKind.KW_STRFY, TokenKind.KW_GROUP, TokenKind.KW_MOVE):
                     op_stack.append(token)
                     continue
 
@@ -490,9 +491,9 @@ class Parser:
         else:
             return Node(node.kind, node.ntype, node.value, left, right)
 
-    def expand_macro(self, macro: Macro, node: Optional[Node]) -> Optional[Node]:
+    def expand_macro(self, macro: Macro, node: Optional[Node]) -> List[Optional[Node], Optional[Node]]:
         if Def.macro_name != '':
-            return Node(NodeKind.IDENT, any_type, Def.macro_name)
+            return [None, Node(NodeKind.IDENT, any_type, Def.macro_name)]
 
         arg_cnt = self.fun_arg_cnt(node)
         signature = min(macro.signatures, key=lambda s: s.arg_cnt)
@@ -532,7 +533,15 @@ class Parser:
             if Def.ident_map.get(name) == VariableMetaKind.ANY:
                 del Def.ident_map[name]
                 del Def.macro_arg_map[name]
-        return body
+
+        # Returns the whole macro as a return when:
+        # * Macro is no-return (default)
+        # * The last statement is not a chain of statements
+        # * The last statement is not an expression
+        if not signature.ret or not body or body.kind != NodeKind.GLUE or body.right.kind in (NodeKind.END, NodeKind.GLUE):
+            return [None, body]
+
+        return [body.left, body.right]
 
     def _infer_gen_types(self, sig: FunctionSignature, node: Node):
         def get_type(node: Node) -> VariableType:
@@ -891,18 +900,23 @@ class Parser:
                         macro = Def.macro_map.get(token.value)
 
                         if macro.arg_cnt == 0:
-                            node_stack.append(self.expand_macro(macro, None))
+                            body, ret = self.expand_macro(macro, None)
+
+                            if body:
+                                to_predeferred(body)
+                            node_stack.append(ret)
                         else:
                             if len(node_stack) == 0:
                                 print_error('to_tree',
                                             'Missing macro operand', self)
 
                             node = node_stack.pop()
-                            body = self.expand_macro(
+                            body, ret = self.expand_macro(
                                 macro, self.merge_fun_call(node))
 
-                            node_stack.append(body)
-
+                            if body:
+                                to_predeferred(body)
+                            node_stack.append(ret)
                         continue
 
                     if len(node_stack) == 0:
@@ -912,6 +926,11 @@ class Parser:
                     if token.kind == TokenKind.KW_MOVE:
                         node_stack.append(
                             Node(NodeKind.MOVE, node.ntype, 'move', node))
+                        continue
+
+                    if token.kind == TokenKind.KW_GROUP:
+                        node_stack.append(
+                            Node(NodeKind.GROUP, node.ntype, 'group', node))
                         continue
 
                     if token.kind == TokenKind.KW_LIT:
@@ -2246,6 +2265,11 @@ class Parser:
             print_error('macro_declaration',
                         'Local macros are not allowed', self)
 
+        ret = False
+        if self.curr_token().kind == TokenKind.KW_RET:
+            ret = True
+            self.next_token()
+
         full_name = full_name_of_fun(self.match_token(
             TokenKind.IDENT).value, exhaustive_match=False, force_global=True)
 
@@ -2268,7 +2292,8 @@ class Parser:
                             'Junk after macro declaration', self)
         self.next_line()
 
-        signature = MacroSignature(len(arg_names), arg_names, Parser(self))
+        signature = MacroSignature(
+            len(arg_names), arg_names, ret, Parser(self))
         if Def.ident_map.get(full_name) == VariableMetaKind.MACRO:
             macro = Def.macro_map.get(full_name)
             for idx, macro_signature in enumerate(macro.signatures):

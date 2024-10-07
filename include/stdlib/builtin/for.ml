@@ -18,6 +18,10 @@ fun range(range_stop: int64): range
     ret range(0, 0, range_stop)
 end
 
+fun invert(arg: range&): range
+    ret range(arg.range_start, arg.range_start)
+end
+
 fun until(range_start: int64, range_stop: int64): range
     ret range(0, range_start, range_stop)
 end
