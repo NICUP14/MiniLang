@@ -1,46 +1,26 @@
 import stdlib.io.read
 import stdlib.io.print
 
-let falltrough = false
-macro switch(_ident2, _cond2, _body2)
-    if (_ident2 == _cond2) || falltrough
-        falltrough = true
-        _body2
+fun test
+    print("Hello")
+end
+
+macro fmacro
+    fun test(arg: int64)
+        print("Hello ", arg)
     end
-
 end
 
-macro switch(_ident, _cond, _body, _other)
-    switch(_ident, _cond, _body)
-    switch(_ident, _other)
+macro tmacro
+    let a = 15
+    println a
 end
 
-macro break
-    falltrough = false
-end
+
+# fmacro
 
 fun main
-    let a = 0
-    read(a)
-
-    switch(a,
-        (15, 
-            group(
-                print("Is 15"), 
-                break)),
-        (16, 
-            group(
-                print("Is 16"), 
-                print("Also 16"), 
-                print("Also 166"))),
-        (17, 
-            print("Is 17")),
-        (18, 
-            print("Is 18")),
-        (19, 
-            print("Is 19")),
-        (20, 
-            print("Is 20"))
-    )
+    tmacro
+    test
     ret 0
 end

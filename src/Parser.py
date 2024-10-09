@@ -518,15 +518,17 @@ class Parser:
         for name, node in zip(arg_names, arg_list):
             Def.macro_arg_map[name] = node
 
+        # Removes placeholders of local declaration
+        for name in macro.local_names:
+            if Def.ident_map.get(name) == VariableMetaKind.ANY:
+                del Def.ident_map[name]
+
         parser = Parser(signature.parser)
-        parser.source = self.source
-        parser.lineno = self.lineno - 1
         try:
             body = parser.compound_statement(False)
         except RecursionError:
             print_error('expand_macro',
                         f'Cannot expand macro {macro.name} (circular macro)', self)
-        self.lineno += (parser.lineno - self.lineno)
 
         # Removes macro placeholders
         for name in arg_names:
@@ -1962,16 +1964,17 @@ class Parser:
         if Def.ident_map.get(full_name) == VariableMetaKind.FUN:
             fun = Def.fun_map.get(full_name)
 
-            if Def.macro_name != '':
+            if Def.macro_name == '':
                 # Checks for conflicting signatures
                 if check_signature(fun, signature):
                     print_error('fun_declaration',
                                 f'New signature of {full_name} ({signature}) conflicts with {_find_signature(fun, signature.arg_types)}', parser=self)
 
-            fun.signatures.append(signature)
+                fun.signatures.append(signature)
         else:
+            signatures = [signature] if Def.macro_name == '' else []
             fun = Function(full_name, len(arg_types), full_arg_names,
-                           arg_types, ret_type, 0, is_variadic, is_extern, [signature])
+                           arg_types, ret_type, 0, is_variadic, is_extern, signatures)
 
             Def.context_map[full_name] = Context(name, curr_scope())
             Def.ident_map[full_name] = VariableMetaKind.FUN
@@ -2307,7 +2310,7 @@ class Parser:
             self.check_ident(full_name, VariableMetaKind.MACRO, use_mkind=True)
             Def.ident_map[full_name] = VariableMetaKind.MACRO
             Def.macro_map[full_name] = Macro(
-                full_name, len(arg_names), [signature])
+                full_name, len(arg_names), [], [signature])
 
         for name in arg_names:
             self.check_ident(name, use_mkind=True)
@@ -2318,6 +2321,16 @@ class Parser:
         Def.macro_name = ''
         Def.block_cnt = 0
 
+        # Removes function placeholders
+        removed = []
+        for name, fun in Def.fun_map.items():
+            if len(fun.signatures) == 0:
+                removed.append(name)
+        for name in removed:
+            del Def.ident_map[name]
+            del Def.fun_map[name]
+
+        # Removes placeholders
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.ANY:
                 del Def.ident_map[name]
@@ -2542,10 +2555,6 @@ class Parser:
                     f'Unknown meta kind {meta_kind}', self)
 
     def declaration(self, is_struct: bool = False) -> Optional[Node]:
-        if Def.macro_name != '':
-            print_error('declaration',
-                        f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
-
         name = self.match_token(TokenKind.IDENT).value
         var_name = full_name_of_var(
             name, force_local=True, exhaustive_match=False)
@@ -2553,6 +2562,14 @@ class Parser:
         is_local = Def.fun_name != ''
         full_name = var_name if is_local else full_name_of_var(name, True)
         is_implicit = self.curr_token().kind != TokenKind.COLON
+
+        if Def.macro_name != '':
+            Def.ident_map[full_name] = VariableMetaKind.ANY
+            macro = Def.macro_map.get(Def.macro_name)
+            macro.local_names.append(full_name)
+            return None
+            # print_error('declaration',
+            #             f'Variable declarations within macro ({Def.macro_name}) are not allowed', self)
 
         elem_cnt = 0
         var_type = default_type

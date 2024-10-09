@@ -233,6 +233,7 @@ class MacroSignature:
 class Macro:
     name: str
     arg_cnt: int
+    local_names: List[str]
     signatures: List[MacroSignature]
 
 

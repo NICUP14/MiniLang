@@ -1,54 +1,46 @@
-import stdlib.c.cstdlib
-import stdlib.c.cdef
+import stdlib.io.read
+import stdlib.io.print
 
-macro body(_body)
-    _body
-end
-
-macro _if(_cond, _body)
-    if _cond
-        _body
+let falltrough = false
+macro switch(_ident2, _cond2, _body2)
+    if (_ident2 == _cond2) || falltrough
+        falltrough = true
+        _body2
     end
+
 end
 
-macro _if(_cond, _true_body, _false_body)
-    if _cond
-        _true_body
-    else
-        _false_body
-    end
+macro switch(_ident, _cond, _body, _other)
+    switch(_ident, _cond, _body)
+    switch(_ident, _other)
 end
 
-macro _defer(_expr)
-    defer _expr
+macro break
+    falltrough = false
 end
 
-macro _main(_body)
-    fun main: int64
-        _body
-    end
+fun main
+    let a = 0
+    read(a)
+
+    switch(a,
+        (15, 
+            group(
+                print("Is 15"), 
+                break)),
+        (16, 
+            group(
+                print("Is 16"), 
+                print("Also 16"), 
+                print("Also 166"))),
+        (17, 
+            print("Is 17")),
+        (18, 
+            print("Is 18")),
+        (19, 
+            print("Is 19")),
+        (20, 
+            print("Is 20"))
+    )
+    ret 0
 end
-
-macro _assign(_ident, _val)
-    _ident = _val
-end
-
-let a: int64* = 0
-_main(
-    body(a = malloc(8)),
-    _defer(free(a)),
-    scanf("%lld", a),
-
-    _if(*a > 0,
-        # If body
-        body(
-            puts("a is positive"),
-            printf("Value of a is: %lld", *a)),
-        # Else body
-        body(
-            puts("a is negative"),
-            printf("Value of a is negative: %lld", *a))
-    ),
-
-    exit(0)
-)

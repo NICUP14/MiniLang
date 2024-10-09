@@ -176,9 +176,13 @@ def c_walker_step(node: Node, parent: Node, left, right, middle, indent_cnt: int
                 if var_type.name in Def.sig_map:
                     return f'sig{[Def.rev_type_of(arg_type) for arg_type in Def.sig_map.get(var_type.name).arg_types]}'
 
+            mismatch_msg = f'\n{prelude} {list(map(_rev_type_of, map(get_type, args_to_list(node.left))))} out of {list(map(Def.rev_type_of, sig.arg_types)) if node.kind == NodeKind.SIG_CALL else [list(map(_rev_type_of, sig.arg_types)) for sig in fun.signatures]}.'
+
+            # Prints a help message for functions with empty signature lists. It means that the function is defined by a macro
+            missing_msg = f'\nMissing function definition of {fun.name}; It\'s defined within the body of a macro.'
+
             print_error('c_walker_step',
-                        ' '.join([f'{fun_str}({fun_call_tree_str(node, _c_walk)})',
-                                 f'\n{prelude} {list(map(_rev_type_of, map(get_type, args_to_list(node.left))))} out of {list(map(Def.rev_type_of, sig.arg_types)) if node.kind == NodeKind.SIG_CALL else [list(map(_rev_type_of, sig.arg_types)) for sig in fun.signatures]}']))
+                        ' '.join([f'{fun_str}({fun_call_tree_str(node, _c_walk)})', missing_msg if len(fun.signatures) == 0 else mismatch_msg]))
 
         # ? For easy debugging of signatures
         # def get_type(node: Node):
