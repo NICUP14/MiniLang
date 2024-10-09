@@ -18,6 +18,10 @@
 					"match": "\\b(extern|fun|ret|end|let|if|elif|else|while|for|in|iter|start|stop|next|destruct|copy|move|at|alias|import|namespace|defer|asm|file|line|lineno|type_of|count|size_of|len_of|literal|strfy|group|cast|warn|true|false|block|macro)\\b"
 				},
 				{
+					"name": "support.function.minilang",
+					"match": "\\b(alloc_warn|alloc_stop|alloc_start|alloc_size|alloc|alloc_zeroed|dealloc|with|range|invert|until|to|lines|default|c_ptr_size|c_char_size|c_short_size|c_int_size|c_long_size|c_long_long_size|stdin|stdout|stderr|destruct|va_start|va_arg_voidptr|va_arg_int64|va_arg|to_int64|to_bool|to_int8|to_int16|to_int32|boolean|number|string|panic_exit|panicf|panic|assert_exit|assert|assert_eq|assert_neq|close_file|open_file|read_line|read_file|print|println|print_to|println_to|input|read|read_from|repeat|delimit|reverse|ref|not|neg|incr|decr|c_str|copy|str|str_from|empty_str|extend|clear|len|substr|concat|concat_from|trim|compare|equals|to_lower|to_upper|find|split|join|to_str|str_build|capacity|to_cstr|append|str_list|str_list_from)\\b"
+				},
+				{
 					"name": "storage.type.minilang",
 					"match": "\\b(struct|void|int8|int32|int16|int64|float64|float32|bool)\\b"
 				},

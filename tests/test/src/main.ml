@@ -19,41 +19,28 @@ macro break
     falltrough = false
 end
 
-macro add_args
-    1
-    2
-end
-
-macro sum(_arg1, _arg2)
-    _arg1 + _arg2
-end
-
-macro sum(_arg1, _arg2, _arg3)
-    _arg1 + sum(_arg2, _arg3)
-end
-
 fun main
-    # let a = 0
-    # read(a)
+    let a = 0
+    read(a)
 
-    # switch(a,
-    #     (15, 
-    #         group(
-    #             print("Is 15"), 
-    #             break)),
-    #     (16, 
-    #         group(
-    #             print("Is 16"), 
-    #             print("Also 16"), 
-    #             print("Also 166"))),
-    #     (17, 
-    #         print("Is 17")),
-    #     (18, 
-    #         print("Is 18")),
-    #     (19, 
-    #         print("Is 19")),
-    #     (20, 
-    #         print("Is 20"))
-    # )
+    switch(a,
+        (15, 
+            group(
+                print("Is 15"), 
+                break)),
+        (16, 
+            group(
+                print("Is 16"), 
+                print("Also 16"), 
+                print("Also 166"))),
+        (17, 
+            print("Is 17")),
+        (18, 
+            print("Is 18")),
+        (19, 
+            print("Is 19")),
+        (20, 
+            print("Is 20"))
+    )
     ret 0
 end

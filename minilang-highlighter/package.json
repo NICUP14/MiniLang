@@ -29,6 +29,20 @@
         "scopeName": "source.ml",
         "path": "./syntaxes/minilang.tmLanguage.json"
       }
+    ],
+    "tokenColors": [
+      {
+        "scope": "support.function.minilang",
+        "settings": {
+          "foreground": "#70c6ae"
+        }
+      },
+      {
+        "scope": "storage.type.minilang",
+        "settings": {
+          "foreground": "#b885bc"
+        }
+      }
     ]
   }
 }

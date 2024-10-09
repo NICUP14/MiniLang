@@ -54,6 +54,10 @@ The language is designed to closely **match c features** along with some **zero-
 * [Uniform function call syntax (UFCS)](QUICKSTART.md#uniform-function-call-syntax-ufcs)
 * [Multi-line statements](QUICKSTART.md#multi-line-statements)
 
+## Online compiler
+
+The online compiler is provided by [ryugod.com](https://www.ryugod.com/pages/ide/minilang). Special thanks to [ryusatgat](https://github.com/ryusatgat) for hosting and maintaining the online compiler!
+
 ## Branches
 
 * [main](https://github.com/NICUP14/MiniLang/tree/main)
