@@ -1,13 +1,17 @@
 # Bugs
 
-Solved: 23/29
+Solved: 26/33
 
+- [ ] GC alloc with RAII. (free after alloc_stop)
+- [ ] Signature inside struct.
+- [ ] Variadic macro expansion nestsing.
+- [ ] Macros cause buggy behaviour with UFCS.
+- [ ] Make that control structures create blocks.
+- [ ] Function declarations do not work inside macros (fails signature check).
+- [ ] Div/Mod bug for asm backend (Doesn't check `in_reg` == `rax`) (**DEPRECATED BACKEND**)
 - [X] No type checking for array access idx.
 - [X] No type checking when passing sig to fun.
 - [X] Bug with functions returning refs.
-- [ ] Create Def.fun_locals.
-- [ ] Macros cause buggy behaviour with UFCS.
-- [ ] Make that control structures create blocks.
 - [X] `Parser.ref` does not implicit cast-to-ref (add `try_cast_ref`)
 - [X] Functions like `input` are predeferred.
 - [X] Using an iterator `i` in a for loop does not compile correctly.
@@ -16,10 +20,8 @@ Solved: 23/29
 - [X] Pointer to struct displayed as "long long*". (no name field in elem_ckind)
 - [X] Struct elements pollute the global scope with non-existent variables.
 - [X] Cannot call function as struct method with only one arg.
-- [ ] Function declarations do not work inside macros (fails signature check).
 - [X] Macro-related bug (check `expand_macro`).
 - [X] `ma_cnt` builtin is no longer working.
-- [ ] Div/Mod bug for asm backend (Doesn't check `in_reg` == `rax`)
 - [X] Implicit cast arr-ptr/ref doesn't work (Def.type_compatible).
 - [X] Passing arguments from variadic macro to fun doesn't work.
 - [X] Assignment/At-related bug (also in macros) (`"15" = 5`/`"15" at (12 + 1)`).

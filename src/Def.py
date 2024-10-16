@@ -73,6 +73,7 @@ class VariableMetaKind(enum.Enum):
     STRUCT = enum.auto()
     MACRO = enum.auto()
     ALIAS = enum.auto()
+    BLOCK = enum.auto()
     NAMESPACE = enum.auto()
     GENERIC = enum.auto()
 
@@ -131,6 +132,12 @@ class ParsedType:
     var_type: VariableType
     elem_type: VariableType
     elem_cnt: int
+
+
+@dataclass
+class Block:
+    name: str
+    block_name: str
 
 
 class Variable:
@@ -394,7 +401,7 @@ def print_error(loc: str, msg: str, parser=None, node=None):
     print(file=sys.stderr)
     if parser is not None:
         print(f'location: {color_str(Color.FAIL, line)}', file=sys.stderr)
-        print(f'{parser.source}:{parser.lines_idx}:{parser.tokens_idx}: {desc}',
+        print(f'{parser.source}:{parser.lineno}: {desc}',
               file=sys.stderr)
     else:
         from GenStr import tree_str
@@ -744,7 +751,7 @@ def type_of_ident(ident: str) -> VariableType:
 
     meta_kind = ident_map.get(ident)
 
-    if meta_kind == VariableMetaKind.NAMESPACE:
+    if meta_kind in (VariableMetaKind.NAMESPACE, VariableMetaKind.BLOCK):
         return void_type
 
     if meta_kind == VariableMetaKind.GENERIC:
@@ -1523,6 +1530,7 @@ counter = 0
 var_off = 0
 block_cnt = 0
 context_map: Dict[str, Context] = dict()
+block_map: Dict[str, Block] = dict()
 macro_map: Dict[str, Macro] = dict()
 var_map: Dict[str, Variable] = dict()
 fun_map: Dict[str, Function] = dict()

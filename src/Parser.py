@@ -32,6 +32,7 @@ from Def import Array
 from Def import Structure
 from Def import Pointer
 from Def import Macro
+from Def import Block
 from Def import MacroSignature
 from Def import bool_ckind
 from Def import ptr_ckind
@@ -175,7 +176,7 @@ class Parser:
             self.lines_idx = parser.lines_idx
         else:
             self.source = ''
-            self.lineno = 0
+            self.lineno = 1
             self.tokens = []
             self.tokens_idx = 0
             self.lines = []
@@ -518,9 +519,9 @@ class Parser:
         for name, node in zip(arg_names, arg_list):
             Def.macro_arg_map[name] = node
 
-        # Removes placeholders of local declaration
+        # Removes local placeholders
         for name in macro.local_names:
-            if Def.ident_map.get(name) == VariableMetaKind.ANY:
+            if name in Def.ident_map:
                 del Def.ident_map[name]
 
         parser = Parser(signature.parser)
@@ -540,7 +541,7 @@ class Parser:
         # * Macro is no-return (default)
         # * The last statement is not a chain of statements
         # * The last statement is not an expression
-        if not signature.ret or not body or body.kind != NodeKind.GLUE or body.right.kind in (NodeKind.END, NodeKind.GLUE):
+        if not signature.ret or (not body or body.kind != NodeKind.GLUE or body.right.kind in (NodeKind.END, NodeKind.GLUE)):
             return [None, body]
 
         return [body.left, body.right]
@@ -1017,6 +1018,13 @@ class Parser:
 
                     else:
                         kind = self.node_kind_of(token.kind)
+
+                        if kind == NodeKind.ELEM_ACC and Def.ident_map.get(left.value) == VariableMetaKind.BLOCK:
+                            block = Def.block_map.get(left.value)
+                            name = f'{block.block_name}_{right.value}'
+                            node_stack.append(
+                                Node(NodeKind.IDENT, type_of_ident(name), name))
+                            continue
 
                         # De-sugars a member-like function call
                         if kind == NodeKind.ELEM_ACC and Def.ident_map.get(left.value) == VariableMetaKind.NAMESPACE:
@@ -1649,6 +1657,13 @@ class Parser:
         return node
 
     def ret_statement(self) -> Optional[Node]:
+        if Def.macro_name != '':
+            if Def.fun_name == '':
+                print_error('ret_statement',
+                            'Return not allowed in macro.', parser=self)
+
+            return None
+
         if Def.fun_name == '':
             print_error('ret_statement',
                         'Cannot return from outside a function', self)
@@ -1692,6 +1707,10 @@ class Parser:
         else:
             node = self.token_list_to_tree()
 
+            if node.ntype == void_type:
+                print_error('ret_statment',
+                            f'Cannot return expression of void type in {Def.fun_name}', parser=self)
+
             if not type_compatible(NodeKind.FUN_CALL, node.ntype.ckind, sig.ret_type.ckind):
                 print_error('ret_statement',
                             f'The return type differs from the function\'s ({rev_type_of(node.ntype)} != {rev_type_of(sig.ret_type)})', self)
@@ -1720,27 +1739,27 @@ class Parser:
             Def.ident_map[full_name] = node.ntype.meta_kind()
             Def.returned.append(full_name)
 
-            # if node.ntype.ckind == struct_ckind and fun_name != 'copy':
-            #     copy_fun = Def.fun_map.get('copy')
-            #     copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
+            if node.ntype.ckind == struct_ckind and fun_name != 'copy':
+                copy_fun = Def.fun_map.get('copy')
+                copy_sig = _find_signature(copy_fun, [ref_of(node.ntype)])
 
-            #     if copy_sig:
-            #         if node.kind == NodeKind.FUN_CALL:
-            #             tmp_decl, node = self.ref(node)
-            #             to_predeferred(tmp_decl)
-            #         else:
-            #             node = ref_node(node)
+                if copy_sig:
+                    if node.kind == NodeKind.FUN_CALL:
+                        tmp_decl, node = self.ref(node)
+                        to_predeferred(tmp_decl)
+                    else:
+                        node = ref_node(node)
 
-            #         node = Node(NodeKind.FUN_CALL,
-            #                     copy_sig.ret_type, 'copy', node)
-            #     else:
-            #         destr_fun = Def.fun_map.get('destruct')
-            #         destr_sig = _find_signature(
-            #             destr_fun, [ref_of(node.ntype)])
+                    node = Node(NodeKind.FUN_CALL,
+                                copy_sig.ret_type, 'copy', node)
+                else:
+                    destr_fun = Def.fun_map.get('destruct')
+                    destr_sig = _find_signature(
+                        destr_fun, [ref_of(node.ntype)])
 
-            #         if destr_sig:
-            #             print_error('ret_statement',
-            #                         f'Destructor is implemented for {rev_type_of(node.ntype)}; Cannot safely copy the return value of {fun.name}', parser=self)
+                    if destr_sig:
+                        print_error('ret_statement',
+                                    f'Destructor is implemented for {rev_type_of(node.ntype)}; Cannot safely copy the return value of {fun.name}', parser=self)
 
             node = self.declare(
                 full_name, node.ntype, node.ntype.elem_ckind, init_node=node)
@@ -2118,7 +2137,7 @@ class Parser:
 
         sig_name = compute_signature(fun_name, struct.elem_types)
 
-        # ? Temporary
+        # Creates parameter names
         full_arg_names = []
         Def.fun_name_list.append(sig_name)
         for arg_name in struct.elem_names:
@@ -2238,22 +2257,32 @@ class Parser:
             print_error('block_statement',
                         'Global block declarations are not allowed', self)
 
-        name = ''
         unnamed_block = self.no_more_tokens()
+        block_name = f'block{Def.block_cnt}'
+        Def.block_cnt += 1
 
-        if unnamed_block:
-            Def.block_cnt += 1
-            name = f'block{Def.block_cnt}'
-        else:
+        name = ''
+        if not unnamed_block:
             name = self.match_token(TokenKind.IDENT).value
+        full_name = full_name_of_var(name, force_local=True)
+        full_block_name = full_name_of_var(block_name, force_local=True)
 
         self.next_line()
         scopeless_block = name.startswith('_')
 
         if not scopeless_block:
-            Def.fun_name_list.append(name)
+            Def.fun_name_list.append(block_name)
+
+        Def.ident_map[full_name] = VariableMetaKind.BLOCK
+        Def.block_map[full_name] = Block(full_name, full_block_name)
+
+        if Def.macro_name != '':
+            macro = Def.macro_map[Def.macro_name]
+            macro.local_names.append(full_name)
+
         block_node = Node(NodeKind.BLOCK, void_type,
                           name, self.compound_statement())
+
         if not scopeless_block:
             Def.fun_name_list.pop()
 
@@ -2333,6 +2362,11 @@ class Parser:
         # Removes placeholders
         for name in arg_names:
             if Def.ident_map.get(name) == VariableMetaKind.ANY:
+                del Def.ident_map[name]
+
+        # Removes local placeholders
+        for name in Def.macro_map[full_name].local_names:
+            if name in Def.ident_map:
                 del Def.ident_map[name]
 
     def to_node(self, token: Token) -> Node:

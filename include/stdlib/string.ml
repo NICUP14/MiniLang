@@ -16,7 +16,7 @@ end
 
 # Duplicate an sds string (RAII).
 fun copy(s: str&): str
-    ret sdsdup(move(s))
+    ret sdsnew(c_str(s))
 end
 
 # Frees the resources onwed by the string (RAII).
@@ -91,7 +91,7 @@ end
 # sdsrange(s,1,-1); => "ello World"
 fun substr(s: str&, startx: int64, send: int64): str
     let tmp = str(s)
-    sdsrange(move(tmp), startx, send)
+    sdsrange(tmp, startx, send)
     ret tmp
 end
 
@@ -103,7 +103,7 @@ end
 # references must be substituted with the new pointer returned by the call.
 fun concat(s: str&, t: str&): str
     let tmp = str(&s)
-    ret sdscatsds(move(tmp), move(t))
+    ret sdscatsds(tmp, move(t))
 end
 
 # Append to the sds string 's' a string obtained using printf-alike format specifier.
@@ -127,7 +127,7 @@ fun concat_from(s: str&, fmt: int8*, ...): str
     va_start(listx, fmt)
 
     let tmp = str(&s)
-    ret sdscatvprintf(move(tmp), fmt, move(listx))
+    ret sdscatvprintf(tmp, fmt, move(listx))
 end
 
 # Remove the part of the string from left and from right composed just of contiguous characters found in 'cset', that is a null terminated C string.
@@ -146,7 +146,7 @@ end
 # Output will be just "HelloWorld".
 fun trim(s: str&, cset: int8*): str
     let tmp = str(&s)
-    ret sdstrim(move(tmp), cset)
+    ret sdstrim(tmp, cset)
 end
 
 # Compare two sds strings s1 and s2 with memcmp().

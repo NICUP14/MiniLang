@@ -2,19 +2,18 @@
 
 Implemented: 17/25
 
-- [X] RAII
-- [X] Structs
-- [ ] `when` and `symbol` construct
-- [ ] Operator overloading
-- [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
-- [ ] stdlib.slice: [slice99](https://github.com/Hirrolot/slice99)
 - [ ] Unions
 - [ ] Enums
 - [ ] Generics
-- [X] Access operator (`.`)
-- [X] Function overloading (by args)
+- [ ] Operator overloading
+- [ ] `when` and `symbol` construct
+- [ ] Add stdlib.safe: A library that disables c bindings and makes the language safer
 - [ ] Function overloading (by return)
 - [ ] Rethink assembly interface (regs as variables, ...)
+- [X] RAII
+- [X] Structs
+- [X] Access operator (`.`)
+- [X] Function overloading (by args)
 - [X] Deprecate `ma_cnt` (`count` builtin)
 - [X] Add `literal` builtin (pass arg directly to backend)
 - [X] Deprecate `off_of` (cannot be reproduced in c)

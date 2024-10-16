@@ -328,12 +328,12 @@ def token_kind_of(value: str) -> Optional[TokenKind]:
     if str.isdigit(value):
         return TokenKind.INT_LIT
 
+    # if is_type(value):
+    #     return TokenKind.TYPE_LIT
+
     sym = value.replace('_', '')
     if sym == '' or str.isalnum(sym):
         return TokenKind.IDENT
-
-    if is_type(value):
-        return TokenKind.TYPE_LIT
 
     print_error('token_kind_of', f'Invalid token {value}')
     return None
