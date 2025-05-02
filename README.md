@@ -3,8 +3,7 @@
 <img src="Logo.png" width="250px"></img>
 
 > [!WARNING]
-> The language is still under development.
-Some features are missing.
+> The development of the project has stopped due to memory and thread safety concers. Chain, the philosophical successor of MiniLang is here to take its place. It's been designed from scratch to offer safety guarantees comparable to Rust, while retaining safe ergonomics thanks to its revolutionary pointer semantics. Stay tuned, Chain will soon be available on github!
 
 A type-safe C successor that compiles directly to various platforms.
 
@@ -22,7 +21,7 @@ A type-safe C successor that compiles directly to various platforms.
 * Compiled
 * Procedural
 * Strongly typed
-* Type and memory safe
+* ~~Type and memory safe~~
 * Closely match C features
 * Bidirectionally compatible with C
 * ML must be easy to learn and use
@@ -30,7 +29,7 @@ A type-safe C successor that compiles directly to various platforms.
 
 ## Motivation
 
-The language is designed to closely **match c features** along with some **zero-overhead** quality of life improvements that you would find in a modern language, while maintaining the **ease of learning the language** (in about 10 minutes or less via [QUICKSTART](QUICKSTART.md)). Moreover, the type system is **stricter than c**, which prevents common bugs (flaws) of the c language. **Memory safety** is also a primary concern. As for c compatibility, the language is **bidirectionally compatible with c** (c can be used in ML, ML can be used in c).
+The language is designed to closely **match c features** along with some **zero-overhead** quality of life improvements that you would find in a modern language, while maintaining the **ease of learning the language** (in about 10 minutes or less via [QUICKSTART](QUICKSTART.md)). Moreover, the type system is **stricter than c**, which prevents common bugs (flaws) of the c language. ~~**Memory safety** is also a primary concern~~. As for c compatibility, the language is **bidirectionally compatible with c** (c can be used in ML, ML can be used in c).
 
 ## Goodies
 
